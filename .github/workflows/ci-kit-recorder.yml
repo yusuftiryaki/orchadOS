@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - "services/kit-recorder/**"
+      - "test-vectors/**"
       - ".github/workflows/ci-kit-recorder.yml"
   push:
     branches: [main]
     paths:
       - "services/kit-recorder/**"
+      - "test-vectors/**"
       - ".github/workflows/ci-kit-recorder.yml"
 
 concurrency:

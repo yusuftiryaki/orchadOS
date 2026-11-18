@@ -147,9 +147,26 @@ def test_ssd_removed_mid_session_stops_with_sd_error(rig):
     st = rig.run(seconds=1)
     assert st[1] == 0 and st[2] & 0x01 == 0
     assert meta(rig)["stop_reason"] == "sd_error"
-    assert events(rig)[-1][2:4] == ["session_stop", "sd_error"]
+    assert [r[2:4] for r in events(rig)][-2:] == [
+        ["sd_error", "ssd_lost"],
+        ["session_stop", "sd_error"],
+    ]
     st = rig.run(seconds=2)  # the service keeps running
     assert st[1] == 0
+
+
+def test_ssd_removed_row_is_best_effort(rig, monkeypatch):
+    rig.cmd(START)
+    rig.run(seconds=2)
+
+    def gone(*_a, **_kw):
+        raise OSError(5, "Input/output error")
+
+    monkeypatch.setattr(rig.recorder.writer, "event", gone)
+    rig.ssd_status = SsdStatus(False, 0, False)
+    st = rig.run(seconds=1)
+    assert st[1] == 0 and st[2] & 0x04  # stopped, SSD error flag
+    assert meta(rig)["stop_reason"] == "sd_error"
 
 
 def test_write_error_stops_with_sd_error(rig, monkeypatch):
@@ -276,3 +293,142 @@ def test_wrong_lidar_mode_blocks_start(rig):
     assert st[30] == Result.PRECHECK_FAILED and st[53] == 2 and st[55] & Check.LIDAR_MODE
     rig.cmd("01 08 03 53 2d 31 04 50 2d 31 32 02")
     assert rig.status()[30] == Result.OK and rig.status()[57] == Check.LIDAR_MODE
+
+
+def test_open_session_is_recovered_when_the_ssd_appears_later(tmp_path):
+    # Boot: the SSD is mounted after the service started (fstab nofail).
+    first = FakeRig(tmp_path / "ssd")
+    first.run(seconds=3)
+    first.cmd(START)
+    first.run(seconds=2)  # the power goes off here
+    rig = FakeRig(tmp_path / "ssd", ssd_status=SsdStatus(False, 0, False))
+    rig.run(seconds=2)
+    assert meta(rig)["stop_reason"] is None  # not looked at: the SSD is not there
+    rig.ssd_status = SsdStatus(True, 400 * 1024, False)
+    rig.run(seconds=1)
+    assert meta(rig)["stop_reason"] == "power_loss" and meta(rig)["stop"] is None
+    rig.run(seconds=2)
+    rig.cmd(START)
+    assert rig.status()[30] == Result.SESSION_EXISTS
+
+
+def test_session_that_could_not_be_closed_is_closed_when_the_ssd_returns(rig, monkeypatch):
+    rig.cmd(START)
+    rig.run(seconds=2)
+    writer = rig.recorder.writer
+
+    def gone(*_a, **_kw):
+        raise OSError(5, "Input/output error")
+
+    for name in ("event", "close", "write_recording_json"):
+        monkeypatch.setattr(writer, name, gone)
+    rig.ssd_status = SsdStatus(False, 0, False)
+    rig.run(seconds=1)
+    assert not rig.recorder.recording and meta(rig)["stop_reason"] is None
+    rig.ssd_status = SsdStatus(True, 400 * 1024, False)
+    rig.run(seconds=1)
+    assert meta(rig)["stop_reason"] == "sd_error"
+
+
+def test_stop_time_is_taken_before_the_bag_is_stopped(rig, monkeypatch):
+    # ros2 bag may take up to ~15 s to close its last segment.
+    rig.cmd(START)
+    rig.run(seconds=2)
+    stop_bag = rig.bag.stop
+
+    def slow_stop(*a, **kw):
+        rig.clock.advance_us(12_000_000)
+        stop_bag(*a, **kw)
+
+    monkeypatch.setattr(rig.bag, "stop", slow_stop)
+    before = rig.clock.now_mono_us()
+    rig.cmd("02 09")
+    assert meta(rig)["stop"]["esp_micros"] == before
+    assert events(rig)[-1][0] == str(before)
+    rec = json.loads((rig.ssd / "sessions/S-1/lidar/raw/recording.json").read_text())
+    assert rec["stop_gps_ns"] == meta(rig)["stop"]["gps_time_ns"]
+
+
+def test_receiver_not_ready_at_start_is_configured_later(tmp_path):
+    from orchados_recorder.receiver import FakeTransport
+
+    rig = FakeRig(tmp_path / "ssd", transport=FakeTransport(respond_to_valset=None))
+    rig.run(seconds=3)
+    st = rig.status()
+    assert st[3] == 2 and st[55] & Check.GNSS  # no_response; cannot be overridden
+    rig.transport.respond_to_valset = "ack"
+    st = rig.run(seconds=6)
+    assert st[3] == 1 and not st[55] & Check.GNSS
+    rig.cmd(START)
+    assert rig.status()[30] == Result.OK
+    assert meta(rig)["receiver"]["config_status"] == "ok"
+
+
+def test_bytes_lost_to_a_reconfiguration_are_dropped_bytes(rig):
+    rig.cmd(START)
+    rig.run(seconds=2)
+    rig.transport.disconnect()
+    rig.run(seconds=1)
+    rig.transport.reconnect()
+    st = rig.run(seconds=2)
+    dropped = int.from_bytes(st[25:29], "little")
+    assert dropped > 0 and st[2] & 0x10  # data dropped in this session
+    rig.cmd("02 09")
+    assert meta(rig)["dropped_bytes"] == dropped
+    assert int.from_bytes(rig.status()[25:29], "little") == dropped  # kept for the summary
+    rig.cmd("01 0a 03 53 2d 32 04 50 2d 31 32")
+    st = rig.status()
+    assert int.from_bytes(st[25:29], "little") == 0 and not st[2] & 0x10
+
+
+def test_dead_bag_is_restarted_into_a_new_folder(rig):
+    rig.cmd(START)
+    rig.run(seconds=3)
+    rig.popen.current.die()
+    st = rig.run(seconds=1)
+    assert st[56] & Alert.LIDAR_NOT_WRITTEN and len(rig.popen.procs) == 1
+    st = rig.run(seconds=3)  # first restart after 2 s
+    assert len(rig.popen.procs) == 2
+    assert rig.popen.current.out_dir == rig.ssd / "sessions/S-1/lidar/raw/bag.1"
+    st = rig.run(seconds=2)
+    assert st[1] == 1 and not st[56] & Alert.LIDAR_NOT_WRITTEN
+    kinds = [r[2:4] for r in events(rig)]
+    death = kinds.index(["sd_error", "lidar_write"])
+    assert kinds[death + 1] == ["lidar_bag_restart", "bag.1"]
+    # Dies again at once: logged again, the next try waits longer (4 s).
+    rig.popen.current.die()
+    rig.run(seconds=3)
+    assert len(rig.popen.procs) == 2
+    rig.run(seconds=2)
+    assert len(rig.popen.procs) == 3
+    assert rig.popen.current.out_dir.name == "bag.2"
+    assert [r[2:4] for r in events(rig)].count(["sd_error", "lidar_write"]) == 2
+    rig.run(seconds=2)
+    rig.cmd("02 09")
+    rec = json.loads((rig.ssd / "sessions/S-1/lidar/raw/recording.json").read_text())
+    assert [s["file"] for s in rec["segments"]] == [
+        "bag/bag_0.mcap",
+        "bag.1/bag.1_0.mcap",
+        "bag.2/bag.2_0.mcap",
+    ]
+    total = sum(s["bytes"] for s in rec["segments"])
+    assert int.from_bytes(rig.status()[69:73], "little") == total >> 20
+
+
+def test_bag_that_never_started_is_retried(rig, monkeypatch):
+    real = rig.popen.__call__
+    calls = []
+
+    def flaky(cmd, **kw):
+        calls.append(cmd)
+        if len(calls) == 1:
+            raise FileNotFoundError("ros2")
+        return real(cmd, **kw)
+
+    rig.bag.popen = flaky
+    rig.cmd(START)
+    assert rig.status()[30] == Result.OK
+    rig.run(seconds=4)
+    assert len(calls) == 2 and rig.bag.alive()
+    assert rig.popen.current.out_dir.name == "bag"
+    assert ["lidar_bag_restart", "bag"] in [r[2:4] for r in events(rig)]

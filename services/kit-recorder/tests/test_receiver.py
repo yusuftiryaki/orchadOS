@@ -1,3 +1,5 @@
+import pytest
+
 from orchados_recorder.clock import FakeClock
 from orchados_recorder.receiver import (
     RECEIVER_INFO,
@@ -103,3 +105,109 @@ def test_no_data_keeps_last_rx_time():
     clock.advance_us(5_000_000)
     r.poll()
     assert r.last_rx_mono_us == first
+
+
+def test_failed_configuration_is_retried_every_few_seconds():
+    clock = FakeClock()
+    t = FakeTransport(respond_to_valset=None)
+    r = Receiver(t, nothing, nothing, clock=clock)
+    assert r.configure(timeout_s=0.01) == "no_response"
+    sent = len(t.written)
+    t.respond_to_valset = "ack"
+    r.retry_configure(timeout_s=0.01)
+    assert len(t.written) == sent  # too soon
+    clock.advance_us(5_000_000)
+    r.retry_configure(timeout_s=0.01)
+    assert r.config_status == "ok" and len(t.written) == sent + 1
+    clock.advance_us(60_000_000)
+    r.retry_configure(timeout_s=0.01)
+    assert len(t.written) == sent + 1  # configured: nothing more
+
+
+def test_bytes_read_while_configuring_are_counted_as_discarded():
+    data = frame(0x02, 0x15, bytes(16))
+    t = FakeTransport(script=[data], respond_to_valset="ack")
+    r = Receiver(t, nothing, nothing)
+    assert r.discarded_bytes == 0
+    r.configure()
+    assert r.discarded_bytes == len(data) + 10  # the RAWX and the ACK
+
+
+def test_configure_clears_a_pending_reconnect():
+    t = FakeTransport(respond_to_valset="ack")
+    t.reconnected = True  # opened before the first configuration
+    r = Receiver(t, nothing, nothing)
+    r.configure()
+    r.poll()
+    assert len([w for w in t.written if w[2:4] == b"\x06\x8a"]) == 1
+
+
+class FakeSerial:
+    """pyserial's Serial on a fake port."""
+
+    opened: list = []
+
+    def __init__(self, path, **_kw):
+        self.path = path
+        self.closed = False
+        self.chunks = [b"\xb5\x62"]
+        FakeSerial.opened.append(self)
+
+    @property
+    def in_waiting(self):
+        if self.closed:
+            raise OSError("closed")
+        return sum(len(c) for c in self.chunks)
+
+    def read(self, n):
+        if self.closed:
+            raise OSError("closed")
+        return self.chunks.pop(0) if self.chunks else b""
+
+    def write(self, data):
+        if self.closed:
+            raise OSError("closed")
+
+    def close(self):
+        self.closed = True
+
+
+@pytest.fixture
+def fake_serial(monkeypatch):
+    import serial
+
+    from orchados_recorder import receiver
+
+    ports: list[str] = []
+    FakeSerial.opened = []
+    monkeypatch.setattr(serial, "Serial", FakeSerial)
+    monkeypatch.setattr(receiver, "find_receiver_port", lambda *a: ports[0] if ports else None)
+    monkeypatch.setattr(receiver.SerialTransport, "REOPEN_INTERVAL_S", 0.0)
+    return ports
+
+
+def test_receiver_plugged_in_after_start_is_configured(fake_serial):
+    from orchados_recorder.receiver import SerialTransport
+
+    t = SerialTransport("auto", timeout_s=0.001)
+    assert not t.reconnected and t.read(10) == b""
+    r = Receiver(t, nothing, nothing)
+    assert r.configure(timeout_s=0.01) == "no_response"  # not plugged in
+    fake_serial.append("/dev/ttyACM0")
+    assert t.read(10) == b"\xb5\x62"
+    # The first open after a failed configuration needs one too.
+    assert t.reconnected
+
+
+def test_a_stale_drop_does_not_close_the_reopened_port(fake_serial):
+    from orchados_recorder.receiver import SerialTransport
+
+    fake_serial.append("/dev/ttyACM0")
+    t = SerialTransport("auto", timeout_s=0.001)
+    old = FakeSerial.opened[-1]
+    t._drop(old, OSError("unplugged"))  # the writer saw the link go
+    assert t.read(10) == b"\xb5\x62"  # the reader reopened it
+    new = FakeSerial.opened[-1]
+    assert new is not old
+    t._drop(old, OSError("late"))  # the reader's own failure on the old port
+    assert not new.closed and t.read(10) == b""

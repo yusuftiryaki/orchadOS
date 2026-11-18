@@ -60,21 +60,38 @@ install_once() {
 }
 
 # put_block FILE SRC: FILE gets SRC's lines once, between the orchadOS markers.
-# An older block is replaced. 0 if FILE changed.
+# An older block is replaced. Returns 0 if FILE changed, 1 if it was already in
+# place, 2 on an error (set -e does not apply inside a function called in a
+# condition, hence the explicit checks). The new content goes to a temp file next
+# to FILE, is synced and renamed over it: /boot/firmware is FAT, and a power cut
+# must leave the old or the new config.txt, never a truncated one.
 put_block() {
   local file=$1 src=$2 tmp
-  tmp="$(mktemp)"
-  if [[ -f $file ]]; then
-    awk -v b="$BLOCK_BEGIN" -v e="$BLOCK_END" \
-      '$0 == b {skip = 1; next} $0 == e {skip = 0; next} !skip' "$file" >"$tmp"
+  tmp="$(mktemp "$file.orchados.XXXXXX")" || return 2
+  if [[ -f $file ]] && ! awk -v b="$BLOCK_BEGIN" -v e="$BLOCK_END" \
+    '$0 == b {skip = 1; next} $0 == e {skip = 0; next} !skip' "$file" >"$tmp"; then
+    rm -f "$tmp"
+    return 2
   fi
-  { echo "$BLOCK_BEGIN"; cat "$src"; echo "$BLOCK_END"; } >>"$tmp"
+  if ! { echo "$BLOCK_BEGIN" && cat "$src" && echo "$BLOCK_END"; } >>"$tmp"; then
+    rm -f "$tmp"
+    return 2
+  fi
   if [[ -f $file ]] && cmp -s "$tmp" "$file"; then
     rm -f "$tmp"
     return 1
   fi
-  cat "$tmp" >"$file"
-  rm -f "$tmp"
+  # mktemp makes it 0600; keep the old file's mode (FAT ignores both).
+  if [[ -f $file ]]; then
+    chmod --reference="$file" "$tmp" 2>/dev/null || true
+  else
+    chmod 0644 "$tmp" 2>/dev/null || true
+  fi
+  if ! sync "$tmp" || ! mv -f "$tmp" "$file"; then
+    rm -f "$tmp"
+    return 2
+  fi
+  sync "$(dirname "$file")" || true
   note "updated $file"
 }
 
@@ -158,11 +175,16 @@ configure_boot() {
     warn "$BOOT_CONFIG not found; add setup/config.txt.append to the boot config by hand"
     return
   fi
-  if put_block "$BOOT_CONFIG" "$SETUP/config.txt.append"; then
-    reboot_needed=1
-  else
-    note "already in place"
-  fi
+  local rc=0
+  put_block "$BOOT_CONFIG" "$SETUP/config.txt.append" || rc=$?
+  case $rc in
+    0) reboot_needed=1 ;;
+    1) note "already in place" ;;
+    *)
+      warn "could not update $BOOT_CONFIG"
+      exit 1
+      ;;
+  esac
 }
 
 configure_chrony() {

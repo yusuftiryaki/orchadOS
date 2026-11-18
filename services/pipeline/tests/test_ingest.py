@@ -113,6 +113,20 @@ def test_kit_recorder_power_loss_passes_ingest(tmp_path):
     assert "session_stop" not in m.event_counts
 
 
+def test_kit_recorder_service_error_passes_ingest(tmp_path):
+    # The recorder service failed and closed the session itself (docs/arayuzler.md).
+    session = _kit_session(tmp_path)
+    logger_path = session / "gnss" / "session.json"
+    info = json.loads(logger_path.read_text())
+    logger_path.write_text(json.dumps({**info, "stop_reason": "service_error"}))
+    events = session / "gnss" / "events.csv"
+    text = events.read_text()
+    events.write_text(text.replace(",session_stop,command,", ",session_stop,service_error,"))
+    m = build_manifest(RunContext.create(session, tmp_path / "out"))
+    assert m.logger.stop is not None and m.logger.stop_reason == "service_error"
+    assert m.warnings == [] and m.event_counts["session_stop"] == 1
+
+
 def test_manifest_hashes_and_roles(synthetic_session, tmp_path):
     session, _ = synthetic_session
     m = build_manifest(RunContext.create(session, tmp_path / "out"))

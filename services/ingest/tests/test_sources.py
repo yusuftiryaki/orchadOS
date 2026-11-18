@@ -62,6 +62,9 @@ def test_kit_ssd_maps_session_to_root(tmp_path):
     (s / "gnss" / "events.csv").write_text("e")
     (s / "lidar" / "raw" / "bag" / "bag_0.mcap").write_bytes(b"y")
     (s / "lidar" / "raw" / "bag" / "metadata.yaml").write_text("m")
+    # ros2 bag restarted mid-session: a second folder.
+    (s / "lidar" / "raw" / "bag.1").mkdir()
+    (s / "lidar" / "raw" / "bag.1" / "bag.1_0.mcap").write_bytes(b"w")
     (s / "lidar" / "raw" / "recording.json").write_text("{}")
     (ssd / "sessions" / "other" / "gnss").mkdir(parents=True)
     (ssd / "sessions" / "other" / "gnss" / "gnss.ubx").write_bytes(b"z")
@@ -74,6 +77,7 @@ def test_kit_ssd_maps_session_to_root(tmp_path):
         "gnss/session.json",
         "lidar/raw/bag/bag_0.mcap",
         "lidar/raw/bag/metadata.yaml",
+        "lidar/raw/bag.1/bag.1_0.mcap",
         "lidar/raw/recording.json",
     ]
     assert (p.session_id, p.parcel_id, p.org_id) == ("S-1", "P-12", None)

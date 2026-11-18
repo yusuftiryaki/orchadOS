@@ -91,6 +91,32 @@ def cmd_fake_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def serve(recorder, run, lock: threading.Lock) -> int:
+    """Run the BLE server (`run()` makes its coroutine) until it ends; close an
+    open session on the way out.
+
+    A clean stop (SIGTERM, raised as KeyboardInterrupt) closes it with
+    stop_reason "command" and returns 0. Anything else that ends the server is
+    a failure: logged with its traceback, the session closed with
+    "service_error", and 1 returned (systemd restarts the service).
+    """
+    reason, code = "command", 0
+    try:
+        asyncio.run(run())
+    except KeyboardInterrupt:
+        pass
+    except Exception:
+        reason, code = "service_error", 1
+        log.exception(
+            "orchados-recorder failed; an open session is closed with stop_reason service_error"
+        )
+    finally:
+        with lock:
+            if recorder.recording:
+                recorder.stop_session(reason)
+    return code
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     from .ble import adapter_mac, device_name, run_server
     from .clock import ChronySockFeed, SystemClock
@@ -138,17 +164,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     name = device_name(adapter_mac())
     log.info("orchados-recorder %s; SSD %s; BLE name %s", __version__, config.ssd_mount, name)
     try:
-        asyncio.run(run_server(recorder, name, lock=lock))
-    except KeyboardInterrupt:
-        pass
+        return serve(recorder, lambda: run_server(recorder, name, lock=lock), lock)
     finally:
         stop.set()
-        with lock:
-            if recorder.recording:
-                # A clean service stop (systemctl stop) closes the session.
-                recorder.handle_command(encode_command(StopSession(0)))
         transport.close()
-    return 0
 
 
 def cmd_version(_args: argparse.Namespace) -> int:

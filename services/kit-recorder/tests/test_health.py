@@ -124,3 +124,22 @@ def test_other_alerts(healthy):
     a, _ = h.update(healthy(clock=ClockState.UNLOCKED))
     counts = {e["type"]: e["count"] for e in h.alert_log}
     assert counts["clock_unlocked"] == 3 and counts["ssd_low"] == 1
+
+
+def test_every_bag_death_is_logged_and_a_restart_gets_a_grace_period(healthy):
+    h = LiveHealth(0)
+    s = 1_000_000
+    _, ev = h.update(healthy(t=20 * s, bag_bytes=100))
+    _, ev = h.update(healthy(t=21 * s, bag_bytes=100, bag_alive=False))
+    assert ev == [("sd_error", "lidar_write")]
+    _, ev = h.update(healthy(t=30 * s, bag_bytes=100, bag_alive=False))
+    assert ev == []
+    # Restarted: the new process has BAG_STALL_S to write its first chunk.
+    a, ev = h.update(healthy(t=31 * s, bag_bytes=100))
+    assert ev == [] and Alert.LIDAR_NOT_WRITTEN not in a
+    a, _ = h.update(healthy(t=40 * s, bag_bytes=100))
+    assert Alert.LIDAR_NOT_WRITTEN not in a
+    a, _ = h.update(healthy(t=41 * s, bag_bytes=100))
+    assert Alert.LIDAR_NOT_WRITTEN in a
+    _, ev = h.update(healthy(t=42 * s, bag_bytes=100, bag_alive=False))
+    assert ev == [("sd_error", "lidar_write")]  # died again

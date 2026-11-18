@@ -74,3 +74,61 @@ def test_install_script_uses_every_setup_file():
 @pytest.mark.parametrize("name", ["install.sh", "orchados-ros-exec"])
 def test_shell_scripts_parse(name):
     subprocess.run(["bash", "-n", str(SETUP / name)], check=True)
+
+
+def _shell_function(script: str, name: str) -> str:
+    m = re.search(rf"^{name}\(\) \{{\n.*?^\}}\n", script, re.S | re.M)
+    assert m, f"install.sh has no {name}()"
+    return m.group(0)
+
+
+def _run_put_block(target: Path, block: Path) -> int:
+    script = (SETUP / "install.sh").read_text()
+    prelude = "\n".join(
+        line for line in script.splitlines() if line.startswith(("BLOCK_BEGIN=", "BLOCK_END="))
+    )
+    body = (
+        "set -euo pipefail\n"
+        f"{prelude}\n"
+        "note() { :; }\n"
+        f"{_shell_function(script, 'put_block')}"
+        'put_block "$1" "$2"\n'
+    )
+    return subprocess.run(["bash", "-c", body, "put_block", str(target), str(block)]).returncode
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="no bash")
+def test_put_block_replaces_the_file_by_rename(tmp_path):
+    # /boot/firmware/config.txt is on FAT: never rewrite it in place, so a power
+    # cut leaves the old or the new file, not a truncated one.
+    target = tmp_path / "config.txt"
+    target.write_text("arm_64bit=1\n")
+    block = tmp_path / "block"
+    block.write_text("dtoverlay=pps-gpio,gpiopin=18\n")
+    inode = target.stat().st_ino
+    assert _run_put_block(target, block) == 0
+    text = target.read_text()
+    assert text.startswith("arm_64bit=1\n# >>> orchados kit-recorder >>>\n")
+    assert "dtoverlay=pps-gpio,gpiopin=18\n# <<< orchados kit-recorder <<<\n" in text
+    assert target.stat().st_ino != inode  # a new file renamed over the old one
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["block", "config.txt"]
+    # Again: nothing changes.
+    inode = target.stat().st_ino
+    assert _run_put_block(target, block) == 1
+    assert target.read_text() == text and target.stat().st_ino == inode
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["block", "config.txt"]
+    # A new block replaces the old one.
+    block.write_text("usb_max_current_enable=1\n")
+    assert _run_put_block(target, block) == 0
+    text = target.read_text()
+    assert "pps-gpio" not in text and text.count("# >>> orchados kit-recorder >>>") == 1
+
+
+def test_recorder_unit_is_ordered_after_the_ssd_mount_but_does_not_need_it():
+    # Power-loss recovery looks at the SSD at start: wait for the boot-time mount
+    # (or its 10 s device timeout), but keep running without the SSD.
+    unit = (SETUP / "orchados-recorder.service").read_text()
+    after = next(line for line in unit.splitlines() if line.startswith("After="))
+    assert "mnt-orchados\\x2dssd.mount" in after.split("=", 1)[1].split()
+    for key in ("RequiresMountsFor=", "BindsTo=", "Requires=", "PartOf="):
+        assert not any(line.startswith(key) for line in unit.splitlines())

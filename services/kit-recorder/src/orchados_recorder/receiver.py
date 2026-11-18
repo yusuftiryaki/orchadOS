@@ -1,8 +1,9 @@
 """The GNSS receiver (u-blox ZED-F9P) over USB.
 
-The recorder is the serial port's only owner (no gpsd). At start and after
-every USB reconnect it writes the logging configuration to the receiver's RAM
-layer with UBX-CFG-VALSET and waits for the ACK, as the ESP32 does over UART
+The recorder is the serial port's only owner (no gpsd). At start, after every
+open of the USB port and every CONFIG_RETRY_S while it has not succeeded, it
+writes the logging configuration to the receiver's RAM layer with
+UBX-CFG-VALSET and waits for the ACK, as the ESP32 does over UART
 (firmware/gnss-logger/README.md, "Açılışta alıcı yapılandırması"). Afterwards
 every byte read is handed on untouched (gnss.ubx) and NAV-PVT is decoded.
 """
@@ -69,13 +70,17 @@ RECEIVER_INFO: dict = {
 }
 
 READ_CHUNK = 4096
+# While the configuration is not "ok" (receiver plugged in late, an ACK missed)
+# it is sent again this often, one attempt at a time so BLE is not held up long.
+CONFIG_RETRY_S = 5.0
 
 
 class Transport(Protocol):
     """A byte pipe to the receiver.
 
     `read` returns b"" on timeout or while disconnected. A transport that can
-    reconnect sets `reconnected = True` once afterwards; the receiver clears it.
+    (re)open the port sets `reconnected = True` after every successful open; the
+    receiver clears it when it configures the receiver.
     """
 
     reconnected: bool
@@ -101,10 +106,16 @@ class Receiver:
         self.config_status = "pending"
         self.last_rx_mono_us: int | None = None
         self.last_pvt: NavPvt | None = None
+        # Bytes read while waiting for the ACK; they are not recorded.
+        self.discarded_bytes = 0
+        self._configured_us: int | None = None
         self._framer = Framer()
 
     def configure(self, attempts: int = 3, timeout_s: float = 1.0) -> str:
-        """'ok' | 'nak' | 'no_response'. Bytes read meanwhile are not recorded."""
+        """'ok' | 'nak' | 'no_response'. Bytes read meanwhile are not recorded
+        (counted in `discarded_bytes`)."""
+        # This configuration covers any (re)open before it.
+        self._clear_reconnected()
         msg = cfg_valset_ram(USB_CONFIG)
         framer = Framer()
         status = "no_response"
@@ -120,10 +131,30 @@ class Receiver:
                 status = "ok" if answer else "nak"
                 break
         self.config_status = status
+        self._configured_us = self.clock.now_mono_us()
         self._framer.reset()
-        if status != "ok":
+        if status == "ok":
+            self._clear_reconnected()
+        else:
             log.warning("receiver configuration: %s", status)
         return status
+
+    def retry_configure(self, timeout_s: float = 1.0) -> None:
+        """Called often: while the configuration is not "ok", one attempt every
+        CONFIG_RETRY_S. Without this a receiver that was not ready at start (or
+        missed the ACK window once) would stay unconfigured, and the gnss
+        pre-check, which cannot be overridden, would block every session."""
+        if self.config_status == "ok":
+            return
+        now = self.clock.now_mono_us()
+        if self._configured_us is not None and now - self._configured_us < CONFIG_RETRY_S * 1e6:
+            return
+        log.info("receiver: configuration %s; trying again", self.config_status)
+        self.configure(attempts=1, timeout_s=timeout_s)
+
+    def _clear_reconnected(self) -> None:
+        if getattr(self.transport, "reconnected", False):
+            self.transport.reconnected = False
 
     def _await_ack(self, framer: Framer, timeout_s: float) -> bool | None:
         deadline = time.monotonic() + timeout_s
@@ -133,6 +164,7 @@ class Receiver:
                 time.sleep(0.001)
                 continue
             self.last_rx_mono_us = self.clock.now_mono_us()
+            self.discarded_bytes += len(data)
             for m in framer.feed(data):
                 answer = is_ack(m, CLASS_CFG, ID_CFG_VALSET)
                 if answer is not None:
@@ -142,9 +174,9 @@ class Receiver:
     def poll(self) -> None:
         """Read once; pass every byte on and decode NAV-PVT."""
         if getattr(self.transport, "reconnected", False):
-            # The receiver kept its settings in RAM only: it may have lost them.
-            self.transport.reconnected = False
-            log.info("receiver: USB reconnected, configuring again")
+            # The receiver keeps its settings in RAM only: it may have lost them,
+            # or (plugged in after start) never had them.
+            log.info("receiver: USB (re)connected, configuring")
             self.configure()
         data = self.transport.read(READ_CHUNK)
         if not data:
@@ -167,22 +199,31 @@ class SerialTransport:
     """pyserial on the receiver's USB CDC-ACM port.
 
     `port` is a device path or "auto" (the first /dev/serial/by-id/usb-u-blox*).
-    If the USB link drops, `read` returns b"" and tries to reopen at most once
-    a second; after a successful reopen `reconnected` is True.
+    If the port is missing or the USB link drops, `read` returns b"" and tries to
+    (re)open it at most once a second; after every successful open `reconnected`
+    is True, so the receiver configures it (also when it was plugged in after the
+    service started).
+
+    `read` runs in QueuedTransport's thread, `write` in the recorder's: opening
+    and dropping the port happen under a lock, and a failure on a port that has
+    since been replaced does not drop the new one.
     """
 
     REOPEN_INTERVAL_S = 1.0
 
     def __init__(self, port: str = "auto", timeout_s: float = 0.1) -> None:
+        import threading
+
         self.port = port
         self.timeout_s = timeout_s
         self.reconnected = False
         self._ser = None
-        self._opened_once = False
         self._next_open = 0.0
-        self._open()
+        self._lock = threading.Lock()
+        with self._lock:
+            self._open_locked()
 
-    def _open(self) -> bool:
+    def _open_locked(self) -> bool:
         import serial  # pyserial
 
         now = time.monotonic()
@@ -198,43 +239,52 @@ class SerialTransport:
             log.debug("receiver: cannot open %s: %s", path, exc)
             self._ser = None
             return False
-        if self._opened_once:
-            self.reconnected = True
-        self._opened_once = True
+        self.reconnected = True
         log.info("receiver: opened %s", path)
         return True
 
-    def _drop(self, exc: Exception) -> None:
-        log.warning("receiver: USB link lost: %s", exc)
-        try:
-            self._ser.close()
-        except Exception:  # closing a dead port
-            pass
-        self._ser = None
-        self._opened_once = True
+    def _port(self):
+        """The open port, opening it if it is time to try; None if not connected."""
+        with self._lock:
+            if self._ser is None:
+                self._open_locked()
+            return self._ser
+
+    def _drop(self, ser, exc: Exception) -> None:
+        with self._lock:
+            if self._ser is not ser:
+                return  # the other thread already dropped (and maybe reopened) it
+            log.warning("receiver: USB link lost: %s", exc)
+            try:
+                ser.close()
+            except Exception:  # closing a dead port
+                pass
+            self._ser = None
 
     def read(self, max_bytes: int) -> bytes:
         import serial
 
-        if self._ser is None and not self._open():
+        ser = self._port()
+        if ser is None:
             time.sleep(self.timeout_s)
             return b""
         try:
-            n = max(1, min(max_bytes, self._ser.in_waiting))
-            return self._ser.read(n)
+            n = max(1, min(max_bytes, ser.in_waiting))
+            return ser.read(n)
         except (OSError, serial.SerialException) as exc:
-            self._drop(exc)
+            self._drop(ser, exc)
             return b""
 
     def write(self, data: bytes) -> None:
         import serial
 
-        if self._ser is None and not self._open():
+        ser = self._port()
+        if ser is None:
             raise OSError("receiver not connected")
         try:
-            self._ser.write(data)
+            ser.write(data)
         except (OSError, serial.SerialException) as exc:
-            self._drop(exc)
+            self._drop(ser, exc)
             raise OSError(str(exc)) from exc
 
 

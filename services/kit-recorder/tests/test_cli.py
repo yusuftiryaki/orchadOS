@@ -131,3 +131,52 @@ def test_queued_transport_reads_in_the_background():
         assert not inner.reconnected
     finally:
         t.close()
+
+
+def _recording_rig(tmp_path):
+    from orchados_recorder.fakes import FakeRig
+    from orchados_recorder.protocol import StartSession, encode_command
+
+    rig = FakeRig(tmp_path / "ssd")
+    rig.run(seconds=3)
+    rig.command(encode_command(StartSession(1, "S-1", "P-12")))
+    rig.run(seconds=2)
+    assert rig.recorder.recording
+    return rig
+
+
+def _stop_reason(rig):
+    d = rig.ssd / "sessions/S-1/gnss"
+    meta = json.loads((d / "session.json").read_text())
+    last = (d / "events.csv").read_text().splitlines()[-1].split(",")
+    assert last[2:4] == ["session_stop", meta["stop_reason"]]
+    return meta["stop_reason"]
+
+
+def test_service_failure_closes_the_session_as_service_error(tmp_path, caplog):
+    import threading
+
+    from orchados_recorder.cli import serve
+
+    rig = _recording_rig(tmp_path)
+
+    async def broken():
+        raise RuntimeError("tick blew up")
+
+    assert serve(rig.recorder, broken, threading.Lock()) == 1
+    assert not rig.recorder.recording and _stop_reason(rig) == "service_error"
+    assert "tick blew up" in caplog.text and "service_error" in caplog.text
+
+
+def test_clean_service_stop_closes_the_session_as_command(tmp_path):
+    import threading
+
+    from orchados_recorder.cli import serve
+
+    rig = _recording_rig(tmp_path)
+
+    async def stopped():
+        raise KeyboardInterrupt  # SIGTERM
+
+    assert serve(rig.recorder, stopped, threading.Lock()) == 0
+    assert _stop_reason(rig) == "command"

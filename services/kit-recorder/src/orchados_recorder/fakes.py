@@ -114,15 +114,17 @@ class FakeRig:
         clock: FakeClock | None = None,
         bag_bytes_per_s: int = 4096,
         version: str | None = None,
+        ssd_status: SsdStatus | None = None,
+        transport: FakeTransport | None = None,
     ) -> None:
         self.ssd = Path(ssd)
         self.ssd.mkdir(parents=True, exist_ok=True)
         self.clock = clock if clock is not None else FakeClock()
-        self.transport = FakeTransport()
+        self.transport = transport if transport is not None else FakeTransport()
         self.lidar = FakeLidarMonitor(self.clock)
         self.popen = FakePopen()
         self.bag = BagRecorder(LidarConfig(), popen=self.popen)
-        self.ssd_status = SsdStatus(present=True, free_mib=400 * 1024, error=False)
+        self.ssd_status = ssd_status or SsdStatus(present=True, free_mib=400 * 1024, error=False)
         self.bag_bytes_per_s = bag_bytes_per_s
         self.receiver_sending = True
         deps = Deps(
@@ -168,5 +170,5 @@ class FakeRig:
         proc = self.popen.current
         if proc is None or proc.poll() is not None or self.lidar.silent:
             return
-        with open(proc.out_dir / "bag_0.mcap", "ab") as f:
+        with open(proc.out_dir / f"{proc.out_dir.name}_0.mcap", "ab") as f:
             f.write(bytes(self.bag_bytes_per_s))

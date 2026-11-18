@@ -78,7 +78,7 @@ class LiveHealth:
         self._gnss_lost = False
         self._bag_bytes = 0
         self._bag_growth_us = start_mono_us
-        self._bag_failure_logged = False
+        self._bag_was_alive = True
 
     @property
     def gap_count(self) -> int:
@@ -137,18 +137,20 @@ class LiveHealth:
 
         # The MCAP must grow while points arrive (the bag also carries UBX, but
         # MCAP writes in chunks, so only the LiDAR's own rate makes growth certain).
+        # A restarted bag gets BAG_STALL_S for its first chunk, like a new session.
+        restarted = s.bag_alive and not self._bag_was_alive
         if s.bag_bytes > self._bag_bytes:
             self._bag_bytes = s.bag_bytes
             self._bag_growth_us = s.mono_us
-        elif lidar_silent:
+        elif lidar_silent or restarted:
             self._bag_growth_us = s.mono_us
         in_start_window = s.mono_us - self.start_mono_us < BAG_STALL_S * _US
         stalled = s.mono_us - self._bag_growth_us >= BAG_STALL_S * _US
         if not s.bag_alive or (stalled and not in_start_window):
             alerts |= Alert.LIDAR_NOT_WRITTEN
-        if not s.bag_alive and not self._bag_failure_logged:
-            self._bag_failure_logged = True
+        if not s.bag_alive and self._bag_was_alive:  # every death once
             events.append(("sd_error", "lidar_write"))
+        self._bag_was_alive = s.bag_alive
 
         gnss_silent = _silent(s.gnss_last_mono_us, s.mono_us, GNSS_SILENT_S)
         if gnss_silent:

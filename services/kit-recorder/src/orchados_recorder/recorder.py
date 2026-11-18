@@ -45,6 +45,9 @@ from .receiver import RECEIVER_INFO, Receiver, Transport
 from .session import Anchor, SessionWriter, TimeStamp, recover_open_sessions, session_dir
 from .ssd import SsdStatus, probe_ssd
 from .thresholds import (
+    BAG_RESTART_MAX_S,
+    BAG_RESTART_MIN_S,
+    BAG_RESTART_RESET_S,
     LIDAR_RATE_WINDOW_S,
     LIDAR_SILENT_S,
     PPS_LOST_S,
@@ -125,6 +128,9 @@ class Recorder:
         self.overrides = Check(0)
         self.alerts = Alert(0)
         self.session_gnss_bytes = 0
+        # Receiver bytes lost to a reconfiguration in this session (not in gnss.ubx).
+        self.session_dropped_bytes = 0
+        self._discarded_at_start = 0
         self.bag_bytes = 0
         self.gap_count = 0
         self.longest_gap_s = 0
@@ -132,14 +138,15 @@ class Recorder:
         self._imu_total = 0
         self._session_pps = False
         self._session_meta: dict = {}
+        # ros2 bag supervision: when the process (re)started, the next restart
+        # time while it is dead, and how many restarts in a row came too soon.
+        self._bag_started_us = 0
+        self._bag_retry_us: int | None = None
+        self._bag_quick_deaths = 0
 
-        try:
-            closed = recover_open_sessions(deps.ssd_mount)
-        except OSError as exc:
-            log.warning("cannot look for open sessions: %s", exc)
-            closed = []
-        for sid in closed:
-            log.warning("session %s was left open (power loss); closed as power_loss", sid)
+        # Sessions this process stopped but could not close (SSD gone): their
+        # stop_reason, written when the SSD is back.
+        self._unclosed: dict[str, str] = {}
 
         self.receiver.configure(timeout_s=deps.receiver_timeout_s)
         self.deps.lidar.apply_mode()
@@ -200,7 +207,12 @@ class Recorder:
             self._imu_total += s.imu_messages
 
     def _probe(self, write_test: bool) -> None:
+        was_present = self.ssd.present
         self.ssd = self.deps.probe_ssd(self.deps.ssd_mount, write_test=write_test)
+        if self.ssd.present and not was_present and not self.recording:
+            # At start and whenever the SSD comes (back): the mount may come
+            # after the service (fstab nofail), so this is not done only once.
+            self._recover()
         if (
             write_test
             and self._write_error_us is not None
@@ -209,6 +221,18 @@ class Recorder:
             and self.clock.now_mono_us() - self._write_error_us >= SD_ERROR_HOLD_S * _US
         ):
             self._write_error_us = None
+
+    def _recover(self) -> None:
+        """Close the sessions left open on the SSD (power_loss, or the reason of a
+        stop whose files could not be written)."""
+        try:
+            closed = recover_open_sessions(self.deps.ssd_mount, reasons=self._unclosed)
+        except OSError as exc:
+            log.warning("cannot look for open sessions: %s", exc)
+            return
+        for sid in closed:
+            reason = self._unclosed.pop(sid, "power_loss")
+            log.warning("session %s was left open; closed as %s", sid, reason)
 
     def _snapshot(self) -> Snapshot:
         now = self._now()
@@ -239,10 +263,17 @@ class Recorder:
     def pump(self) -> None:
         """Read the receiver; while recording its bytes go to gnss.ubx and the bag."""
         self.receiver.poll()
+        self._count_dropped()
+
+    def _count_dropped(self) -> None:
+        if self.recording:
+            self.session_dropped_bytes = self.receiver.discarded_bytes - self._discarded_at_start
 
     def tick(self) -> bytes:
         """Once a second: health, events, fsync; returns the status message."""
+        self.receiver.retry_configure(timeout_s=self.deps.receiver_timeout_s)
         self.receiver.poll()
+        self._count_dropped()
         self._add_lidar(self.deps.lidar.drain())
         if self.recording:
             self.bag_bytes = self.deps.bag.written_bytes(self.writer.lidar_dir)
@@ -254,8 +285,7 @@ class Recorder:
     def _tick_recording(self, snap: Snapshot) -> None:
         if not self.ssd.present or self.ssd.error:
             log.error("SSD gone or failing while recording; stopping")
-            self._write_error_us = self.clock.now_mono_us()
-            self._stop("sd_error")
+            self._abort("ssd_lost")
             return
         if self.ssd.free_mib < SSD_STOP_MIB:
             log.error("SSD full; stopping")
@@ -273,10 +303,38 @@ class Recorder:
         for event_type, payload in events:
             if not self._event(event_type, payload):
                 return
+        if not self._supervise_bag(snap.mono_us):
+            return
         try:
             self.writer.maybe_fsync(snap.mono_us)
         except OSError as exc:
             self._fail("gnss_write", exc)
+
+    def _supervise_bag(self, now_us: int) -> bool:
+        """Restart a dead `ros2 bag` with a growing wait (a new folder each time:
+        bag.1/, bag.2/, ...). False if the session stopped (events.csv failed)."""
+        bag = self.deps.bag
+        if bag.alive():
+            return True
+        if self._bag_retry_us is None:  # just found dead
+            if now_us - self._bag_started_us >= BAG_RESTART_RESET_S * _US:
+                self._bag_quick_deaths = 0
+            wait_s = min(BAG_RESTART_MAX_S, BAG_RESTART_MIN_S * 2**self._bag_quick_deaths)
+            self._bag_quick_deaths += 1
+            self._bag_retry_us = now_us + wait_s * _US
+            log.error("ros2 bag is not running; restarting it in %s s", wait_s)
+            return True
+        if now_us < self._bag_retry_us:
+            return True
+        self._bag_retry_us = None
+        self._bag_started_us = now_us
+        try:
+            name = bag.restart(self.writer.lidar_dir)
+        except OSError as exc:
+            log.error("cannot restart ros2 bag: %s", exc)
+            return True
+        log.warning("ros2 bag restarted into lidar/raw/%s/", name)
+        return self._event("lidar_bag_restart", name)
 
     # --- receiver callbacks --------------------------------------------------
 
@@ -360,6 +418,8 @@ class Recorder:
         self.overrides = overrides
         self.alerts = Alert(0)
         self.session_gnss_bytes = 0
+        self.session_dropped_bytes = 0
+        self._discarded_at_start = self.receiver.discarded_bytes
         self.bag_bytes = 0
         self.gap_count = 0
         self.longest_gap_s = 0
@@ -374,13 +434,22 @@ class Recorder:
             "precheck_overrides": check_names(overrides),
             "lidar_mode": self.deps.lidar.mode(),
         }
+        self._bag_started_us = start.mono_us
+        self._bag_retry_us = None
+        self._bag_quick_deaths = 0
         try:
             self.deps.bag.start(writer.lidar_dir)
         except OSError as exc:
-            # GNSS still records; the missing bag shows as lidar_not_written.
+            # GNSS still records; the missing bag shows as lidar_not_written and
+            # is tried again from the tick.
             log.error("cannot start ros2 bag: %s", exc)
         log.info("session %s started (overrides: %s)", cmd.session_id, check_names(overrides))
         return Result.OK
+
+    def stop_session(self, reason: str) -> bool:
+        """Close the open session (the service is stopping); False if there was
+        none or its files could not be written."""
+        return self._stop(reason)
 
     def _stop_command(self) -> Result:
         if not self.recording:
@@ -405,12 +474,16 @@ class Recorder:
     def _fail(self, what: str, exc: Exception) -> None:
         """A write failed: sd_error (best effort), then stop with sd_error."""
         log.error("write failed (%s): %s; stopping", what, exc)
+        self._abort(what)
+
+    def _abort(self, what: str) -> None:
+        """An sd_error row (best effort: the SSD may be gone), then stop with sd_error."""
         self._write_error_us = self.clock.now_mono_us()
         if self.writer is None:
             return
         try:
             self.writer.event("sd_error", what, self._now(), self.anchor)
-        except OSError:
+        except (OSError, ValueError):  # ValueError: the file is already closed
             pass
         self._stop("sd_error")
 
@@ -418,13 +491,15 @@ class Recorder:
         writer, health = self.writer, self.health
         if writer is None:
             return False
+        self._count_dropped()
         self.writer = None
         ok = True
+        # The stop time is now: closing the bag's last segment can take ~15 s.
+        stop = self._now()
         try:
             self.deps.bag.stop()
         except Exception as exc:
             log.error("cannot stop ros2 bag: %s", exc)
-        stop = self._now()
         health.finish(stop.mono_us, stop.gps_ns)
         self.gap_count = health.gap_count
         self.longest_gap_s = health.longest_gap_s
@@ -461,7 +536,7 @@ class Recorder:
                 stop,
                 reason,
                 gnss_bytes=writer.gnss_bytes,
-                dropped_bytes=0,
+                dropped_bytes=self.session_dropped_bytes,
                 anchor=self.anchor,
             )
         except OSError as exc:
@@ -469,6 +544,7 @@ class Recorder:
             ok = False
         if not ok:
             self._write_error_us = stop.mono_us
+            self._unclosed[writer.session_id] = reason
         self.health = None
         self.overrides = Check(0)
         self.alerts = Alert(0)
@@ -488,6 +564,8 @@ class Recorder:
                 flags |= Flag.SD_LOW_SPACE
         if sd_error:
             flags |= Flag.SD_ERROR
+        if self.session_dropped_bytes:
+            flags |= Flag.DATA_DROPPED
         if locked:
             flags |= Flag.TIME_MAPPED
         if pvt is not None and pvt.gnss_fix_ok:
@@ -517,7 +595,7 @@ class Recorder:
             sd_free_mib=self.ssd.free_mib,
             battery_mv=0,
             fw=_version_tuple(self.version),
-            dropped_bytes=0,
+            dropped_bytes=self.session_dropped_bytes,
             last_cmd_seq=self.last_cmd_seq,
             last_cmd_result=self.last_cmd_result,
             gps_time_ns=unix_ns_to_gps_ns(self.clock.now_unix_ns()) if locked else 0,

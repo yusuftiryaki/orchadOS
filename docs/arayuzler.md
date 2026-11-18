@@ -31,6 +31,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
   lidar/raw/          kit kaydedicisi (Pi), LiDAR'lı kit
     bag/*.mcap        LiDAR nokta + IMU ve ham UBX (ros2 bag, birkaç dakikalık parçalar)
     bag/metadata.yaml ros2 bag'in üst bilgisi
+    bag.1/, bag.2/ …  kayıt süreci oturum ortasında ölüp yeniden başlatıldıysa sonraki kayıtlar (aynı düzen, ör. bag.1/bag.1_0.mcap)
     recording.json    kayıt özeti (aşağıda)
   video/*.mp4|*.insv  kamera: equirectangular MP4 ya da kameranın ham .insv kaydı
   base/*              operasyon (opsiyonel; baz/CORS RINEX)
@@ -41,7 +42,7 @@ Bir tarama oturumu işleme istasyonuna tek bir klasör olarak gelir. Klasör ad�
 | --- | --- | --- | --- |
 | `session.json` | Saha uygulaması yazar, operasyon tamamlar | Oturum başlatılırken; operasyon işlemeden önce eksik alanları doldurur | Evet |
 | `gnss/gnss.ubx`, `gnss/events.csv`, `gnss/session.json` | GNSS kaydedici (ESP32 ya da kit kaydedicisi) | Kayıt sırasında karta ya da SSD'ye. ESP32: operasyon kartın `/sessions/<session_id>/` klasörünü olduğu gibi `gnss/` altına kopyalar. Pi: SSD'deki `/sessions/<session_id>/` klasörü `gnss/` ve `lidar/` alt klasörleriyle yazılır ve olduğu gibi oturum **köküne** kopyalanır (`orchados-ingest push`, düzen `kit-ssd`) | Evet |
-| `lidar/raw/bag/*.mcap`, `lidar/raw/bag/metadata.yaml`, `lidar/raw/recording.json` | Kit kaydedicisi (Pi) | Kayıt sırasında SSD'ye; yukarıdaki kopyayla gelir | Hayır (LiDAR'lı kitte beklenir) |
+| `lidar/raw/bag/*.mcap`, `lidar/raw/bag/metadata.yaml` (yeniden başlatmalardan sonra ayrıca `lidar/raw/bag.<n>/`), `lidar/raw/recording.json` | Kit kaydedicisi (Pi) | Kayıt sırasında SSD'ye; yukarıdaki kopyayla gelir | Hayır (LiDAR'lı kitte beklenir) |
 | `video/*.mp4` ya da `video/*.insv` | 360° kamera → operasyon | MP4: kameranın masaüstü yazılımıyla equirectangular (2:1) dışa aktarılır. `.insv`: kameranın kartındaki ham kayıt olduğu gibi kopyalanır; işleme hattı sadece seçilen kareleri Insta360 Media SDK ile birleştirir (SDK işleme makinesinde kurulu olmalı, `ORCHADOS_INSTA360_SDK`). Tek dosyalı kayıtlar (X4, X4 Air, X5) desteklenir; iki dosyalı eski kayıtlar (X3 ve öncesi) henüz değil. Kitin kamerası Insta360 X4 Air ([kit-siparis-listesi.md](kit-siparis-listesi.md)). Birden çok parça dosya adı sırasıyla ardışık kabul edilir | Evet |
 | `base/*` | Operasyon | CORS ya da kendi baz istasyonundan RINEX gözlem + navigasyon | Hayır (yoksa PPK yok) |
 | `trees.json` | Operasyon | Ağaç konumları; `run --trees-from-db` ile gerekmez (aşağıda) | Hayır |
@@ -67,14 +68,15 @@ esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
 | Olay | `payload` |
 | --- | --- |
 | `session_start` | `parcel_id=<parsel>` |
-| `session_stop` | `command`, `sd_full` ya da `sd_error` |
+| `session_stop` | `command`, `sd_full` ya da `sd_error`; kit kaydedicisinde ayrıca `service_error` |
 | `corner` | Telefondan gelen metin (köşe numarası) |
 | `qr_sync` | Telefonun o anda gösterdiği QR'ın **metninin tamamı** (aşağıda) |
 | `pps_lost`, `pps_regained` | Boş |
-| `sd_error` | `gnss_write`, `events_write` ya da `sd_full`; kit kaydedicisinde ayrıca `lidar_write` |
+| `sd_error` | `gnss_write`, `events_write` ya da `sd_full`; kit kaydedicisinde ayrıca `lidar_write` (LiDAR kayıt süreci öldü; her ölüşte bir satır) ve `ssd_lost` (kayıt sırasında SSD çıkarıldı ya da durumu okunamıyor; SSD gitmişse satır yazılamamış olabilir) |
 | `lidar_lost`, `lidar_regained` | Boş. Yalnız kit kaydedicisi: LiDAR verisi 3 sn kesildi / geri geldi |
 | `gnss_lost`, `gnss_regained` | Boş. Yalnız kit kaydedicisi: alıcıdan 3 sn veri gelmedi (USB koptu) / geri geldi |
 | `precheck_override` | Yalnız kit kaydedicisi, `session_start`'tan hemen sonra: atlanan ön kontrol maddeleri `;` ile (ör. `lidar;clock`) |
+| `lidar_bag_restart` | Yalnız kit kaydedicisi: ölen LiDAR kayıt süreci (`ros2 bag`) yeniden başlatıldı; payload yeni klasör, `lidar/raw/`'a göre (`bag.1`, `bag.2`, …; süreç oturum başında hiç başlayamadıysa `bag`). Ölüşü önceki `sd_error`/`lidar_write` satırıdır; aradaki süre MCAP'te yoktur |
 
 Kit kaydedicisinde saat kilidinin kaybı ESP32'deki gibi `pps_lost` / `pps_regained` ile yazılır. Saat PPS'e kilitli değilken `gps_time_ns` ve çapa sütunları boş kalır (ESP32'nin PPS'siz davranışı).
 
@@ -102,7 +104,7 @@ Kaynak: [firmware/gnss-logger/README.md → `session.json`](../firmware/gnss-log
 | `receiver` | nesne | Alıcı yapılandırması: `model`, `port`, `baud`, `meas_period_ms`, `rawx_rate_hz`, `nav_pvt_rate_hz`, `messages`, `nmea`, `timepulse_grid`, `config_status` (`ok`, `no_response`, `nak`, `invalid_settings`), `detected_baud` |
 | `gps_utc_leap_seconds` | int | 18 |
 | `start`, `stop` | nesne | `esp_micros`, `gps_time_ns` (eşleme yoksa `null`), `utc` (eşleme yoksa `null`). `stop` güç kesintisinde `null` kalır |
-| `stop_reason` | str | `command`, `sd_full`, `sd_error`; kit kaydedicisinde ayrıca `power_loss` (aşağıda) |
+| `stop_reason` | str | `command`, `sd_full`, `sd_error`; kit kaydedicisinde ayrıca `power_loss` ve `service_error` (aşağıda) |
 | `gnss_bytes` | int | `gnss.ubx`'e yazılan bayt |
 | `dropped_bytes` | int | Tampon taşmasıyla atılan bayt |
 
@@ -117,7 +119,9 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `precheck_overrides` | Atlanan ön kontrol maddeleri listesi (`lidar`, `lidar_mode`, `clock`); boş olabilir (yeni alan) |
 | `clock_state_at_start` | `pps`, `coarse` ya da `unlocked` (yeni alan; [Kit kaydedicisi](#kit-kaydedicisi-raspberry-pi)) |
 | `receiver.port` | `"USB"`; `receiver.baud` ve `receiver.detected_baud` `null` |
-| `stop_reason` | Ek değer `power_loss`: Pi kapanmamış bir oturumla açıldı. `stop` `null` kalır (ESP32'de güç kesintisindeki gibi) |
+| `receiver.config_status` | Oturum başındaki durum. Yapılandırma `ok` olmadıkça (alıcı servisten sonra takıldı, ACK kaçtı) servis 5 sn'de bir yeniden dener; USB her açılışında yeniden yapılandırır |
+| `dropped_bytes` | Alıcı oturum sırasında yeniden yapılandırılırken ACK beklenirken okunup kaydedilmeyen bayt |
+| `stop_reason` | Ek değer `power_loss`: Pi kapanmamış bir oturumla açıldı ya da SSD kapanmamış bir oturumla bağlandı. `stop` `null` kalır (ESP32'de güç kesintisindeki gibi). SSD kayıt sırasında çıkarıldığı için kapanış yazılamadıysa SSD geri takılınca `sd_error` yazılır, `stop` yine `null`. Ek değer `service_error`: kayıt servisi beklenmedik bir hatayla sona erdi ve açık oturumu kapattı (`stop` dolu; `systemctl stop` ise `command` yazar) |
 
 ### Kök `session.json` (saha uygulaması ve operasyon yazar)
 
@@ -222,6 +226,7 @@ LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 5'tir; ESP32 kaydedici kitten �
 | 4 | `pps_state` | `/sys/class/pps/pps0/assert`'e göre: 0 hiç görülmedi, 1 kilitli (son kenar 1,5 sn'den yeni), 2 kayıp |
 | 12 | `bytes_written` | Bu oturumda `gnss.ubx`'e yazılan bayt (u32'de doyar) |
 | 16 | `sd_free_mib` | SSD'nin boş alanı |
+| 25 | `dropped_bytes` | Bu oturumda alıcı yeniden yapılandırılırken (USB yeniden bağlandı ya da yapılandırma yeniden denendi) okunup `gnss.ubx`'e yazılmayan bayt; oturum bitince özet için kalır |
 | 20 | `battery_mv` | `0`: Pi aküyü ölçmez. Uygulama kaydedici Pi ise akü maddesini atlar |
 | 22–24 | `fw_*` | Kayıt servisinin sürümü |
 | 31 | `gps_time_ns` | Saat PPS'e kilitliyse sistem saatinden GPS zamanı, değilse `0` |
@@ -274,6 +279,8 @@ Atlanan maddeler `gnss/session.json`'da `precheck_overrides`, `events.csv`'de `p
 
 `schema: orchados.lidar_recording/1`. Oturum durdurulunca yazılır; güç kesilirse yazılmamış olabilir (MCAP parçaları yine okunur).
 
+LiDAR kayıt süreci (`ros2 bag`) oturum ortasında ölürse oturum kapanmaz: servis süreci 2 sn sonra, yine ölürse 4, 8, … en çok 60 sn arayla yeniden başlatır (60 sn çalışmış bir süreçten sonra bekleme yeniden 2 sn'den başlar). `ros2 bag` var olan klasöre yazmadığı için her yeniden başlatma `lidar/raw/` altında yeni bir klasöre yazar: `bag/`, sonra `bag.1/`, `bag.2/`, … Her ölüş `events.csv`'ye `sd_error`/`lidar_write`, her yeniden başlatma `lidar_bag_restart` olarak yazılır; `segments` ve `lidar_written_mib` bütün klasörleri kapsar.
+
 | Alan | Tür | Anlamı |
 | --- | --- | --- |
 | `session_id`, `parcel_id` | str | `gnss/session.json` ile aynı |
@@ -283,7 +290,7 @@ Atlanan maddeler `gnss/session.json`'da `precheck_overrides`, `events.csv`'de `p
 | `precheck_overrides` | str[] | `gnss/session.json` ile aynı |
 | `lidar_mode` | str | `unknown`, `ok`, `wrong` |
 | `topics` | nesne | `points`, `imu`, `ubx`: MCAP'teki konu adları |
-| `segments` | `[{file, bytes}]` | `file` `lidar/raw/`'a göre (ör. `bag/bag_0.mcap`) |
+| `segments` | `[{file, bytes}]` | `file` `lidar/raw/`'a göre (ör. `bag/bag_0.mcap`, yeniden başlatmadan sonra `bag.1/bag.1_0.mcap`); kayıt sırasıyla: önce klasör (`bag`, `bag.1`, `bag.2`, …), sonra parça numarası |
 | `points_total`, `imu_messages_total` | int | Oturum toplamı |
 | `gaps` | `[{start_gps_ns, end_gps_ns, start_mono_us, end_mono_us, duration_s}]` | LiDAR boşlukları; GPS zamanları saat kilitli değilse boş |
 | `alerts` | `[{type, first_mono_us, count}]` | Oturumda görülen uyarılar |

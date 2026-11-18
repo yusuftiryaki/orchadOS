@@ -3,7 +3,9 @@
 The L2's ROS 2 driver publishes the point cloud and IMU. The recorder
 - watches both topics to know whether data arrives (`RosLidarMonitor`),
 - republishes the raw UBX bytes on a topic so the bag has them too,
-- runs `ros2 bag record -s mcap` into `lidar/raw/bag/` in segments (`BagRecorder`).
+- runs `ros2 bag record -s mcap` into `lidar/raw/bag/` in segments (`BagRecorder`);
+  if it dies mid-session it is restarted into `bag.1/`, `bag.2/`, ... (ros2 bag
+  refuses an existing folder).
 
 rclpy exists only on the Pi; it is imported lazily and never in CI.
 Topics and the bag layout: docs/arayuzler.md, "lidar/raw/recording.json".
@@ -27,6 +29,8 @@ log = logging.getLogger(__name__)
 
 LidarMode = Literal["unknown", "ok", "wrong"]
 BAG_DIR = "bag"
+# bag/ (index 0), then bag.1/, bag.2/, ... after restarts.
+_BAG_DIR_RE = re.compile(rf"^{BAG_DIR}(?:\.([1-9]\d*))?$")
 MODE_EXIT_WRONG = 3
 
 
@@ -204,6 +208,20 @@ def _segment_key(path: Path) -> tuple[int, str]:
     return (int(m.group(1)) if m else -1, path.name)
 
 
+def _bag_dirs(out_dir: Path) -> list[Path]:
+    """The bag folders under lidar/raw/, in recording order."""
+    found = []
+    try:
+        entries = list(Path(out_dir).iterdir())
+    except OSError:
+        return []
+    for p in entries:
+        m = _BAG_DIR_RE.match(p.name)
+        if m and p.is_dir():
+            found.append((int(m.group(1) or 0), p))
+    return [p for _, p in sorted(found)]
+
+
 class BagRecorder:
     """`ros2 bag record` as a child process, writing MCAP segments."""
 
@@ -212,7 +230,7 @@ class BagRecorder:
         self.popen = popen
         self._proc = None
 
-    def command(self, out_dir: Path) -> list[str]:
+    def command(self, out_dir: Path, name: str = BAG_DIR) -> list[str]:
         return [
             "ros2",
             "bag",
@@ -220,7 +238,7 @@ class BagRecorder:
             "-s",
             "mcap",
             "-o",
-            str(Path(out_dir) / BAG_DIR),
+            str(Path(out_dir) / name),
             "--max-bag-duration",
             str(BAG_SEGMENT_S),
             self.config.points_topic,
@@ -228,10 +246,28 @@ class BagRecorder:
             self.config.ubx_topic,
         ]
 
-    def start(self, out_dir: Path) -> None:
+    def start(self, out_dir: Path, name: str = BAG_DIR) -> None:
         """Raises OSError if the process cannot be started (e.g. no ros2)."""
         self._proc = None
-        self._proc = self.popen(self.command(out_dir), stdin=subprocess.DEVNULL)
+        self._proc = self.popen(self.command(out_dir, name), stdin=subprocess.DEVNULL)
+
+    @staticmethod
+    def next_dir(out_dir: Path) -> str:
+        """bag, or the first bag.N (N >= 1) that does not exist yet."""
+        if not (Path(out_dir) / BAG_DIR).exists():
+            return BAG_DIR
+        n = 1
+        while (Path(out_dir) / f"{BAG_DIR}.{n}").exists():
+            n += 1
+        return f"{BAG_DIR}.{n}"
+
+    def restart(self, out_dir: Path) -> str:
+        """Start again (after the process died) into a new folder; returns its name.
+        Raises OSError like `start`."""
+        self.stop()  # reaps a dead process; no-op otherwise
+        name = self.next_dir(out_dir)
+        self.start(out_dir, name)
+        return name
 
     def stop(self, timeout_s: float = 10) -> None:
         """SIGINT (ros2 bag closes the MCAP cleanly), then SIGKILL if it hangs."""
@@ -253,7 +289,10 @@ class BagRecorder:
         return self._proc is not None and self._proc.poll() is None
 
     def _files(self, out_dir: Path) -> list[Path]:
-        return sorted((Path(out_dir) / BAG_DIR).glob("*.mcap"), key=_segment_key)
+        files = []
+        for d in _bag_dirs(out_dir):
+            files += sorted(d.glob("*.mcap"), key=_segment_key)
+        return files
 
     def written_bytes(self, out_dir: Path) -> int:
         total = 0
@@ -271,5 +310,5 @@ class BagRecorder:
                 size = f.stat().st_size
             except OSError:
                 continue
-            out.append({"file": f"{BAG_DIR}/{f.name}", "bytes": size})
+            out.append({"file": f"{f.parent.name}/{f.name}", "bytes": size})
         return out
