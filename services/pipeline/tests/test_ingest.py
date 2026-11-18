@@ -11,6 +11,7 @@ from orchados_pipeline.events import read_events
 from orchados_pipeline.hashing import hash_object, sha256_file
 from orchados_pipeline.ingest import IngestError, build_manifest
 from orchados_pipeline.models import FileRole, Manifest, read_model, write_model
+from orchados_pipeline.ubx import build_frame, encode_nav_pvt
 
 
 def _copy(session, tmp_path):
@@ -19,9 +20,34 @@ def _copy(session, tmp_path):
     return dst
 
 
+def _kit_ubx(first_gps_ns: int, frames: int = 161) -> bytes:
+    """5 Hz NAV-PVT walking north at 0.8 m/s; *.ubx stays out of git (.gitignore)."""
+    step = 200_000_000
+    return b"".join(
+        build_frame(
+            0x01,
+            0x07,
+            encode_nav_pvt(
+                gps_time_ns=first_gps_ns + i * step,
+                lat_deg=37.0 + 0.8 * i * 0.2 / 111_320,
+                lon_deg=37.3,
+                height_m=900.0,
+                vel_ned_mps=(0.8, 0.0, 0.0),
+            ),
+        )
+        for i in range(frames)
+    )
+
+
 def _kit_session(tmp_path):
-    """The kit recorder fixture (gnss/ only) plus a tiny equirectangular video."""
+    """The kit recorder fixture plus its UBX log and a tiny equirectangular video."""
     dst = _copy(DATA / "kit_recorder_session", tmp_path)
+    info = json.loads((dst / "gnss" / "session.json").read_text())
+    # From 1 s before the start to 1 s after the stop, on the 200 ms grid.
+    first = info["start"]["gps_time_ns"] // 200_000_000 * 200_000_000 - 1_000_000_000
+    ubx = _kit_ubx(first)
+    assert len(ubx) == info["gnss_bytes"]
+    (dst / "gnss" / "gnss.ubx").write_bytes(ubx)
     (dst / "video").mkdir()
     writer = cv2.VideoWriter(
         str(dst / "video" / "VID_0001.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), 10.0, (64, 32)
