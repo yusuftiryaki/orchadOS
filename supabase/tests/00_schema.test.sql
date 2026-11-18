@@ -30,7 +30,9 @@ select tables_are(
     -- Fruit species lookup (global, like metric_definition).
     'fruit_species',
     -- Robot fleet (IP15): global robot models and the models of a service.
-    'robot_model', 'service_type_robot_model'
+    'robot_model', 'service_type_robot_model',
+    -- LiDAR registration runs and their gate (spec 2026-11-18-lidar-kayit-adimi).
+    'lidar_registration'
   ],
   'public has exactly the MVP tables'
 );
