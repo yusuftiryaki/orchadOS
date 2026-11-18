@@ -13,6 +13,7 @@ import '../coverage/coverage.dart';
 import '../gnss/gnss_logger.dart';
 import '../gnss/protocol/command_result.dart';
 import '../gnss/protocol/gnss_command.dart';
+import '../gnss/protocol/gnss_status.dart';
 import '../notice/field_records.dart';
 import '../route/grid_route.dart';
 import '../route/route_guide.dart';
@@ -21,6 +22,7 @@ import '../route/route_view.dart';
 import '../summary/visit_log.dart';
 import '../tasks/closeup_selection.dart';
 import '../tasks/field_task.dart';
+import 'kit_alert_bell.dart';
 
 enum SessionPhase { idle, starting, recording, stopping, stopped }
 
@@ -100,9 +102,18 @@ class SessionState {
     this.objections = 0,
     this.pointerName,
     this.pointerRole,
+    this.kitAtStop,
+    this.kitAlertsSeen = const [],
   });
 
   final FieldTask? task;
+
+  /// Kit recorder status just before the stop (LiDAR summary); null for the
+  /// ESP32 and before the stop.
+  final KitStatus? kitAtStop;
+
+  /// Kit alerts seen during the recording.
+  final List<KitAlert> kitAlertsSeen;
 
   /// Newest "sözlü bilgi" answer of this recording; null until given.
   final VerbalNotice? verbalNotice;
@@ -158,6 +169,8 @@ class SessionState {
     int? objections,
     String? pointerName,
     PointerRole? pointerRole,
+    KitStatus? kitAtStop,
+    List<KitAlert>? kitAlertsSeen,
   }) => SessionState(
     task: task ?? this.task,
     phase: phase ?? this.phase,
@@ -175,6 +188,8 @@ class SessionState {
     objections: objections ?? this.objections,
     pointerName: pointerName ?? this.pointerName,
     pointerRole: pointerRole ?? this.pointerRole,
+    kitAtStop: kitAtStop ?? this.kitAtStop,
+    kitAlertsSeen: kitAlertsSeen ?? this.kitAlertsSeen,
   );
 }
 
@@ -195,6 +210,8 @@ class SessionController extends Notifier<SessionState> {
 
   CoverageTracker? _tracker;
   StreamSubscription<GnssStatusSample>? _track;
+  StreamSubscription<GnssStatusSample>? _alerts;
+  KitAlertBell? _bell;
   RouteGuide? _guide;
   StopGoWalk? _stopGo;
   double? _crewAzimuthDeg;
@@ -210,6 +227,7 @@ class SessionController extends Notifier<SessionState> {
     _harvest = null;
     _setup = null;
     _notice = null;
+    _kitOverrides = const {};
     state = SessionState(task: task);
   }
 
@@ -244,11 +262,28 @@ class SessionController extends Notifier<SessionState> {
 
     state = state.copyWith(coverage: _view(tracker));
     _track = logger.statusStream.listen(onStatus);
+
+    // Kit recorder alerts: sound on a new one, again every 10 s while any
+    // lasts (the banner reads the status itself).
+    final bell = _bell = KitAlertBell();
+    void onAlerts(GnssStatusSample s) {
+      final kit = s.status.kit;
+      if (kit == null || !ref.mounted) return;
+      if (bell.update(kit.alerts, ref.read(clockProvider).now())) {
+        ref.read(alertSoundProvider).play().ignore();
+      }
+    }
+
+    final last = logger.lastStatus;
+    if (last != null) onAlerts(last);
+    _alerts = logger.statusStream.listen(onAlerts);
   }
 
   void _stopTrack() {
     _track?.cancel();
     _track = null;
+    _alerts?.cancel();
+    _alerts = null;
   }
 
   static CoverageView _view(CoverageTracker t) => CoverageView(
@@ -438,18 +473,23 @@ class SessionController extends Notifier<SessionState> {
   HarvestCheck? _harvest;
   ScanSetup? _setup;
   NoticeSign? _notice;
+  Set<KitCheck> _kitOverrides = const {};
 
+  /// [kitOverrides]: kit pre-check items the crew overrode after a
+  /// confirmation (LiDAR, LiDAR mode, clock).
   void confirmPrecheck({
     required SprayingCheck spraying,
     required ScanPlatform platform,
     required double cameraHeightM,
     required NoticeSign notice,
     HarvestCheck? harvest,
+    Set<KitCheck> kitOverrides = const {},
   }) {
     _spraying = spraying;
     _harvest = harvest;
     _setup = ScanSetup(platform: platform, cameraHeightM: cameraHeightM);
     _notice = notice;
+    _kitOverrides = {...kitOverrides};
   }
 
   /// Starts recording on the logger and creates the local session.
@@ -478,16 +518,35 @@ class SessionController extends Notifier<SessionState> {
       busy: true,
       error: () => null,
     );
+    // Overrides go only for items that still fail: one that passes now is
+    // not recorded as skipped. The logger sends the mask to the kit only.
+    final kitFailed = logger.lastStatus?.status.kit?.precheckFail ?? const [];
+    final overrides = [
+      for (final c in kitFailed)
+        if (c.overridable && _kitOverrides.contains(c)) c,
+    ];
     final result = await logger.startSession(
       sessionId: sessionId,
       parcelId: task.parcelId,
+      overrideMask: overrides.isEmpty ? null : KitCheck.toMask(overrides),
     );
     if (!ref.mounted) return false;
     if (!result.isOk) {
+      // The kit names the failed items in its status.
+      final failed = result == CommandResult.precheckFailed
+          ? [
+              for (final c
+                  in logger.lastStatus?.status.kit?.precheckFail ??
+                      const <KitCheck>[])
+                if (!overrides.contains(c)) c.label,
+            ]
+          : const <String>[];
       state = state.copyWith(
         phase: SessionPhase.idle,
         busy: false,
-        error: () => 'Kayıt başlamadı: ${result.message}',
+        error: () =>
+            'Kayıt başlamadı: ${result.message}'
+            '${failed.isEmpty ? '' : ' (${failed.join(', ')})'}',
       );
       return false;
     }
@@ -521,6 +580,9 @@ class SessionController extends Notifier<SessionState> {
       // Also on the start event, so the answers survive a crash before the
       // field_notice_sign row below is written.
       if (notice != null) 'notice': notice.toJson(),
+      // Kit items started without (docs/arayuzler.md, `precheck_overrides`).
+      if (overrides.isNotEmpty)
+        'kit_overrides': [for (final c in overrides) c.code],
     };
     await repo.addEvent(
       sessionId: sessionId,
@@ -852,7 +914,11 @@ class SessionController extends Notifier<SessionState> {
       error: () => null,
     );
     final time = _now();
-    final result = await ref.read(gnssLoggerProvider).stopSession();
+    final logger = ref.read(gnssLoggerProvider);
+    // The kit's counters of this recording, for the summary (the status is
+    // all the phone sees of the LiDAR recording).
+    final kitAtStop = logger.lastStatus?.status.kit;
+    final result = await logger.stopSession();
     if (!ref.mounted) return false;
     if (!result.isOk && result != CommandResult.notRecording) {
       state = state.copyWith(
@@ -903,7 +969,12 @@ class SessionController extends Notifier<SessionState> {
       stopGpsTimeMs: time.gpsTimeMs,
     );
     if (!ref.mounted) return true;
-    state = state.copyWith(phase: SessionPhase.stopped, busy: false);
+    state = state.copyWith(
+      phase: SessionPhase.stopped,
+      busy: false,
+      kitAtStop: kitAtStop,
+      kitAlertsSeen: _bell?.seen,
+    );
     return true;
   }
 
