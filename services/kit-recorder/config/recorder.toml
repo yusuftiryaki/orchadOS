@@ -1,0 +1,25 @@
+# orchados-recorder configuration. On the Pi: /etc/orchados/recorder.toml
+# (setup/install.sh copies this file there once and never overwrites it).
+# Every key is optional; the values below are the defaults.
+
+[ssd]
+# The SSD with the file system label ORCHADOS-SSD is mounted here (fstab, nofail).
+mount = "/mnt/orchados-ssd"
+
+[receiver]
+# "auto": the first /dev/serial/by-id/usb-u-blox* device. Or a device path.
+port = "auto"
+
+[lidar]
+# Topics of the Unitree L2 ROS 2 driver; checked on the hardware (README).
+points_topic = "/unilidar/cloud"
+imu_topic = "/unilidar/imu"
+# The raw UBX bytes, republished by the recorder so the bag has them too.
+ubx_topic = "/orchados/gnss_ubx"
+# Command that turns the L2's negative-angle mode on and checks it:
+# exit 0 = on, 3 = off, anything else = unknown. Empty: not checked.
+mode_command = []
+
+[chrony]
+# chrony's SOCK refclock (refid GNSS); see setup/chrony-orchados.conf.
+sock = "/run/chrony.gnss.sock"

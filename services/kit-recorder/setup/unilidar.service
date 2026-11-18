@@ -1,0 +1,20 @@
+# Unitree L2 ROS 2 driver: publishes /unilidar/cloud and /unilidar/imu.
+# The command is in /etc/orchados/unilidar.env (UNILIDAR_CMD); it is settled on
+# the hardware (README, "L2 sürücüsü").
+[Unit]
+Description=orchadOS: Unitree L2 LiDAR driver (ROS 2)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/orchados/ros2_ws/install/setup.bash
+StartLimitIntervalSec=0
+
+[Service]
+EnvironmentFile=/etc/orchados/unilidar.env
+ExecStart=/usr/local/bin/orchados-ros-exec $UNILIDAR_CMD
+Restart=always
+RestartSec=3
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
