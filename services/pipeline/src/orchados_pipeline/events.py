@@ -46,6 +46,7 @@ KNOWN_TYPES = frozenset(
         "gnss_lost",
         "gnss_regained",
         "precheck_override",
+        "lidar_bag_restart",
     }
 )
 # Recompute GPS time from a stale anchor only this far away. The ESP32 crystal

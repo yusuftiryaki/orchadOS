@@ -24,7 +24,14 @@ README = Path(__file__).parents[3] / "firmware" / "gnss-logger" / "README.md"
 INTERFACES = Path(__file__).parents[3] / "docs" / "arayuzler.md"
 # Written only by the kit recorder (Raspberry Pi); documented in docs/arayuzler.md, not
 # in the ESP32 firmware README.
-KIT_ONLY_TYPES = {"lidar_lost", "lidar_regained", "gnss_lost", "gnss_regained", "precheck_override"}
+KIT_ONLY_TYPES = {
+    "lidar_lost",
+    "lidar_regained",
+    "gnss_lost",
+    "gnss_regained",
+    "precheck_override",
+    "lidar_bag_restart",
+}
 EVENTS = DATA / "ip2_readme_events.csv"
 LOGGER_SESSION = DATA / "ip2_readme_session.json"
 

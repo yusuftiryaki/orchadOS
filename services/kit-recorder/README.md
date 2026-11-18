@@ -157,6 +157,7 @@ sudo mount /mnt/orchados-ssd
 
 - `orchados-recorder.service` root olarak çalışır (BlueZ reklamı, alıcının seri portu, `/sys/class/pps`, chrony soketi). `After=unilidar.service chrony.service bluetooth.service` ve SSD'nin bağlama birimi (`mnt-orchados\x2dssd.mount`, yalnız sıralama); bunlardan biri başlamasa ya da SSD takılı olmasa da servis çalışır, eksik olan ön kontrolde görünür.
 - `Restart=always`: servis çökerse 2 sn sonra yeniden başlar. Açık bir oturum varsa onu `power_loss` ile kapatır ve **kendiliğinden yeni kayıt başlatmaz**. Bu denetim SSD her bağlandığında (açılışta ya da sonradan takılınca, kayıt yokken) yapılır; aynı `session_id` ile yeniden başlatma `session_exists` alır. Kayıt sürerken BLE bağlantısının kopması kaydı durdurmaz.
+- `ros2 bag` kayıt sırasında ölürse oturum sürer: servis onu artan aralıklarla (2, 4, 8, … en çok 60 sn) yeniden başlatır, her seferinde `lidar/raw/` altında yeni bir klasöre (`bag.1/`, `bag.2/`, …); `events.csv`'de `sd_error`/`lidar_write` ve `lidar_bag_restart` görünür ([docs/arayuzler.md](../../docs/arayuzler.md#lidarrawrecordingjson)).
 - `systemctl stop` (SIGTERM) açık oturumu `command` ile kapatır. `KillMode=mixed`: SIGTERM yalnız servise gider; servis `ros2 bag`'i SIGINT ile durdurur, böylece son MCAP parçası düzgün kapanır.
 - Günlükler: `journalctl -u orchados-recorder` (son açılıştan beri: `-b`, canlı: `-f`).
 

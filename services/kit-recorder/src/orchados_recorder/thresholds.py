@@ -10,6 +10,11 @@ LIDAR_MIN_RATE_FRACTION = 0.5  # below: pre-check fails, lidar_rate_low while re
 LIDAR_SILENT_S = 3
 LIDAR_RATE_WINDOW_S = 3  # points/s and IMU Hz are averaged over this window
 BAG_STALL_S = 10  # MCAP not growing this long while points arrive: lidar_not_written
+# A dead `ros2 bag` is restarted after 2 s, then 4, 8, ... up to 60 s; the wait
+# starts again from 2 s once a process has run BAG_RESTART_RESET_S.
+BAG_RESTART_MIN_S = 2
+BAG_RESTART_MAX_S = 60
+BAG_RESTART_RESET_S = 60
 
 # Receiver
 GNSS_SILENT_S = 3

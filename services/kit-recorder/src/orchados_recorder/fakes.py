@@ -170,5 +170,5 @@ class FakeRig:
         proc = self.popen.current
         if proc is None or proc.poll() is not None or self.lidar.silent:
             return
-        with open(proc.out_dir / "bag_0.mcap", "ab") as f:
+        with open(proc.out_dir / f"{proc.out_dir.name}_0.mcap", "ab") as f:
             f.write(bytes(self.bag_bytes_per_s))

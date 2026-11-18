@@ -45,6 +45,9 @@ from .receiver import RECEIVER_INFO, Receiver, Transport
 from .session import Anchor, SessionWriter, TimeStamp, recover_open_sessions, session_dir
 from .ssd import SsdStatus, probe_ssd
 from .thresholds import (
+    BAG_RESTART_MAX_S,
+    BAG_RESTART_MIN_S,
+    BAG_RESTART_RESET_S,
     LIDAR_RATE_WINDOW_S,
     LIDAR_SILENT_S,
     PPS_LOST_S,
@@ -135,6 +138,11 @@ class Recorder:
         self._imu_total = 0
         self._session_pps = False
         self._session_meta: dict = {}
+        # ros2 bag supervision: when the process (re)started, the next restart
+        # time while it is dead, and how many restarts in a row came too soon.
+        self._bag_started_us = 0
+        self._bag_retry_us: int | None = None
+        self._bag_quick_deaths = 0
 
         # Sessions this process stopped but could not close (SSD gone): their
         # stop_reason, written when the SSD is back.
@@ -295,10 +303,38 @@ class Recorder:
         for event_type, payload in events:
             if not self._event(event_type, payload):
                 return
+        if not self._supervise_bag(snap.mono_us):
+            return
         try:
             self.writer.maybe_fsync(snap.mono_us)
         except OSError as exc:
             self._fail("gnss_write", exc)
+
+    def _supervise_bag(self, now_us: int) -> bool:
+        """Restart a dead `ros2 bag` with a growing wait (a new folder each time:
+        bag.1/, bag.2/, ...). False if the session stopped (events.csv failed)."""
+        bag = self.deps.bag
+        if bag.alive():
+            return True
+        if self._bag_retry_us is None:  # just found dead
+            if now_us - self._bag_started_us >= BAG_RESTART_RESET_S * _US:
+                self._bag_quick_deaths = 0
+            wait_s = min(BAG_RESTART_MAX_S, BAG_RESTART_MIN_S * 2**self._bag_quick_deaths)
+            self._bag_quick_deaths += 1
+            self._bag_retry_us = now_us + wait_s * _US
+            log.error("ros2 bag is not running; restarting it in %s s", wait_s)
+            return True
+        if now_us < self._bag_retry_us:
+            return True
+        self._bag_retry_us = None
+        self._bag_started_us = now_us
+        try:
+            name = bag.restart(self.writer.lidar_dir)
+        except OSError as exc:
+            log.error("cannot restart ros2 bag: %s", exc)
+            return True
+        log.warning("ros2 bag restarted into lidar/raw/%s/", name)
+        return self._event("lidar_bag_restart", name)
 
     # --- receiver callbacks --------------------------------------------------
 
@@ -398,10 +434,14 @@ class Recorder:
             "precheck_overrides": check_names(overrides),
             "lidar_mode": self.deps.lidar.mode(),
         }
+        self._bag_started_us = start.mono_us
+        self._bag_retry_us = None
+        self._bag_quick_deaths = 0
         try:
             self.deps.bag.start(writer.lidar_dir)
         except OSError as exc:
-            # GNSS still records; the missing bag shows as lidar_not_written.
+            # GNSS still records; the missing bag shows as lidar_not_written and
+            # is tried again from the tick.
             log.error("cannot start ros2 bag: %s", exc)
         log.info("session %s started (overrides: %s)", cmd.session_id, check_names(overrides))
         return Result.OK
