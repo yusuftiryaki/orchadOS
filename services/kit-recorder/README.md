@@ -33,6 +33,7 @@ Pi'da servis `orchados-recorder run --config /etc/orchados/recorder.toml` ile ç
 | `config/recorder.toml` | `/etc/orchados/recorder.toml` | Servis ayarları; bir kez kopyalanır, sonra elle düzenlenir |
 | `setup/orchados-recorder.service` | `/etc/systemd/system/` | Kayıt servisi; `Restart=always` |
 | `setup/unilidar.service`, `setup/unilidar.env` | `/etc/systemd/system/`, `/etc/orchados/unilidar.env` | L2'nin ROS 2 sürücüsü; komutu `unilidar.env`'de |
+| `setup/patches/unilidar_sdk2-*.patch` | `/opt/orchados/ros2_ws/src/unilidar_sdk2`'e uygulanır | L2 sürücüsünün IMU hatalarına iki yama (aşağıda, "L2 sürücüsü") |
 | `setup/orchados-ros-exec` | `/usr/local/bin/` | Bir komutu ROS 2 Jazzy ortamında çalıştırır (iki servis de bunu kullanır) |
 | `setup/chrony-orchados.conf` | `/etc/chrony/conf.d/orchados.conf` | Saat: PPS, saniyesi alıcıdan |
 | `setup/config.txt.append` | `/boot/firmware/config.txt` sonuna | PPS overlay'i (GPIO18), Pi 5 USB akım ayarı |
@@ -82,7 +83,7 @@ Betik sırayla şunları yapar; her adım zaten yapılmışsa atlanır, ikinci �
 10. Ethernet: L2 için sabit adres (yeniden başlatınca geçerli olur).
 11. journald en çok 200 MB tutar (kök dosya sistemine az yazılsın; kayıtlar yalnız SSD'ye).
 12. Kullanılmayan servisler kapatılır: `snapd`, `unattended-upgrades`, `apt-daily` zamanlayıcıları, cloud-init.
-13. L2 sürücüsü `/opt/orchados/ros2_ws`'de derlenir (`build_unilidar`, aşağıda). Derlenmezse betik geri kalan her şeyi kurar, sonunda açık bir uyarı verir ve 1 ile çıkar.
+13. L2 sürücüsü sabit bir upstream commit'inden alınır, iki yaması uygulanır ve `/opt/orchados/ros2_ws`'de derlenir (`build_unilidar`, aşağıda). Derlenmezse betik geri kalan her şeyi kurar, sonunda açık bir uyarı verir ve 1 ile çıkar.
 14. systemd birimleri kurulur, açılır ve başlatılır.
 
 Seçenek: `--skip-lidar-driver` L2 sürücüsünün derlenmesini atlar (ör. L2'siz, yalnız BLE ve GNSS denemesi).
@@ -134,10 +135,19 @@ sudo mount /mnt/orchados-ssd
 ## L2 sürücüsü
 
 - Sürücü: Unitree `unilidar_sdk2` reposundaki ROS 2 paketi (`unitree_lidar_ros2`), `/opt/orchados/ros2_ws`'de `colcon build` ile derlenir. Unitree yalnız Ubuntu 20.04 ve ROS 2 Foxy'yi doğrulamış; **Pi 5'te Jazzy ile derlenmesi doğrulanmadı**, ilk denenecek iş budur (plan, Task 17). Derlenmezse yedek yol, ROS'suz ve SDK'dan doğrudan MCAP yazan küçük bir C++ programıdır; bu durumda ayrı bir tasarım notu açılır.
+- Sürüm ve yamalar: kaynak `unilidar_sdk2`'nin `UNILIDAR_COMMIT` commit'idir (v2.0.10, `install.sh`'ta sabit). Derlemeden önce `setup/patches/`'teki iki yama uygulanır; ikisi de ROS 2 düğümünün IMU hatasıdır ve upstream'de açıktır:
+  - `unilidar_sdk2-imu-read-once.patch` ([PR #33](https://github.com/unitreerobotics/unilidar_sdk2/pull/33)): düğüm her IMU paketinde `getImuData()`'yı iki kez çağırıyor, ilki paketi tüketiyordu; `/unilidar/imu` listede görünür ama neredeyse hiç mesaj taşımaz. Yama PR'ın bu dosyadaki değişikliğinin aynısıdır.
+  - `unilidar_sdk2-imu-quaternion-order.patch` ([#14](https://github.com/unitreerobotics/unilidar_sdk2/issues/14)): SDK'nın kuaternyonu (w, x, y, z) sırasındadır; ROS 1 sürücüsü ve düğümün kendi `unilidar_imu_initial → unilidar_imu` dönüşümü öyle okur, ROS 2'deki `Imu` mesajı (x, y, z, w) diye okuyordu. Not: SDK'nın `example.h`'ı aynı diziyi "(x, y, z, w)" etiketiyle basıyor; sıra masada doğrulanır (aşağıda).
+
+  Yama zaten uygulanmışsa atlanır; ne uygulanıyor ne de uygulanmış görünüyorsa (kaynak başka) derleme yapılmaz. Kurulum, derlemenin hangi commit ve yamalarla yapıldığını `/opt/orchados/ros2_ws/install/.orchados-unilidar`'a yazar; ikisinden biri değişince sürücü yeniden derlenir. Commit ilerletilecekse yamalar yeni commit'e karşı yeniden üretilir ve upstream'de birleşmiş olanlar listeden çıkarılır.
 - Yeniden derlemek için: `sudo rm -rf /opt/orchados/ros2_ws/install /opt/orchados/ros2_ws/build && sudo services/kit-recorder/setup/install.sh`.
 - Başlatma komutu `/etc/orchados/unilidar.env`'deki `UNILIDAR_CMD`'dir; varsayılanı `ros2 launch unitree_lidar_ros2 launch.py`. Sürücünün launch dosyası rviz de başlatıyorsa (ros-base'de rviz yok, launch başarısız olur) komut, yalnız sürücü düğümünü çalıştıran bir komutla değiştirilir ve `sudo systemctl restart unilidar` yapılır. **Donanımda doğrulanır.**
 - Ağ: L2 Ethernet'ten UDP ile gönderir. Fabrika adresleri L2 `192.168.1.62`, bilgisayar `192.168.1.2` kabul edildi; netplan dosyası Pi'a `192.168.1.2/24`'ü ekler. **Donanımda doğrulanır**; farklıysa netplan dosyası ve sürücünün parametreleri düzeltilir.
 - Konular: `/unilidar/cloud` (`PointCloud2`) ve `/unilidar/imu` (`Imu`); servis bunları ve ham UBX'i (`/orchados/gnss_ubx`) kaydeder. Denetim: `orchados-ros-exec ros2 topic hz /unilidar/cloud`. Adlar farklıysa `/etc/orchados/recorder.toml`'daki `[lidar]` ve bu belge düzeltilir.
+- Masa kontrolleri (IMU; LiDAR kayıt adımı IMU'ya dayanır, plan Task 17 Step 3). **Donanımda doğrulanır**; ölçülen değerler buraya yazılır:
+  - Hız: `orchados-ros-exec ros2 topic hz /unilidar/imu`. PR #33'te SDK örneğiyle ~250 Hz ölçülmüş. Ölçülen: _henüz ölçülmedi_. Bu değer işleme hattının `expected_imu_hz` parametresidir; yamasız sürücüde hız sıfıra yakındır.
+  - Kuaternyon sırası: L2 düz ve hareketsizken `orchados-ros-exec ros2 topic echo --once /unilidar/imu`; sonra L2 bilinen bir eksen etrafında ~90° çevrilip tekrar. Mesajdaki dönüşün ekseni ve açısı elle çevrilene uymalı; uymuyor da (x, y, z, w) sırası uyuyorsa kuaternyon yaması geri alınır.
+  - Yan dururken ivme ([#9](https://github.com/unitreerobotics/unilidar_sdk2/issues/9)): L2 sırayla dik, iki yanı ve ters dururken açılıp hareketsiz bırakılır; her duruşta `linear_acceleration`'ın büyüklüğü ~9,8 m/s² olmalı ve yukarı bakan eksende toplanmalı. Kullanıcılar L2'nin yan açılışta 15–19 m/s² gösterdiğini bildiriyor; bizdeki birimde de öyleyse sonuç buraya yazılır ve kayıt adımının ön ucu için ayrı karar verilir (L2 dik açılır ya da IMU ivmesi kullanılmaz).
 - Negatif açı kipi: `[lidar] mode_command`, kipi açıp denetleyen bir komuttur (çıkış 0 açık, 3 kapalı, diğerleri bilinmiyor). Boşsa kip denetlenmez ve ön kontrol "bilinmiyor"u geçer sayar. SDK ile yazılabilirse donanımda doldurulur.
 - Sürücü ile kayıt servisi DDS'i yalnız bu makinede konuşur (`ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`, `orchados-ros-exec`'te).
 

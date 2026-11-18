@@ -26,6 +26,15 @@ SYSTEM_PYTHON=/usr/bin/python3
 # The L2 driver; package name checked on the hardware (README, "L2 sürücüsü").
 UNILIDAR_REPO=https://github.com/unitreerobotics/unilidar_sdk2.git
 UNILIDAR_PACKAGE=unitree_lidar_ros2
+# Upstream v2.0.10. The patches below are made on this commit; moving it means
+# remaking them (README, "L2 sürücüsü").
+UNILIDAR_COMMIT=0e3c51f512e6b8ff60b8c32f160b412cb48445c2
+# The ROS 2 node's IMU bugs: unilidar_sdk2 #33 (packet read twice, /unilidar/imu
+# nearly silent) and #14 (orientation filled in the wrong order).
+UNILIDAR_PATCHES=(
+  "$SETUP/patches/unilidar_sdk2-imu-read-once.patch"
+  "$SETUP/patches/unilidar_sdk2-imu-quaternion-order.patch"
+)
 
 BLOCK_BEGIN="# >>> orchados kit-recorder >>>"
 BLOCK_END="# <<< orchados kit-recorder <<<"
@@ -281,25 +290,53 @@ disable_unused_services() {
   fi
 }
 
-# Builds the Unitree L2 ROS 2 driver in $ROS_WS. Unitree validated it on ROS 2
-# Foxy only; whether it builds on Jazzy is the first thing to try on the Pi.
+# apply_patches DIR PATCH...: applies each patch to the git checkout in DIR once.
+# A patch already in place is skipped; one that neither applies nor is in place
+# (the checkout differs from the commit it was made on) fails with 1.
+apply_patches() {
+  local dir=$1 patch
+  shift
+  for patch in "$@"; do
+    if git -C "$dir" apply --reverse --check "$patch" 2>/dev/null; then
+      note "already applied: ${patch##*/}"
+    elif git -C "$dir" apply --check "$patch" && git -C "$dir" apply "$patch"; then
+      note "applied ${patch##*/}"
+    else
+      warn "$patch does not apply to $dir"
+      return 1
+    fi
+  done
+}
+
+# Builds the Unitree L2 ROS 2 driver in $ROS_WS from the pinned commit with the
+# patches. Unitree validated it on ROS 2 Foxy only; whether it builds on Jazzy is
+# the first thing to try on the Pi. A build of another commit or other patches
+# (an older install.sh) is rebuilt.
 build_unilidar() {
   log "Unitree L2 driver ($UNILIDAR_PACKAGE) in $ROS_WS"
-  if [[ -d $ROS_WS/install/$UNILIDAR_PACKAGE ]]; then
+  local src="$ROS_WS/src/unilidar_sdk2" stamp="$ROS_WS/install/.orchados-unilidar" want
+  want="$UNILIDAR_COMMIT $(cat "${UNILIDAR_PATCHES[@]}" | sha256sum | cut -d' ' -f1)" || return 1
+  if [[ -d $ROS_WS/install/$UNILIDAR_PACKAGE && $(cat "$stamp" 2>/dev/null) == "$want" ]]; then
     note "already built (delete $ROS_WS/install to rebuild)"
     return 0
   fi
-  local src="$ROS_WS/src/unilidar_sdk2"
   mkdir -p "$ROS_WS/src"
   if [[ ! -d $src/.git ]]; then
-    git clone --depth 1 "$UNILIDAR_REPO" "$src" || return 1
+    git init -q "$src" && git -C "$src" remote add origin "$UNILIDAR_REPO" || return 1
   fi
+  if [[ $(git -C "$src" rev-parse -q --verify HEAD) != "$UNILIDAR_COMMIT" ]]; then
+    # --force drops the patches applied to the old commit; they are applied again.
+    git -C "$src" fetch -q --depth 1 "$UNILIDAR_REPO" "$UNILIDAR_COMMIT" &&
+      git -C "$src" checkout -q --force --detach FETCH_HEAD || return 1
+  fi
+  apply_patches "$src" "${UNILIDAR_PATCHES[@]}" || return 1
   # The repository also holds a ROS 1 package; colcon must not pick it up.
   if [[ -d $src/unitree_lidar_ros ]]; then
     touch "$src/unitree_lidar_ros/COLCON_IGNORE"
   fi
   (cd "$ROS_WS" && /usr/local/bin/orchados-ros-exec colcon build \
     --packages-up-to "$UNILIDAR_PACKAGE" --cmake-args -DCMAKE_BUILD_TYPE=Release) || return 1
+  echo "$want" >"$stamp"
 }
 
 install_units() {

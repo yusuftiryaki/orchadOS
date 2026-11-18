@@ -39,10 +39,10 @@
 
 **Files:** Modify `services/kit-recorder/setup/install.sh` (build_unilidar), `services/kit-recorder/README.md` (L2 sürücüsü), `services/kit-recorder/tests/test_setup_files.py`, `docs/superpowers/plans/2026-11-16-pi-kayit-yazilimi.md` (Task 17 steps).
 
-- [ ] Test: `test_unilidar_patches_applied` — install.sh applies a patch file (`setup/patches/unilidar_sdk2-*.patch`, listed and existing) before `colcon build`, idempotently (`git apply --check` / reverse check).
-- [ ] Patches: (a) unilidar_sdk2 PR #33 — ROS 2 node reads the IMU packet once (no second `getImuData()` swallowing it); (b) #14 — ROS 2 IMU quaternion order consistent with the ROS 1 driver (w,x,y,z source → `orientation.{x,y,z,w}` correctly). Pin the upstream commit the patches apply to.
-- [ ] README + plan Task 17: bench checks `ros2 topic hz /unilidar/imu` (expected rate written down after measurement) and accelerations with the L2 on its side (#9).
-- [ ] `uv run pytest -q`, `bash -n`, shellcheck clean. Commit `kit-recorder: patch the L2 ROS 2 driver's IMU bugs`.
+- [x] Test: `test_unilidar_patches_applied` — install.sh applies a patch file (`setup/patches/unilidar_sdk2-*.patch`, listed and existing) before `colcon build`, idempotently (`git apply --check` / reverse check).
+- [x] Patches: (a) unilidar_sdk2 PR #33 — ROS 2 node reads the IMU packet once (no second `getImuData()` swallowing it); (b) #14 — ROS 2 IMU quaternion order consistent with the ROS 1 driver (w,x,y,z source → `orientation.{x,y,z,w}` correctly). Pin the upstream commit the patches apply to.
+- [x] README + plan Task 17: bench checks `ros2 topic hz /unilidar/imu` (expected rate written down after measurement) and accelerations with the L2 on its side (#9).
+- [x] `uv run pytest -q`, `bash -n`, shellcheck clean. Commit `kit-recorder: patch the L2 ROS 2 driver's IMU bugs`.
 
 ### Task 2: Contracts in docs
 
