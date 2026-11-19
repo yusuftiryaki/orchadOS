@@ -815,6 +815,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `lio_coverage` | Ön ucun pozladığı süre ÷ kayıt süresi |
   | `trunk_spread_p95_m`, `trees_checked` | Gövde tutarlılığı: buluttaki gövde adayları (yerden 0,5–1,5 m, 0,3 m'lik hücrelerde dikey ve ince kümeler; envanter gerekmez) geçişlere ayrılır. Geçiş, LiDAR'ın gövdeye 10 m'den yakın olduğu kesintisiz süredir. En az iki geçişte görülen gövdelerde geçişlerin gövde merkezleri arasındaki en büyük uzaklığın p95'i; `trees_checked` bu gövdelerin sayısı. Hiç gövde yoksa `null` |
   | `gaps_s_total` | LiDAR boşluklarının toplam süresi (s) |
+  | `gnss_fix_fraction` | Yerleştirilen anahtar karelerden `fix` GNSS bağı olanların payı |
   | `frontend_jumps` | Birleştirmeden sonra ön ucun göreli pozundan 10 sigma'dan fazla ayrılan bağ sayısı: GNSS'in ağır bastığı ön uç sıçramaları (ör. sıra benzerliğiyle bir ağaç kayma). Bağlarda sağlam çekirdek (vars. Cauchy) olduğu için tek bir sıçrama PPK'ya yayılmaz. Karara doğrudan etkisi yok |
 
 - **Karar** (başlangıç eşikleri; hepsi parametre, pilot verisiyle sıkılaştırılır):
@@ -822,7 +823,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `verdict` | Koşul |
   | --- | --- |
   | `rejected_auto` | `lio_coverage` < 0,5; ya da PPK'lı ve `gnss_residual_p95_m` > 1,0; ya da `trunk_spread_p95_m` > 0,5; ya da hiç parça çalışmadı |
-  | `accepted_auto` | PPK'lı **ve** `gnss_residual_p95_m` ≤ 0,15 **ve** `trunk_spread_p95_m` ≤ 0,15 (`trees_checked` ≥ 10) **ve** `lio_coverage` ≥ 0,9 **ve** "en iyi `review`" diyen bir neden yok |
+  | `accepted_auto` | PPK'lı **ve** `gnss_residual_p95_m` ≤ 0,15 **ve** `trunk_spread_p95_m` ≤ 0,15 (`trees_checked` ≥ 10) **ve** `lio_coverage` ≥ 0,9 **ve** `gnss_fix_fraction` ≥ 0,5 **ve** "en iyi `review`" diyen bir neden yok |
   | `review` | Geri kalan her durum. PPK'sız bulut hiçbir zaman `accepted_auto` olmaz |
 
 - **Neden kodları (`reasons`):**
@@ -834,6 +835,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `gnss_residual_high` | `gnss_residual_p95_m` > 0,15 | PPK'lı ve > 1,0 ise `rejected_auto`, değilse en iyi `review` |
   | `trunk_spread_high` | `trunk_spread_p95_m` > 0,15 | > 0,5 ise `rejected_auto`, değilse en iyi `review` |
   | `few_trees_checked` | `trees_checked` < 10 | En iyi `review` |
+| `few_fixes` | PPK'lı ama yerleştirilen anahtar karelerin yarısından azında (`min_fix_fraction`, vars. 0,5) `fix` GNSS bağı var; artık denetimi az sayıda `fix` noktasına dayanır | En iyi `review` |
   | `no_ppk` | `ppk_status` `ppk` değil | En iyi `review` |
   | `clock_unlocked` | `recording.json` `clock_state_at_start` `pps` değil | En iyi `review` |
   | `no_recording_json` | `recording.json` yok (ör. güç kesintisi); parçalar MCAP'ten | En iyi `review` |

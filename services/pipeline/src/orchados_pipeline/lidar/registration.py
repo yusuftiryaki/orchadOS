@@ -557,6 +557,9 @@ def decide(metrics: dict, ppk: bool, params: RegistrationParams) -> tuple[str, l
         add("no_recording_json")
     elif metrics.get("clock_state") not in (None, "pps"):
         add("clock_unlocked")
+    fixes = metrics.get("gnss_fix_fraction")
+    if ppk and (fixes is None or fixes < t.min_fix_fraction):
+        add("few_fixes")
     if metrics.get("imu_rate_low_segments"):
         add("imu_rate_low")
     if metrics.get("restamped_segments"):
@@ -777,6 +780,12 @@ def run(
             "keyframes": len(fe.keyframes),
             "keyframes_placed": len(placed),
             "gnss_factors": fusion.used_gnss,
+            # Share of the placed keyframes with a fix GNSS factor (decide(): few_fixes).
+            "gnss_fix_fraction": (
+                round(sum(1 for _, q, _ in fusion.residuals if q == "fix") / len(placed), 4)
+                if placed
+                else None
+            ),
             "frontend_jumps": fusion.between_outliers,
             "points": n_points,
             "clock_state": (recording or {}).get("clock_state_at_start"),

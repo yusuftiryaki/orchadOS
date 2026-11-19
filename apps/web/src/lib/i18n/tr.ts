@@ -1809,6 +1809,7 @@ export const tr = {
       gnss_residual_high: "GNSS sapması yüksek",
       trunk_spread_high: "Gövde tutarlılığı düşük",
       few_trees_checked: "Denetlenen ağaç az",
+      few_fixes: "Az sayıda fix çözümü",
       no_ppk: "PPK yok",
       clock_unlocked: "Saat GNSS'e kilitli değildi",
       no_recording_json: "Kayıt bilgisi (recording.json) yok",

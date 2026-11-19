@@ -105,7 +105,8 @@ class RegistrationThresholds(Model):
     reject_gnss_p95_m, or trunk spread p95 above reject_trunk_spread_m, or no segment
     ran. accepted_auto: PPK and residual p95 <= accept_gnss_p95_m and trunk spread p95
     <= accept_trunk_spread_m over at least accept_min_trees trees and coverage >=
-    accept_min_coverage. Anything else: review.
+    accept_min_coverage and at least min_fix_fraction of the placed keyframes with a fix
+    GNSS factor. Anything else: review.
     """
 
     reject_min_coverage: float = 0.5
@@ -115,6 +116,9 @@ class RegistrationThresholds(Model):
     accept_trunk_spread_m: float = 0.15
     accept_min_trees: int = 10
     accept_min_coverage: float = 0.9
+    # With PPK, the residual check runs over fix epochs only: at least this share of the
+    # placed keyframes must have a fix GNSS factor, else at most review (few_fixes).
+    min_fix_fraction: float = 0.5
 
 
 class RegistrationParams(Model):
