@@ -1,4 +1,4 @@
-# orchadOS processing image: pipeline + AI worker + ingest + RTKLIB + ffmpeg.
+# orchadOS processing image: pipeline + AI worker + ingest + RTKLIB + ffmpeg + Docker CLI.
 #
 # Build from the repository root:
 #   docker build -f deploy/processing/Dockerfile -t orchados-processing .
@@ -39,6 +39,18 @@ ENV UV_PYTHON=/usr/bin/python3.12 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_NO_CACHE=1
+
+# Docker CLI only (static client, no daemon): the LiDAR front end (Point-LIO, GPL, its
+# own image) runs as a sibling container through the host's socket (docs/bulut-isleme.md).
+ARG DOCKER_CLI_VERSION=27.5.1
+ARG DOCKER_CLI_SHA256=4f798b3ee1e0140eab5bf30b0edc4e84f4cdb53255a429dc3bbae9524845d640
+RUN --mount=type=secret,id=extra_ca,required=false \
+    with-extra-ca curl -fsSL -o /tmp/docker.tgz \
+        "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
+    && echo "${DOCKER_CLI_SHA256}  /tmp/docker.tgz" | sha256sum -c - \
+    && tar -xzf /tmp/docker.tgz -C /usr/local/bin --strip-components=1 docker/docker \
+    && rm /tmp/docker.tgz \
+    && docker --version
 
 # One virtual environment per service, each from its own lock file.
 COPY services/pipeline/pyproject.toml services/pipeline/uv.lock services/pipeline/README.md /opt/orchados/pipeline/

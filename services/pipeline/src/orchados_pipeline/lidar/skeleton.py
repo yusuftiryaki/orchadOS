@@ -1147,6 +1147,7 @@ def make_report(
         method_version=METHOD_VERSION,
         session_id=meta.session_id,
         parcel_id=meta.parcel_id,
+        run_id=meta.run_id,
         trees=[r.quality for r in results],
         measurements=[m for r in results for m in r.measurements],
         params=p,
@@ -1157,10 +1158,14 @@ def make_report(
 
 
 def run(
-    session_dir: Path, trees_path: Path, out_dir: Path, params_path: Path | None = None
+    session_dir: Path,
+    trees_path: Path,
+    out_dir: Path,
+    params_path: Path | None = None,
+    cloud_dir: Path | None = None,
 ) -> SkeletonReport:
     p = load_params(params_path)
-    cloud = load_session_cloud(Path(session_dir))
+    cloud = load_session_cloud(Path(session_dir), cloud_dir)
     trees = extract_trees(cloud, load_tree_positions(Path(trees_path)), radius_m=p.tree_radius_m)
     report = make_report(cloud.meta, trees, p)
     write_model(report, Path(out_dir) / REPORT_FILE)

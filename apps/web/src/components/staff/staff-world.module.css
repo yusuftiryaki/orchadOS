@@ -1,11 +1,19 @@
-/* The staff's 3D world over the whole page (staff-world.tsx). The world
-   itself (world.module.css) fills this layer. */
+/* The staff's 3D world over the whole page (staff-world.tsx): the LiDAR
+   registration band on top, the world (world.module.css) fills the rest. */
 
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
   background: #0d1b24;
+}
+
+.world {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 .state {

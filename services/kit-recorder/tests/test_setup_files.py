@@ -63,9 +63,10 @@ def test_lidar_driver_unit_restarts_and_runs_with_ros():
 
 def test_install_script_uses_every_setup_file():
     script = (SETUP / "install.sh").read_text()
-    for f in SETUP.iterdir():
-        if f.name != "install.sh":
-            assert f'"$SETUP/{f.name}"' in script, f"install.sh does not install {f.name}"
+    for f in SETUP.rglob("*"):
+        name = f.relative_to(SETUP).as_posix()
+        if f.is_file() and name != "install.sh":
+            assert f'"$SETUP/{name}"' in script, f"install.sh does not install {name}"
     for name in re.findall(r'"\$SETUP/([^"]+)"', script):
         assert (SETUP / name).is_file(), f"install.sh refers to a missing setup/{name}"
 
@@ -132,3 +133,98 @@ def test_recorder_unit_is_ordered_after_the_ssd_mount_but_does_not_need_it():
     assert "mnt-orchados\\x2dssd.mount" in after.split("=", 1)[1].split()
     for key in ("RequiresMountsFor=", "BindsTo=", "Requires=", "PartOf="):
         assert not any(line.startswith(key) for line in unit.splitlines())
+
+
+UNILIDAR_HEADER = "unitree_lidar_ros2/src/unitree_lidar_ros2/include/unitree_lidar_ros2.h"
+
+
+def _unilidar_patches(script: str) -> list[Path]:
+    names = re.findall(r'"\$SETUP/(patches/unilidar_sdk2-[^"]+\.patch)"', script)
+    assert names, "install.sh lists no setup/patches/unilidar_sdk2-*.patch"
+    return [SETUP / name for name in names]
+
+
+def _hunk_sides(patch: Path) -> tuple[str, str]:
+    # Pre- and post-image of the patch's hunks, in order, each hunk followed by a
+    # filler line so hunks of different patches never share context.
+    before, after = [], []
+    in_hunk = False
+    for line in patch.read_text().splitlines():
+        if line.startswith("@@"):
+            in_hunk = True
+            continue
+        if line.startswith("diff --git"):
+            in_hunk = False
+        if not in_hunk or line.startswith("\\"):
+            continue
+        tag, body = line[:1], line[1:]
+        if tag in (" ", "-"):
+            before.append(body)
+        if tag in (" ", "+"):
+            after.append(body)
+    filler = "// -- orchados test filler --"
+    return "\n".join([*before, filler, ""]), "\n".join([*after, filler, ""])
+
+
+def test_unilidar_driver_is_pinned_and_patched_before_the_build():
+    script = (SETUP / "install.sh").read_text()
+    # One upstream commit: the patches are written against it.
+    m = re.search(r"^UNILIDAR_COMMIT=([0-9a-f]{40})$", script, re.M)
+    assert m
+    commit = m.group(1)
+    patches = _unilidar_patches(script)
+    assert {p.name for p in (SETUP / "patches").glob("unilidar_sdk2-*.patch")} == {
+        p.name for p in patches
+    }
+    for patch in patches:
+        text = patch.read_text()
+        assert f"a/{UNILIDAR_HEADER}" in text and f"b/{UNILIDAR_HEADER}" in text
+        assert commit in text  # the patch header names the commit it was made on
+    build = _shell_function(script, "build_unilidar")
+    assert '"$UNILIDAR_COMMIT"' in build and "--depth 1" in build
+    assert build.index("apply_patches") < build.index("colcon build")
+
+
+def test_unilidar_patches_fix_the_imu_bugs():
+    script = (SETUP / "install.sh").read_text()
+    after = "".join(_hunk_sides(p)[1] for p in _unilidar_patches(script))
+    # unilidar_sdk2 #33: the IMU packet is fetched once, in the if().
+    assert after.count("lsdk_->getImuData(imu)") == 1
+    assert "if (lsdk_->getImuData(imu))" in after
+    # unilidar_sdk2 #14: the SDK's quaternion is w, x, y, z (as in the ROS 1 driver
+    # and the node's own tf).
+    for axis, i in (("w", 0), ("x", 1), ("y", 2), ("z", 3)):
+        assert f"imuMsg.orientation.{axis} = imu.quaternion[{i}];" in after
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="no git")
+def test_unilidar_patches_applied(tmp_path):
+    # apply_patches on a checkout holding each patch's pre-image: applies once,
+    # the second run changes nothing, a file that matches neither side fails.
+    script = (SETUP / "install.sh").read_text()
+    patches = _unilidar_patches(script)
+    src = tmp_path / "unilidar_sdk2"
+    header = src / UNILIDAR_HEADER
+    header.parent.mkdir(parents=True)
+    sides = [_hunk_sides(p) for p in patches]
+    header.write_text("".join(before for before, _ in sides))
+    subprocess.run(["git", "init", "-q", str(src)], check=True)
+    body = (
+        "set -euo pipefail\n"
+        "note() { :; }\n"
+        'warn() { echo "WARNING: $*" >&2; }\n'
+        f"{_shell_function(script, 'apply_patches')}"
+        'apply_patches "$@"\n'
+    )
+
+    def run() -> int:
+        argv = ["bash", "-c", body, "apply_patches", str(src), *map(str, patches)]
+        return subprocess.run(argv).returncode
+
+    assert run() == 0
+    patched = "".join(after for _, after in sides)
+    assert header.read_text() == patched
+    assert run() == 0
+    assert header.read_text() == patched
+    header.write_text("something else\n")
+    assert run() != 0

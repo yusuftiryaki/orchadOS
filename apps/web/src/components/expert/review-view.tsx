@@ -30,6 +30,7 @@ import { SavedToast } from "./saved-toast";
 import { SessionStatusBadge } from "./status";
 import { ValuesList } from "./values-list";
 import { LidarBlock } from "./lidar-block";
+import { decideLidarRegistrationAction } from "@/components/staff/actions";
 import { StaffWorldButton } from "@/components/staff/staff-world";
 import { signStaffWorldAction } from "@/app/uzman/actions";
 import type { StaffWorld, TreeLidar } from "@/lib/lidar/staff";
@@ -140,6 +141,7 @@ export function ReviewView({
   lidar = null,
   lidarMessage = null,
   world = null,
+  canDecideLidar = false,
 }: {
   ctx: ReviewContext;
   filter: Filter;
@@ -156,6 +158,8 @@ export function ReviewView({
   lidarMessage?: string | null;
   // The parcel's 3D world; null when no visit has a cloud.
   world?: StaffWorld | null;
+  // The user is ops too: the world's LiDAR registration band offers the decision.
+  canDecideLidar?: boolean;
 }) {
   const r = t.expert.review;
   const s = ctx.session;
@@ -194,6 +198,7 @@ export function ReviewView({
                 focusTreeId={selected?.id ?? null}
                 sign={signStaffWorldAction}
                 reviewSessionId={s.id}
+                decide={canDecideLidar ? decideLidarRegistrationAction : undefined}
               />
             )}
             <ButtonLink variant="secondary" href={summaryHref(s.id)}>

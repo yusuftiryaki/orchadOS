@@ -1330,6 +1330,85 @@ export type Database = {
           },
         ];
       };
+      lidar_registration: {
+        Row: {
+          auto_verdict: string;
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          decision_note: string | null;
+          id: string;
+          method: string;
+          method_version: string;
+          metrics: NonNullable<Json>;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          ppk_status: string;
+          reasons: string[];
+          recorded_by: string | null;
+          run_id: string;
+          session_id: string;
+          status: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          auto_verdict: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_note?: string | null;
+          id?: string;
+          method: string;
+          method_version: string;
+          metrics?: NonNullable<Json>;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          ppk_status: string;
+          reasons?: string[];
+          recorded_by?: string | null;
+          run_id: string;
+          session_id: string;
+          status: string;
+        };
+        Update: {
+          auto_verdict?: string;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_note?: string | null;
+          id?: string;
+          method?: string;
+          method_version?: string;
+          metrics?: NonNullable<Json>;
+          org_id?: string;
+          params_hash?: string;
+          parcel_id?: string;
+          ppk_status?: string;
+          reasons?: string[];
+          recorded_by?: string | null;
+          run_id?: string;
+          session_id?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lidar_registration_parcel_id_org_id_fkey";
+            columns: ["parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "parcel";
+            referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "lidar_registration_session_id_parcel_id_org_id_fkey";
+            columns: ["session_id", "parcel_id", "org_id"];
+            isOneToOne: false;
+            referencedRelation: "session";
+            referencedColumns: ["id", "parcel_id", "org_id"];
+          },
+        ];
+      };
       measurement: {
         Row: {
           confidence: number | null;
@@ -1343,6 +1422,7 @@ export type Database = {
           params_hash: string | null;
           parcel_id: string;
           recorded_by: string | null;
+          registration_id: string | null;
           session_id: string;
           slot_id: string | null;
           source: Database["public"]["Enums"]["measurement_source"];
@@ -1369,6 +1449,7 @@ export type Database = {
           params_hash?: string | null;
           parcel_id: string;
           recorded_by?: string | null;
+          registration_id?: string | null;
           session_id: string;
           slot_id?: string | null;
           source: Database["public"]["Enums"]["measurement_source"];
@@ -1394,6 +1475,7 @@ export type Database = {
           params_hash?: string | null;
           parcel_id?: string;
           recorded_by?: string | null;
+          registration_id?: string | null;
           session_id?: string;
           slot_id?: string | null;
           source?: Database["public"]["Enums"]["measurement_source"];
@@ -1421,6 +1503,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "parcel";
             referencedColumns: ["id", "org_id"];
+          },
+          {
+            foreignKeyName: "measurement_registration_fk";
+            columns: ["registration_id", "session_id"];
+            isOneToOne: false;
+            referencedRelation: "lidar_registration";
+            referencedColumns: ["id", "session_id"];
           },
           {
             foreignKeyName: "measurement_session_id_parcel_id_org_id_fkey";
@@ -4765,6 +4854,35 @@ export type Database = {
     };
     Functions: {
       account_phone_change_allowed: { Args: { p_user_id: string }; Returns: boolean };
+      activate_lidar_registration: {
+        Args: { p_id: string };
+        Returns: {
+          auto_verdict: string;
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          decision_note: string | null;
+          id: string;
+          method: string;
+          method_version: string;
+          metrics: NonNullable<Json>;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          ppk_status: string;
+          reasons: string[];
+          recorded_by: string | null;
+          run_id: string;
+          session_id: string;
+          status: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "lidar_registration";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       add_field_survey_boundary: {
         Args: {
           p_ring: Json;
@@ -5077,6 +5195,35 @@ export type Database = {
       };
       customer_withdraw_application: { Args: { p_application_id: string }; Returns: undefined };
       customer_withdraw_application_garden: { Args: { p_garden_id: string }; Returns: undefined };
+      decide_lidar_registration: {
+        Args: { p_accept: boolean; p_id: string; p_note: string };
+        Returns: {
+          auto_verdict: string;
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          decision_note: string | null;
+          id: string;
+          method: string;
+          method_version: string;
+          metrics: NonNullable<Json>;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          ppk_status: string;
+          reasons: string[];
+          recorded_by: string | null;
+          run_id: string;
+          session_id: string;
+          status: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "lidar_registration";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       demo_admit: { Args: { p_ip_hash: string }; Returns: Json };
       demo_end: { Args: Record<PropertyKey, never>; Returns: undefined };
       demo_expired_accounts: {
@@ -6739,6 +6886,10 @@ export type Database = {
       receipt_data: { Args: { p_payment_id: string }; Returns: Json };
       record_coverage_report: { Args: { p_report: Json; p_session_id: string }; Returns: Json };
       record_lidar_measurements: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
+      record_lidar_registration: {
+        Args: { p_payload: Json; p_session_id: string };
+        Returns: string;
+      };
       record_tree_presence: { Args: { p_payload: Json; p_session_id: string }; Returns: Json };
       record_verification_result: {
         Args: {

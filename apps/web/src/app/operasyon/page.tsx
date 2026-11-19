@@ -2,6 +2,8 @@ import Link from "next/link";
 import { BillingCard } from "@/components/back-office/billing-card";
 import { statusTone } from "@/components/ui/status";
 import { ExpertRequests } from "@/components/operations/expert-requests";
+import { PendingLidarRegistrations } from "@/components/operations/lidar-registrations";
+import { decideLidarRegistrationAction } from "@/components/staff/actions";
 import { Pagination, pageOf } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
 import { QueueList, type QueueItem } from "@/components/operations/queue-list";
@@ -16,6 +18,7 @@ import { Table, cell } from "@/components/ui/table";
 import { requireSection } from "@/lib/auth/session";
 import { billingSummary } from "@/lib/back-office/data";
 import { listFollowups } from "@/lib/expert/followups";
+import { listPendingRegistrations } from "@/lib/lidar/registration";
 import { formatNumber, t } from "@/lib/i18n";
 import { listFieldStaff, listVisits, opsOrgs } from "@/lib/operations/data";
 import { listViewerInvitations } from "@/lib/operations/invitations";
@@ -55,7 +58,7 @@ export default async function Page({
   const params = await searchParams;
   // Staff, invitations and the billing summary wait for the orgs only.
   const orgsP = opsOrgs(supabase, user.id);
-  const [visits, parcels, followups, kvkkVersions, staff, invitations, billing, demand] =
+  const [visits, parcels, followups, kvkkVersions, staff, invitations, billing, demand, lidarRuns] =
     await Promise.all([
       listVisits(supabase),
       listParcels(supabase),
@@ -71,6 +74,8 @@ export default async function Page({
       orgsP.then((orgs) => billingSummary(supabase, orgs)),
       // IP15: open service requests (weed mowing).
       serviceDemand(supabase),
+      // IP16/17: LiDAR registrations the pipeline left for review.
+      listPendingRegistrations(supabase),
     ]);
   const leads = new Map(staff.map((s) => [s.userId, s.email]));
 
@@ -178,6 +183,9 @@ export default async function Page({
           today={todayIn(now)}
           kvkkVersions={kvkkVersions}
         />
+      )}
+      {lidarRuns.length > 0 && (
+        <PendingLidarRegistrations runs={lidarRuns} decide={decideLidarRegistrationAction} />
       )}
       {followups.length > 0 && (
         <ExpertRequests
