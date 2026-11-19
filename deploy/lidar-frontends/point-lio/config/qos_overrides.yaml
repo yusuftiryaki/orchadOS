@@ -1,0 +1,13 @@
+# ros2 bag play: offer both inputs as reliable. The kit's driver may have been
+# recorded as best effort; a best-effort publisher never reaches Point-LIO's
+# (reliable) IMU subscription. Reliable publishers serve both kinds.
+/unilidar/cloud:
+  history: keep_last
+  depth: 100
+  reliability: reliable
+  durability: volatile
+/unilidar/imu:
+  history: keep_last
+  depth: 2000
+  reliability: reliable
+  durability: volatile
