@@ -494,25 +494,88 @@ def _nav_error(rel_s: np.ndarray, rng: np.random.Generator) -> np.ndarray:
     return bias + amp * np.sin(2 * math.pi * rel_s[:, None] / per + ph)
 
 
-def make_moving_session(dest: Path, cfg: MovingConfig | None = None) -> MovingTruth:
-    cfg = cfg or MovingConfig()
-    dest = Path(dest)
+def _setup(cfg: MovingConfig):
     rng = np.random.default_rng(cfg.seed)
-    frame = LocalFrame(ORIGIN[0], ORIGIN[1])
     path = lawn_mower(cfg)
     duration = cfg.duration_s if cfg.duration_s is not None else path.length / cfg.speed_mps
     t0 = utc_to_gps_ns(START_UTC)
     kin = _Kinematics(path, cfg)
     scene = make_scene(cfg, rng)
-    lever = np.array(LEVER_ARM_M)
-    lever_dir = lever / np.linalg.norm(lever)
-
     # Truth at 100 Hz (message starts fall on samples).
-    n_truth = int(round(duration * TRUTH_HZ)) + 1
-    rel_truth = np.arange(n_truth) / TRUTH_HZ
+    rel_truth = np.arange(int(round(duration * TRUTH_HZ)) + 1) / TRUTH_HZ
     pos, yaw, _, _ = kin.at(rel_truth)
     t_truth = t0 + np.round(rel_truth * _NS).astype(np.int64)
-    poses = np.column_stack([t_truth.astype(np.float64), pos, _quat_z(yaw)])
+    truth = MovingTruth(
+        poses=np.column_stack([t_truth.astype(np.float64), pos, _quat_z(yaw)]),
+        origin_lat=ORIGIN[0],
+        origin_lon=ORIGIN[1],
+        origin_height_m=ORIGIN[2],
+        lever_arm_m=list(LEVER_ARM_M),
+        trees=[
+            (tid, float(e), float(n)) for tid, (e, n) in zip(scene.ids, scene.centres, strict=True)
+        ],
+        tree_spacing_m=cfg.tree_spacing_m,
+        extra={"trunk_radius_m": [round(float(r), 4) for r in scene.trunk_r]},
+    )
+    return rng, path, duration, t0, kin, scene, truth
+
+
+def moving_truth(cfg: MovingConfig | None = None) -> MovingTruth:
+    """The truth of make_moving_session(cfg) without writing anything (poses, trees)."""
+    return _setup(cfg or MovingConfig())[-1]
+
+
+def antenna_trajectory(
+    truth: MovingTruth,
+    rng: np.random.Generator,
+    *,
+    quality: SolutionQuality = SolutionQuality.fix,
+    sd_m: tuple[float, float, float] = (0.01, 0.01, 0.015),
+    noise_m: tuple[float, float, float] = (0.008, 0.008, 0.012),
+    hz: float = NAV_PVT_HZ,
+) -> Trajectory:
+    """A trajectory of the antenna (true pose + lever arm) with white noise, like the
+    position stage's PPK output (default) or, with other qualities and sd, a worse one."""
+    span_s = (int(truth.poses[-1, 0]) - truth.t0_ns) / 1e9
+    steps = np.arange(int(math.floor(span_s * hz + 1e-9)) + 1) / hz
+    times = truth.t0_ns + np.round(steps * _NS).astype(np.int64)
+    pos, rot = truth.pose_at(times)
+    ant = pos + rot @ np.asarray(truth.lever_arm_m, dtype=np.float64)
+    ant = ant + rng.normal(0, noise_m, ant.shape)
+    frame = LocalFrame(truth.origin_lat, truth.origin_lon)
+    lat, lon = frame.to_latlon(ant[:, 0], ant[:, 1])
+    points = [
+        TrajectoryPoint(
+            gps_time_ns=int(g),
+            lat=float(la),
+            lon=float(lo),
+            height_m=truth.origin_height_m + float(u),
+            quality=quality,
+            sd_n_m=sd_m[1],
+            sd_e_m=sd_m[0],
+            sd_u_m=sd_m[2],
+            num_sv=24,
+        )
+        for g, la, lo, u in zip(times, lat, lon, ant[:, 2], strict=True)
+    ]
+    return Trajectory(
+        producer=Producer(
+            pipeline=PIPELINE_NAME, version=__version__, params_hash="synthetic", stage="position"
+        ),
+        source="rtklib_pos",
+        ppk_status=PpkStatus.ppk,
+        points=points,
+        notes=["synthetic trajectory (lidar synth --moving)"],
+    )
+
+
+def make_moving_session(dest: Path, cfg: MovingConfig | None = None) -> MovingTruth:
+    cfg = cfg or MovingConfig()
+    dest = Path(dest)
+    rng, path, duration, t0, kin, scene, truth = _setup(cfg)
+    frame = LocalFrame(ORIGIN[0], ORIGIN[1])
+    lever = np.array(LEVER_ARM_M)
+    lever_dir = lever / np.linalg.norm(lever)
 
     def silent(rel: float) -> bool:
         return cfg.gap is not None and cfg.gap[0] <= rel < cfg.gap[1]
@@ -680,54 +743,10 @@ def make_moving_session(dest: Path, cfg: MovingConfig | None = None) -> MovingTr
     _write_json(dest / "trees.json", trees)
 
     if cfg.ppk:
-        _write_ppk(dest, frame, t0, duration, kin, lever, rng)
-
-    truth = MovingTruth(
-        poses=poses,
-        origin_lat=ORIGIN[0],
-        origin_lon=ORIGIN[1],
-        origin_height_m=ORIGIN[2],
-        lever_arm_m=list(LEVER_ARM_M),
-        trees=[
-            (tid, float(e), float(n)) for tid, (e, n) in zip(scene.ids, scene.centres, strict=True)
-        ],
-        tree_spacing_m=cfg.tree_spacing_m,
-        extra={"trunk_radius_m": [round(float(r), 4) for r in scene.trunk_r]},
-    )
+        traj = antenna_trajectory(truth, rng)
+        write_model(traj, dest.parent / f"{dest.name}.processed" / PPK_DIR / "trajectory.json")
     truth.write(dest / "truth.json")
     return truth
-
-
-def _write_ppk(dest, frame, t0, duration, kin, lever, rng) -> Path:
-    rel = np.arange(int(math.floor(duration * NAV_PVT_HZ + 1e-9)) + 1) / NAV_PVT_HZ
-    pos, yaw, _, _ = kin.at(rel)
-    ant = pos + np.einsum("nij,j->ni", rot_z(yaw), lever)
-    ant = ant + rng.normal(0, [0.008, 0.008, 0.012], ant.shape)
-    lat, lon = frame.to_latlon(ant[:, 0], ant[:, 1])
-    points = [
-        TrajectoryPoint(
-            gps_time_ns=t0 + int(round(r * _NS)),
-            lat=float(la),
-            lon=float(lo),
-            height_m=ORIGIN[2] + float(u),
-            quality=SolutionQuality.fix,
-            sd_n_m=0.01,
-            sd_e_m=0.01,
-            sd_u_m=0.015,
-            num_sv=24,
-        )
-        for r, la, lo, u in zip(rel, lat, lon, ant[:, 2], strict=True)
-    ]
-    traj = Trajectory(
-        producer=Producer(
-            pipeline=PIPELINE_NAME, version=__version__, params_hash="synthetic", stage="position"
-        ),
-        source="rtklib_pos",
-        ppk_status=PpkStatus.ppk,
-        points=points,
-        notes=["synthetic PPK trajectory (lidar synth --moving)"],
-    )
-    return write_model(traj, dest.parent / f"{dest.name}.processed" / PPK_DIR / "trajectory.json")
 
 
 def _write_json(path: Path, body) -> None:
