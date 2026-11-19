@@ -101,6 +101,7 @@ class FakeClient:
         self.assets: list[dict] = []
         self.objects: dict[str, bytes] = {}
         self.fail_on: str | None = None  # an rpc that raises
+        self.activate_as: str | None = None  # e.g. superseded (a newer run was accepted)
 
     def __enter__(self):
         return self
@@ -121,7 +122,7 @@ class FakeClient:
             if row is None:
                 raise SupabaseError("not_found")
             if row["status"] == "recording":
-                row["status"] = STATUS_OF[row["payload"]["verdict"]]
+                row["status"] = self.activate_as or STATUS_OF[row["payload"]["verdict"]]
             return {"id": row["id"], "status": row["status"]}
         p = args["p_payload"]
         if self.fail_on == fn:
@@ -345,6 +346,16 @@ def test_a_failed_upload_leaves_the_registration_recording(tmp_path, fake, capsy
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
     assert fake.registrations[RUN_ID]["status"] == "pending_review"
     assert len(fake.assets) == 3 and len(fake.measurements) == 8
+
+
+def test_activation_superseded_by_a_newer_run_is_success(tmp_path, fake, capsys):
+    """A newer run of the visit was accepted meanwhile: activation gives this one
+    superseded, which is not an error."""
+    run = write_run(tmp_path, verdict="accepted_auto")
+    fake.activate_as = "superseded"
+    assert lidar_upload.run(run, SESSION, env=ENV) == 0
+    assert fake.registrations[RUN_ID]["status"] == "superseded"
+    assert "activated, superseded" in capsys.readouterr().out
 
 
 def test_rejected_without_results_still_records_the_registration(tmp_path, fake):
