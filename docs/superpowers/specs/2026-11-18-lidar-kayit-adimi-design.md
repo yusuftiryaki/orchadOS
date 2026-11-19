@@ -177,7 +177,7 @@ Anahtar kare aralığı ön ucun parametresidir. Başlangıç değeri 0,5 m, 10�
 
 ### 5.11 Yeniden çalıştırma, ilk tarama, saat, eski satırlar
 
-Bu dört karar uygulayıcı denetiminden sonra Claude tarafından verildi; sahip sabah gözden geçirecek.
+Bu dört karar uygulayıcı denetiminden sonra Claude tarafından verildi; sahip 19 Kasım 2026'da onayladı.
 
 - **Her çalıştırmanın kendi kimliği var:** `register` her çalıştırmada bir `run_id` (uuid) üretir.
   - Klasör adı: `<method>-<method_version>-<params_hash[:8]>-<run_id[:8]>/`.
