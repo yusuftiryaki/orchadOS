@@ -1,0 +1,59 @@
+orchadOS patch for dfloreaa/point_lio_ros2 (GPL-2.0, applied at build time).
+
+1. Drop the unused pcl_ros dependency (the code only needs pcl_conversions);
+   keeps the runtime image free of pcl_ros and its development packages.
+2. Keep each point's time (`curvature`, ms from scan start) on
+   /cloud_registered_body so the keyframe recorder can deskew the scan.
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 75e0b30..d9beab3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -42,7 +42,6 @@ find_package(rclpy REQUIRED)
+ find_package(geometry_msgs REQUIRED)
+ find_package(nav_msgs REQUIRED)
+ find_package(sensor_msgs REQUIRED)
+-find_package(pcl_ros REQUIRED)
+ find_package(pcl_conversions REQUIRED)
+ find_package(tf2_ros REQUIRED)
+ find_package(visualization_msgs REQUIRED)
+@@ -75,7 +74,6 @@ ament_target_dependencies(pointlio_mapping
+         geometry_msgs
+         nav_msgs
+         sensor_msgs
+-        pcl_ros
+         pcl_conversions
+         tf2_ros
+         visualization_msgs
+@@ -101,7 +99,6 @@ ament_export_dependencies(rclcpp
+   geometry_msgs
+   nav_msgs
+   sensor_msgs
+-  pcl_ros
+   pcl_conversions
+   tf2_ros
+   visualization_msgs
+diff --git a/package.xml b/package.xml
+index 01ba0ff..735c21c 100644
+--- a/package.xml
++++ b/package.xml
+@@ -25,7 +25,6 @@
+   <depend>geometry_msgs</depend>
+   <depend>nav_msgs</depend>
+   <depend>tf2_ros</depend> <!-- tf in ROS1 is replaced by tf2 in ROS2 -->
+-  <depend>pcl_ros</depend> <!-- For PCL support -->
+   <depend>pcl_conversions</depend> <!-- For PCL support -->
+   <depend>visualization_msgs</depend> <!-- For visualization_msgs support -->
+   <!-- <depend>livox_ros_driver2</depend> -->
+diff --git a/src/laserMapping.cpp b/src/laserMapping.cpp
+index b6d5f4a..cf3ae0c 100644
+--- a/src/laserMapping.cpp
++++ b/src/laserMapping.cpp
+@@ -132,6 +132,7 @@ void pointBodyLidarToIMU(PointType const *const pi, PointType *const po) {
+     po->y = p_body_imu(1);
+     po->z = p_body_imu(2);
+     po->intensity = pi->intensity;
++    po->curvature = pi->curvature;  // orchadOS: keep per-point time (ms) for deskewing
+ }
+ 
+ int points_cache_size = 0;
