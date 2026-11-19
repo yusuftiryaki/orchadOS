@@ -86,6 +86,12 @@ def add_parser(sub) -> None:
             "--out", help="registration root (default: <session>.processed/lidar/registration)"
         )
         p.add_argument("--params", help="JSON file overriding the registration parameters")
+        p.add_argument(
+            "--keep-frontend-scans",
+            action="store_true",
+            help="keep the front end's keyframe scans (frontend/scans/, GBs per session; "
+            "removed by default once the cloud is written)",
+        )
         return p
 
     registering(
@@ -290,6 +296,7 @@ def _register(args: argparse.Namespace) -> int:
             Path(args.session),
             Path(args.out) if args.out else None,
             _registration_params(args),
+            keep_frontend_scans=args.keep_frontend_scans,
         )
     except registration.NoLidarData as exc:
         print(f"lidar register: {exc}")
@@ -324,7 +331,12 @@ def _process(args: argparse.Namespace) -> int:
         print(f"lidar process: reusing {folder.name} ({report.verdict})")
     else:
         try:
-            folder, report = registration.run(session, out_root, _registration_params(args))
+            folder, report = registration.run(
+                session,
+                out_root,
+                _registration_params(args),
+                keep_frontend_scans=args.keep_frontend_scans,
+            )
         except registration.NoLidarData as exc:
             print(f"lidar process: {exc}; LiDAR skipped")
             return 0

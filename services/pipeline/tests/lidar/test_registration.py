@@ -75,6 +75,9 @@ def test_good_scan_is_accepted(good_registration):
     for name in ("cloud.ply", "cloud.json", "registration.json", "poses.csv", "params.json"):
         assert (folder / name).is_file(), name
     assert (folder / "frontend" / "frontend.json").is_file()
+    assert (folder / "frontend" / "keyframes.csv").is_file()
+    # The front end's scans are work files (GBs per session): gone after the registration.
+    assert not (folder / "frontend" / "scans").exists()
     assert not [p for p in folder.parent.iterdir() if p.name.startswith(".work-")]
     back = read_model(RegistrationReport, folder / "registration.json")
     assert back.run_id == report.run_id
@@ -187,6 +190,14 @@ def test_drift_through_a_gnss_hole_is_not_accepted(good_session, tmp_path):
     assert set(report.reasons) & {"trunk_spread_high", "gnss_residual_high", "few_trees_checked"}
     assert report.metrics["lio_drift_m_per_100m"] > 2.0
     assert report.metrics["gnss_factors"] < report.metrics["keyframes"]
+
+
+def test_keep_frontend_scans(small_ppk, tmp_path):
+    src, _ = small_ppk
+    session = link_session(src, tmp_path / "s")
+    folder, report = run(session, frontend=FakeFrontend(), keep_frontend_scans=True)
+    scans = sorted((folder / "frontend" / "scans").glob("*.npz"))
+    assert len(scans) == report.metrics["keyframes"]
 
 
 def test_register_twice_new_run(small_ppk, tmp_path):

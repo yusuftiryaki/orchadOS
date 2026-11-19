@@ -25,6 +25,13 @@ def test_register_prints_the_verdict(small_ppk, tmp_path, capsys):
     (run,) = _runs(session)
     assert str(run) in out
     assert main(["lidar", "register", str(tmp_path / "nothing"), "--frontend", "fake"]) == 1
+    assert not (run / "frontend/scans").exists()
+    assert (
+        main(["lidar", "register", str(session), "--frontend", "fake", "--keep-frontend-scans"])
+        == 0
+    )
+    kept = [d for d in _runs(session) if d != run]
+    assert len(kept) == 1 and list((kept[0] / "frontend/scans").glob("*.npz"))
 
 
 def test_process_without_lidar_is_noop(tmp_path, capsys):
