@@ -26,6 +26,7 @@ from orchados_pipeline.lidar import upload as lidar_upload
 from orchados_pipeline.lidar.cloud import write_ply
 from orchados_pipeline.lidar.models import CloudMeta, RegistrationReport
 from orchados_pipeline.lidar.upload import (
+    ACTIVATE_RPC,
     REGISTRATION_PLACEHOLDER,
     REGISTRATION_RPC,
     RPC,
@@ -99,6 +100,7 @@ class FakeClient:
         self.measurements: list[tuple] = []
         self.assets: list[dict] = []
         self.objects: dict[str, bytes] = {}
+        self.fail_on: str | None = None  # an rpc that raises
 
     def __enter__(self):
         return self
@@ -112,13 +114,24 @@ class FakeClient:
     def rpc(self, fn, args):
         args = json.loads(json.dumps(args))  # what goes over the wire
         self.calls.append(("rpc", fn, args))
+        if fn == ACTIVATE_RPC:
+            # Ops only, idempotent: a run still recording moves to its verdict's status
+            # (accepted would supersede the session's older ones); others stay.
+            row = self.reg_by_id(args["p_id"])
+            if row is None:
+                raise SupabaseError("not_found")
+            if row["status"] == "recording":
+                row["status"] = STATUS_OF[row["payload"]["verdict"]]
+            return {"id": row["id"], "status": row["status"]}
         p = args["p_payload"]
+        if self.fail_on == fn:
+            raise SupabaseError(f"{fn} failed")
         if fn == REGISTRATION_RPC:
             assert args["p_session_id"] == self.session["id"] == p["session_id"]
             assert p["ppk_status"] in ("ppk", "no_ppk", "ppk_failed")
             if p["run_id"] not in self.registrations:
                 self.registrations[p["run_id"]] = {
-                    "id": str(uuid.uuid4()), "status": STATUS_OF[p["verdict"]], "payload": p,
+                    "id": str(uuid.uuid4()), "status": "recording", "payload": p,
                 }  # fmt: skip
             return self.registrations[p["run_id"]]["id"]
         assert fn == RPC
@@ -214,8 +227,8 @@ def json_blocks(text: str) -> list[dict]:
 def test_registration_first_then_measurements_and_world_with_its_id(tmp_path, fake, capsys):
     run = write_run(tmp_path)
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC, RPC]
-    (reg_call, meas_call) = [c for c in fake.calls if c[0] == "rpc"]
+    assert fake.rpcs() == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
+    (reg_call, meas_call, act_call) = [c for c in fake.calls if c[0] == "rpc"]
     assert reg_call[2]["p_payload"] == {
         "run_id": RUN_ID,
         "session_id": SESSION,
@@ -268,7 +281,11 @@ def test_registration_first_then_measurements_and_world_with_its_id(tmp_path, fa
     )
     assert meta["uri"].removeprefix("storage://media/") in fake.objects
     out = capsys.readouterr().out
-    assert f"LiDAR registration {reg_id}: run {RUN_ID[:8]}, review, pending_review" in out
+    assert f"LiDAR registration {reg_id}: run {RUN_ID[:8]}, review, recording" in out
+    # Activated last, after every result is in: only then does it count (and supersede).
+    assert fake.calls[-1] == act_call and act_call[2] == {"p_id": reg_id}
+    assert fake.registrations[RUN_ID]["status"] == "pending_review"
+    assert out.rstrip().endswith(f"LiDAR registration {reg_id}: activated, pending_review")
     assert "8 created, 0 already recorded" in out and "world cloud: recorded" in out
 
 
@@ -301,7 +318,7 @@ def test_upload_registration_idempotent(tmp_path, fake, capsys):
 def test_rejected_auto_records_only_the_registration(tmp_path, fake, capsys):
     run = write_run(tmp_path, verdict="rejected_auto")
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC]
+    assert fake.rpcs() == [REGISTRATION_RPC, ACTIVATE_RPC]
     assert fake.registrations[RUN_ID]["status"] == "rejected"
     assert not fake.measurements and not fake.assets and not fake.objects
     out = capsys.readouterr().out
@@ -309,11 +326,32 @@ def test_rejected_auto_records_only_the_registration(tmp_path, fake, capsys):
     assert "crown.json" in out and "world.owc" in out
 
 
+def test_a_failed_upload_leaves_the_registration_recording(tmp_path, fake, capsys):
+    """Activation is the last step: when a result fails to upload the run stays in
+    recording (it supersedes nothing, the owner sees none of it); the re-run then
+    uploads what is missing and activates it."""
+    run = write_run(tmp_path)
+    fake.fail_on = RPC
+    assert lidar_upload.run(run, SESSION, env=ENV) == 1
+    assert ACTIVATE_RPC not in fake.rpcs()
+    assert fake.registrations[RUN_ID]["status"] == "recording"
+    assert "record_lidar_measurements failed" in capsys.readouterr().err
+    fake.fail_on = None
+    assert lidar_upload.run(run, SESSION, env=ENV) == 0
+    assert fake.rpcs()[-3:] == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
+    assert len(fake.registrations) == 1
+    assert fake.registrations[RUN_ID]["status"] == "pending_review"
+    # Once more: same rows, activation again a no-op.
+    assert lidar_upload.run(run, SESSION, env=ENV) == 0
+    assert fake.registrations[RUN_ID]["status"] == "pending_review"
+    assert len(fake.assets) == 3 and len(fake.measurements) == 8
+
+
 def test_rejected_without_results_still_records_the_registration(tmp_path, fake):
     """lidar process skips crown and world of a rejected run: only registration.json."""
     run = write_run(tmp_path, verdict="rejected_auto", results=False)
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC]
+    assert fake.rpcs() == [REGISTRATION_RPC, ACTIVATE_RPC]
 
 
 def test_registration_rejected_by_ops_gets_no_results(tmp_path, fake, capsys):
@@ -322,7 +360,8 @@ def test_registration_rejected_by_ops_gets_no_results(tmp_path, fake, capsys):
     run = write_run(tmp_path)
     fake.registrations[RUN_ID] = {"id": str(uuid.uuid4()), "status": "rejected", "payload": {}}
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC] and not fake.assets
+    assert fake.rpcs() == [REGISTRATION_RPC, ACTIVATE_RPC] and not fake.assets
+    assert fake.registrations[RUN_ID]["status"] == "rejected"  # activate: a no-op
     assert "pending_review" not in capsys.readouterr().out
 
 
@@ -362,7 +401,7 @@ def test_registration_flag_with_a_separate_output_folder(tmp_path, fake):
     out = tmp_path / "scan.processed" / "lidar"
     (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
     assert lidar_upload.run(out, SESSION, env=ENV, registration=run) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC, RPC]
+    assert fake.rpcs() == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
     payload = [c for c in fake.calls if c[:2] == ("rpc", RPC)][-1][2]["p_payload"]
     assert payload["registration_id"] == fake.registrations[RUN_ID]["id"]
     assert payload["measured_at"] == gps_ns_to_iso(REG_START_NS)
@@ -450,7 +489,7 @@ def test_dry_run_prints_all_three_payloads(tmp_path, monkeypatch, capsys):
     run = write_run(tmp_path)
     assert lidar_upload.run(run, SESSION, dry_run=True, env={}) == 0
     text = capsys.readouterr().out
-    reg, meas, world, ply, meta = json_blocks(text)
+    reg, meas, world, ply, meta, _activate = json_blocks(text)
     assert reg["rpc"] == REGISTRATION_RPC and reg["p_payload"]["run_id"] == RUN_ID
     assert meas["rpc"] == RPC and meas["p_payload"]["registration_id"] == REGISTRATION_PLACEHOLDER
     assert len(meas["p_payload"]["items"]) == 9
@@ -460,13 +499,21 @@ def test_dry_run_prints_all_three_payloads(tmp_path, monkeypatch, capsys):
     assert "nothing written" in text and "nothing uploaded" in text
 
 
+def test_dry_run_names_the_activation(tmp_path, monkeypatch, capsys):
+    no_sign_in(monkeypatch)
+    run = write_run(tmp_path)
+    assert lidar_upload.run(run, SESSION, dry_run=True, env={}) == 0
+    blocks = json_blocks(capsys.readouterr().out)
+    assert blocks[-1] == {"rpc": ACTIVATE_RPC, "p_id": REGISTRATION_PLACEHOLDER}
+
+
 def test_dry_run_of_a_rejected_registration(tmp_path, monkeypatch, capsys):
     no_sign_in(monkeypatch)
     run = write_run(tmp_path, verdict="rejected_auto")
     assert lidar_upload.run(run, SESSION, dry_run=True, env={}) == 0
     text = capsys.readouterr().out
-    (reg,) = json_blocks(text)
-    assert reg["p_payload"]["verdict"] == "rejected_auto"
+    reg, activate = json_blocks(text)
+    assert reg["p_payload"]["verdict"] == "rejected_auto" and activate["rpc"] == ACTIVATE_RPC
     assert "rejected registration, its results would not be uploaded" in text
 
 
@@ -482,7 +529,7 @@ def test_cli_upload_flags(tmp_path, fake, monkeypatch):
     assert not fake.calls
     args = ["lidar", "upload", str(out), "--session-id", SESSION, "--registration", str(run)]
     assert main(args) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC, RPC]
+    assert fake.rpcs() == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
     (out / "crown.json").write_text(json.dumps(crown()))  # a synthetic cloud's report
     assert main(["lidar", "upload", str(out), "--session-id", SESSION, "--allow-unregistered"]) == 0
     assert "registration_id" not in fake.calls[-1][2]["p_payload"]
@@ -510,7 +557,7 @@ def test_process_upload_records_the_run(small_ppk, tmp_path, monkeypatch, capsys
 
     assert main(["lidar", "process", str(session), "--frontend", "fake", "--upload"]) == 0
     out = capsys.readouterr().out
-    assert client.rpcs()[0] == REGISTRATION_RPC
+    assert client.rpcs()[0] == REGISTRATION_RPC and client.rpcs()[-1] == ACTIVATE_RPC
     (reg,) = client.registrations.values()
     assert reg["payload"]["verdict"] == "review"  # 8 trees: few_trees_checked
     assert f"LiDAR registration {reg['id']}" in out
@@ -564,7 +611,7 @@ def test_registration_against_local_supabase(supabase_env, test_sessions, tmp_pa
 
     assert lidar_upload.run(run, session_id, env=creds(supabase_env)) == 0
     text = capsys.readouterr().out
-    assert "review, pending_review" in text
+    assert "review, recording" in text and "activated, pending_review" in text
     assert "8 created, 0 already recorded" in text and "world cloud: recorded" in text
     (reg,) = ops.select(
         "lidar_registration",

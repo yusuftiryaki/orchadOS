@@ -854,11 +854,12 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 
 **Kaydın yüklenmesi** (`orchados-pipeline lidar upload <oturum>.processed/lidar --session-id <uuid> --registration <çalıştırma klasörü>`; `lidar process` kayıt klasörünü kendisi verir):
 
-1. Önce kayıt raporu yazılır: `record_lidar_registration(p_session_id, p_payload)`, yük `registration.json`. Aynı `run_id` ikinci kez gelirse yeni satır açılmaz. Dönen kimlik `registration_id`'dir.
+1. Önce kayıt raporu yazılır: `record_lidar_registration(p_session_id, p_payload)`, yük `registration.json`. Aynı `run_id` ikinci kez gelirse yeni satır açılmaz. Dönen kimlik `registration_id`'dir. Yeni satır `recording` durumundadır: hiçbir kaydın yerine geçmez, sahibe hiçbir şeyi görünmez.
 2. Sonra ölçümler `record_lidar_measurements` yükünde `registration_id` ile, `world_cloud` asset'i ve kayıtlı bulut (`point_cloud` asset'i ve `cloud.json`'u) `pose.registration_id` ile yüklenir ([Asset `pose` alanı](#asset-pose-alanı)).
    Ölçüm raporları ve `world.json` (dünya bulutunun yan dosyası) bulutlarının `run_id`'sini taşır; yüklenen kaydın `run_id`'sinden farklı ya da boş olan reddedilir. `--allow-unregistered` ile `run_id`'li rapor ya da dünya bulutu reddedilir (kaydıyla yüklenir).
 3. `verdict`'i `rejected_auto` olan kaydın yalnız raporu yüklenir; ölçümleri, dünya bulutu ve kayıtlı bulutu yüklenmez.
-4. Kaydı olmayan ölçüm ve dünya bulutu (`--registration` yok) reddedilir; `--allow-unregistered` ile `registration_id` boş yüklenir. Bu bayrak yalnız demo yükleyicisi ve sentetik veri içindir; gerçek kit verisinin her zaman bir kaydı olur.
+4. Son adım `activate_lidar_registration(p_id)`'dir (yalnız operasyon): kayıt kararının durumuna geçer (`accepted_auto` → `accepted`, oturumun eski kabulünün yerine geçer; `review` → `pending_review`; `rejected_auto` → `rejected`). İdempotenttir; yükleme yarıda kalırsa kayıt `recording`'de kalır, yeniden çalıştırma eksikleri yükleyip yeniden etkinleştirir. Reddedilen kayıt raporundan hemen sonra etkinleştirilir.
+5. Kaydı olmayan ölçüm ve dünya bulutu (`--registration` yok) reddedilir; `--allow-unregistered` ile `registration_id` boş yüklenir. Bu bayrak yalnız demo yükleyicisi ve sentetik veri içindir; gerçek kit verisinin her zaman bir kaydı olur.
 
 Bekleyen ya da reddedilen bir kaydın ölçümleri ve bulutu sahibe görünmez; kural ve karar fonksiyonu: [veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı).
 

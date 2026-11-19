@@ -40,11 +40,17 @@ docs/superpowers/specs/2026-11-18-lidar-kayit-adimi-design.md §5.10, §5.11):
 1. The registration run folder (--registration, or the output folder itself when
    it holds registration.json, as `lidar process` writes it) is recorded first
    with record_lidar_registration(); the same run_id again returns the same id.
-2. The measurements carry that id as payload.registration_id, the world cloud as
-   pose.registration_id.
-3. A rejected registration (verdict rejected_auto, or rejected by ops) records
-   only the report: no measurements, no world cloud.
-4. Without a registration, measurements and world clouds are refused unless
+   A new row is in status recording: it supersedes nothing and the owner sees
+   nothing of it.
+2. The measurements carry that id as payload.registration_id, the world cloud
+   and the registered cloud as pose.registration_id.
+3. activate_lidar_registration() is the last step: it moves the run to its
+   verdict's status (accepted supersedes the session's older ones; review:
+   pending_review; rejected). It is idempotent, so a re-run that uploads what
+   was missing activates again; a failed upload leaves the run in recording.
+4. A rejected registration (verdict rejected_auto, or rejected by ops) records
+   only the report (and is activated): no measurements, no world cloud.
+5. Without a registration, measurements and world clouds are refused unless
    --allow-unregistered (demo and synthetic data only); they then have no
    registration_id and keep the visibility of older rows.
 
@@ -73,6 +79,7 @@ from ..upload import SupabaseCatalog, UploadError
 
 RPC = "record_lidar_measurements"
 REGISTRATION_RPC = "record_lidar_registration"
+ACTIVATE_RPC = "activate_lidar_registration"
 REGISTRATION_FILE = "registration.json"  # lidar/registration.py REPORT_FILE
 REGISTRATION_SCHEMA = "orchados.lidar_registration/1"
 # Stands in for the id record_lidar_registration() returns, in a dry run.
@@ -699,9 +706,11 @@ def dry_run_lines(plan: UploadPlan) -> list[str]:
         body = {"p_session_id": sid, "p_payload": registration_payload(plan.registration)}
         lines.append(json.dumps({"rpc": REGISTRATION_RPC, **body}, indent=2))
         lines.append(f"dry run: registration {plan.registration.verdict}, nothing written")
+    activate = json.dumps({"rpc": ACTIVATE_RPC, "p_id": REGISTRATION_PLACEHOLDER}, indent=2)
     if plan.rejected:
         withheld = f" ({', '.join(plan.withheld)})" if plan.withheld else ""
         lines.append(f"dry run: rejected registration, its results would not be uploaded{withheld}")
+        lines.append(activate)
         return lines
     if plan.payload is not None:
         names = ", ".join(p.name for p, _ in plan.reports) or "no reports"
@@ -724,6 +733,9 @@ def dry_run_lines(plan: UploadPlan) -> list[str]:
         lines.append(json.dumps({"point_cloud_asset": ply[1]}, indent=2))
         lines.append(json.dumps({"cloud_meta_asset": js[1]}, indent=2))
         lines.append(f"dry run: registered cloud {ply[1]['byte_size']} bytes, nothing uploaded")
+    if plan.registration is not None:
+        lines.append(activate)
+        lines.append("dry run: the registration would be activated last")
     return lines
 
 
@@ -739,7 +751,8 @@ def upload(
     catalog=None,
     store: MediaStore | None = None,
 ) -> dict[str, Any] | None:
-    """Records the plan as the signed-in user: registration, measurements, world cloud.
+    """Records the plan as the signed-in user: registration, measurements, world cloud,
+    registered cloud, then activates the registration (the last step).
 
     Returns record_lidar_measurements()' summary (None when nothing was measured).
     """
@@ -760,6 +773,7 @@ def upload(
         if plan.rejected or status == "rejected":
             withheld = f" ({', '.join(plan.withheld)})" if plan.withheld else ""
             log(f"registration rejected: measurements and world cloud not uploaded{withheld}")
+            activate(client, registration_id, log)
             return None
     result = None
     if plan.payload is not None and plan.payload["items"]:
@@ -779,7 +793,20 @@ def upload(
     if result is not None:
         for line in summary_lines(result):
             log(line)
+    if registration_id is not None:
+        activate(client, registration_id, log)
     return result
+
+
+def activate(client, registration_id: str, log: Callable[[str], None] = print) -> str | None:
+    """activate_lidar_registration(): the run's verdict takes effect (idempotent).
+    Returns the status the database reports."""
+    row = client.rpc(ACTIVATE_RPC, {"p_id": registration_id})
+    if isinstance(row, list):
+        row = row[0] if row else None
+    status = row.get("status") if isinstance(row, dict) else None
+    log(f"LiDAR registration {registration_id}: activated" + (f", {status}" if status else ""))
+    return status
 
 
 def run(
