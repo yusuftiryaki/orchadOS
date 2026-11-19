@@ -72,6 +72,7 @@ export default async function Page({
       lidar={lidar}
       lidarMessage={typeof query.lidar === "string" ? query.lidar : null}
       world={world}
+      canDecideLidar={user.roles.orgRoles.includes("ops")}
       notice={<OwnWorkNotice days={ownWork} />}
     />
   );

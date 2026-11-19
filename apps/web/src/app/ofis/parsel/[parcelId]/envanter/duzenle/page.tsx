@@ -19,19 +19,22 @@ import { sourceOfSet, type PanoramaSetInfo, type PanoramaSource } from "@/lib/of
 import { UUID_RE } from "@/lib/supabase/query";
 import { createClient } from "@/lib/supabase/server";
 import { SpeciesNotice } from "@/components/species-notice";
+import { decideLidarRegistrationAction } from "@/components/staff/actions";
 import { StaffWorldButton } from "@/components/staff/staff-world";
 import { loadSizeSuggestions, loadStaffWorld } from "@/lib/lidar/staff";
 import { acceptSizeClassAction, signOfficeWorldAction } from "./actions";
 
 // Inventory workspace of one parcel (after the triangulation tool saved the
 // slots): tree attributes, infrastructure, boundary, verification tour.
-// ?sekme=attributes|infrastructure|boundary|verification opens a tab.
+// ?sekme=attributes|infrastructure|boundary|verification opens a tab;
+// ?dunya=<visit> opens the 3D world on that visit (the ops dashboard's list of
+// LiDAR registrations in review).
 export default async function Page({
   params,
   searchParams,
 }: {
   params: Promise<{ parcelId: string }>;
-  searchParams: Promise<{ sekme?: string | string[] }>;
+  searchParams: Promise<{ sekme?: string | string[]; dunya?: string | string[] }>;
 }) {
   const user = await requireSection("ofis");
   const [{ parcelId }, query] = await Promise.all([params, searchParams]);
@@ -50,11 +53,24 @@ export default async function Page({
 
   const back = { href: `/ofis/parsel/${parcelId}`, label: ws.parcel.name };
   const o = t.inventory.office;
+  const worldVisit = typeof query.dunya === "string" ? query.dunya : null;
+  const worldButton = world && (
+    <StaffWorldButton
+      world={world}
+      visitId={worldVisit}
+      initialOpen={worldVisit !== null}
+      sign={signOfficeWorldAction}
+      accept={acceptSizeClassAction}
+      decide={user.roles.orgRoles.includes("ops") ? decideLidarRegistrationAction : undefined}
+    />
+  );
 
   if (ws.slots.length === 0) {
+    // A first scan before the inventory: the world (and its registration
+    // band) is still there.
     return (
       <main className={`${staff.wide} ${styles.page}`}>
-        <PageHeader back={back} title={o.title} />
+        <PageHeader back={back} title={o.title} actions={worldButton} />
         <EmptyState
           title={o.noInventoryTitle}
           action={<ButtonLink href={`/ofis/parsel/${parcelId}/envanter`}>{o.openTool}</ButtonLink>}
@@ -75,20 +91,7 @@ export default async function Page({
   const approvedAt = ws.approved ? (ws.inventorySession?.publishedAt ?? null) : null;
   return (
     <main className={`${staff.wide} ${styles.page}`}>
-      <PageHeader
-        back={back}
-        title={o.title}
-        lead={o.lead}
-        actions={
-          world && (
-            <StaffWorldButton
-              world={world}
-              sign={signOfficeWorldAction}
-              accept={acceptSizeClassAction}
-            />
-          )
-        }
-      />
+      <PageHeader back={back} title={o.title} lead={o.lead} actions={worldButton} />
       <SpeciesNotice species={ws.parcel.species} />
       {approvedAt && (
         <Alert tone="success" testId="inventory-approved">

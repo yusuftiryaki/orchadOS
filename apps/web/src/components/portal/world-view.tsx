@@ -107,6 +107,7 @@ export default function WorldView({
   backLabel = tw.back,
   hint = tw.hint,
   viewpoints,
+  onVisitChange,
   onExit,
 }: {
   // Every visit with crown values or a cloud, newest first.
@@ -132,6 +133,8 @@ export default function WorldView({
   hint?: string;
   // The tour: visit id -> its panorama viewpoints; a ring flies down into one.
   viewpoints?: Record<string, WorldViewpoint[]>;
+  // The visit on screen changed (staff: the LiDAR registration band).
+  onVisitChange?: (visitId: string) => void;
   // With a target when a viewpoint was picked (the tour opens that panorama).
   onExit: (target?: WorldExitTarget) => void;
 }) {
@@ -151,11 +154,24 @@ export default function WorldView({
   const [winter, setWinter] = useState<Record<string, WinterSummary>>({});
   const [skeletonOn, setSkeletonOn] = useState(true);
   // The opening view, data and callbacks are read once, when the scene is built.
-  const startRef = useRef({ start, cameraHeightM, trees, visits, onExit, sign, sizeFlags });
+  const startRef = useRef({
+    start,
+    cameraHeightM,
+    trees,
+    visits,
+    onExit,
+    sign,
+    sizeFlags,
+    onVisitChange,
+  });
   useEffect(() => {
     startRef.current.onExit = onExit;
     startRef.current.sign = sign;
+    startRef.current.onVisitChange = onVisitChange;
   });
+  useEffect(() => {
+    startRef.current.onVisitChange?.(shown);
+  }, [shown]);
   const focusRef = useRef(focusTreeId);
   // Overview or walk, and what the keys and the direction pad ask for.
   const [nav, setNav] = useState<Navigation>("orbit");

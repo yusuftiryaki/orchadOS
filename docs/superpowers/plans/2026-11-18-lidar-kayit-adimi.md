@@ -117,8 +117,8 @@
 
 **Files:** `apps/web/src/components/staff/staff-world.tsx` (+ a small `registration-band.tsx`), a server action next to the staff world, the ops dashboard list (find the ops pano page under `apps/web/src/app/`), tests alongside.
 
-- [ ] Band per spec §5.9 for `pending_review` / `rejected` / `accepted`; buttons only for the ops role; reject needs a note; after a decision the band updates. Ops list "İncelemede bekleyen LiDAR kayıtları" linking to the staff world.
-- [ ] Unit + integration tests (`pnpm web:test`), `pnpm web:lint`. Commit `web: LiDAR registration review in the staff world`.
+- [x] Band per spec §5.9 for `pending_review` / `rejected` / `accepted`; buttons only for the ops role; reject needs a note; after a decision the band updates. Ops list "İncelemede bekleyen LiDAR kayıtları" linking to the staff world.
+- [x] Unit + integration tests (`pnpm web:test`), `pnpm web:lint`. Commit `web: LiDAR registration review in the staff world`.
 
 ### Task 9: Point-LIO front-end image and runner
 
