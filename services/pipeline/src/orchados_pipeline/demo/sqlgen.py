@@ -1197,7 +1197,10 @@ def lidar_measurements(ctx: Context) -> None:
         if not path.is_file():
             raise ValueError(f"{v.key}: the build has no {demo_lidar.REPORT_FILE}; rebuild it")
         report = ReportFile.model_validate(json.loads(path.read_text(encoding="utf-8")))
-        payload = build_payload([(path, report)], v.id, v.start.isoformat())
+        # Synthetic clouds have no registration run (lidar upload --allow-unregistered).
+        payload = build_payload(
+            [(path, report)], v.id, v.start.isoformat(), allow_unregistered=True
+        )
         problems = check_payload(payload)
         if problems:
             raise ValueError(f"{v.key}: {demo_lidar.REPORT_FILE}: {'; '.join(problems)}")
@@ -1274,7 +1277,9 @@ def winter_measurements(ctx: Context) -> None:
             if not path.is_file():
                 raise ValueError(f"{v.key}: the build has no {name}; rebuild it")
             report = ReportFile.model_validate(json.loads(path.read_text(encoding="utf-8")))
-            payload = build_payload([(path, report)], v.id, v.start.isoformat())
+            payload = build_payload(
+                [(path, report)], v.id, v.start.isoformat(), allow_unregistered=True
+            )
             problems = check_payload(payload)
             if problems:
                 raise ValueError(f"{v.key}: {name}: {'; '.join(problems)}")

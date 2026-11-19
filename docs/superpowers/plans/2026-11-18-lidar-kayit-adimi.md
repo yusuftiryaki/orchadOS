@@ -111,7 +111,7 @@
 
 **Interfaces:** Consumes Task 5 version folder and Task 6 RPCs. `lidar upload <out_dir> --session-id <uuid> [--registration <version folder>]` records the registration first, then measurements and world_cloud with `registration_id`; skips measurements of a `rejected_auto` registration; refuses measurements without a registration unless `--allow-unregistered` (demo loader updated to pass it).
 
-- [ ] Tests: payload contains `registration_id`; `test_upload_registration_idempotent`; rejected → no measurements; `--dry-run` prints all three payloads. Commit `pipeline: upload the registration with its measurements`.
+- [x] Tests: payload contains `registration_id`; `test_upload_registration_idempotent`; rejected → no measurements; `--dry-run` prints all three payloads. Commit `pipeline: upload the registration with its measurements`.
 
 ### Task 8: Staff review UI
 

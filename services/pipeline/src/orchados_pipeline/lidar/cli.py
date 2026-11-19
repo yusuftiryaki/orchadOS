@@ -116,12 +116,27 @@ def add_parser(sub) -> None:
 
     up = lsub.add_parser(
         "upload",
-        help="record the measurements of crown.json / skeleton.json / pruning.json in "
-        "Supabase and upload world.owc as a world_cloud asset (env: as for upload)",
+        help="record the registration (registration.json), then the measurements of "
+        "crown.json / skeleton.json / pruning.json in Supabase and world.owc as a world_cloud "
+        "asset (env: as for upload)",
     )
-    up.add_argument("out_dir", help="LiDAR output folder (<session>.processed/lidar)")
+    up.add_argument(
+        "out_dir",
+        help="LiDAR output folder (<session>.processed/lidar, or a registration run folder)",
+    )
     up.add_argument("--session-id", required=True, help="public.session id of the scan")
-    up.add_argument("--dry-run", action="store_true", help="print the payload, write nothing")
+    up.add_argument(
+        "--registration",
+        help="registration run folder the cloud came from (recorded first; default: out_dir "
+        "itself when it holds registration.json)",
+    )
+    up.add_argument(
+        "--allow-unregistered",
+        action="store_true",
+        help="upload measurements and the world cloud without a registration (demo and "
+        "synthetic data only)",
+    )
+    up.add_argument("--dry-run", action="store_true", help="print the payloads, write nothing")
 
     syn = lsub.add_parser(
         "synth",
@@ -204,7 +219,13 @@ def run(args: argparse.Namespace) -> int:
     if cmd == "upload":
         from .upload import run as run_upload
 
-        return run_upload(Path(args.out_dir), args.session_id, dry_run=args.dry_run)
+        return run_upload(
+            Path(args.out_dir),
+            args.session_id,
+            dry_run=args.dry_run,
+            registration=Path(args.registration) if args.registration else None,
+            allow_unregistered=args.allow_unregistered,
+        )
     mod = import_module(f".{cmd}", __package__)
     params = args.params and Path(args.params)
     if cmd == "world":
@@ -353,16 +374,7 @@ def _process(args: argparse.Namespace) -> int:
 
 
 def _upload_registration(folder: Path, report) -> int:
-    import inspect
-    import sys
-
+    """The run folder is the registration and holds crown.json and world.owc."""
     from . import upload
 
-    if "registration" not in inspect.signature(upload.run).parameters:
-        print(
-            "lidar process --upload: this build's lidar upload cannot record a registration "
-            "yet (plan Task 7); nothing uploaded",
-            file=sys.stderr,
-        )
-        return 2
     return upload.run(folder, report.session_id, registration=folder)
