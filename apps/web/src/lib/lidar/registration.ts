@@ -254,11 +254,15 @@ export interface PendingRegistration {
   visitTime: string;
   createdAt: string;
   reasons: string[];
+  // The visit has a 3D world cloud: the row links to the staff world. The
+  // decision is taken in the row either way.
+  hasWorld: boolean;
 }
 
 const PENDING_LIMIT = 100;
 
-// Runs waiting for review in the user's orgs, the longest waiting first.
+// Runs waiting for review in the user's orgs, the longest waiting first
+// (recording runs are still being uploaded and are not listed).
 export async function listPendingRegistrations(supabase: Client): Promise<PendingRegistration[]> {
   const { data, error } = await supabase
     .from("lidar_registration")
@@ -270,7 +274,18 @@ export async function listPendingRegistrations(supabase: Client): Promise<Pendin
     .order("id")
     .limit(PENDING_LIMIT);
   if (error) throw error;
-  return (data ?? []).map((row) => ({
+  const rows = data ?? [];
+  const withWorld = new Set<string>();
+  if (rows.length > 0) {
+    const clouds = await supabase
+      .from("asset")
+      .select("session_id")
+      .eq("kind", "world_cloud")
+      .in("session_id", [...new Set(rows.map((r) => r.session_id))]);
+    if (clouds.error) throw clouds.error;
+    for (const c of clouds.data ?? []) if (c.session_id) withWorld.add(c.session_id);
+  }
+  return rows.map((row) => ({
     id: row.id,
     parcelId: row.parcel_id,
     parcelName: row.parcel?.name ?? "",
@@ -279,6 +294,7 @@ export async function listPendingRegistrations(supabase: Client): Promise<Pendin
     visitTime: row.session ? sessionTime(row.session) : row.created_at,
     createdAt: row.created_at,
     reasons: row.reasons ?? [],
+    hasWorld: withWorld.has(row.session_id),
   }));
 }
 

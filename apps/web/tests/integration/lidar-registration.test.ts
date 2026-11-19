@@ -138,6 +138,8 @@ describe("LiDAR registration review", () => {
       sessionId: run.session,
       visitKind: "periodic_scan",
       reasons: ["trunk_spread_high", "clock_unlocked"],
+      // The visit has a world cloud: the row links to the staff world.
+      hasWorld: true,
     });
     expect(Date.parse(row!.visitTime)).toBe(Date.parse(run.time));
     // Parcel readers get nothing of it.

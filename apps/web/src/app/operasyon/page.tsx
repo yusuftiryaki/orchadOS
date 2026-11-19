@@ -3,6 +3,7 @@ import { BillingCard } from "@/components/back-office/billing-card";
 import { statusTone } from "@/components/ui/status";
 import { ExpertRequests } from "@/components/operations/expert-requests";
 import { PendingLidarRegistrations } from "@/components/operations/lidar-registrations";
+import { decideLidarRegistrationAction } from "@/components/staff/actions";
 import { Pagination, pageOf } from "@/components/ui/pagination";
 import { Panel } from "@/components/ui/panel";
 import { QueueList, type QueueItem } from "@/components/operations/queue-list";
@@ -183,7 +184,9 @@ export default async function Page({
           kvkkVersions={kvkkVersions}
         />
       )}
-      {lidarRuns.length > 0 && <PendingLidarRegistrations runs={lidarRuns} />}
+      {lidarRuns.length > 0 && (
+        <PendingLidarRegistrations runs={lidarRuns} decide={decideLidarRegistrationAction} />
+      )}
       {followups.length > 0 && (
         <ExpertRequests
           followups={followups}
