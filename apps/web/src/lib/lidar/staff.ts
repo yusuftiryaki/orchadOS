@@ -9,6 +9,7 @@ import { fetchAll, UUID_RE } from "@/lib/supabase/query";
 import type { Client } from "@/lib/supabase/types";
 import type { WorldVisit } from "@/lib/world/visits";
 import { LIDAR_FACT_CODES, lidarFactsBySession, type LidarFacts } from "./facts";
+import { loadRegistrations, registrationBand, type RegistrationBand } from "./registration";
 import { latestSuggestions, type AgeClass, type SizeSuggestion } from "./size-class";
 
 // LiDAR data of the staff screens (docs/3d-dunya.md §9): the expert's tree
@@ -111,6 +112,11 @@ export interface StaffWorldTree {
 
 export interface StaffWorldVisit extends WorldVisit {
   published: boolean;
+  // The visit's LiDAR registration band (null: no registration run, e.g.
+  // demo and synthetic clouds).
+  registration: RegistrationBand | null;
+  // The registration the shown cloud names (asset.pose.registration_id).
+  cloudRegistrationId: string | null;
 }
 
 export interface StaffWorld {
@@ -143,7 +149,7 @@ export async function loadStaffWorld(
   const clouds = await worldCloudsOf(supabase, ids);
   if (clouds.size === 0) return null;
 
-  const [crowns, slots, suggestions] = await Promise.all([
+  const [crowns, slots, suggestions, registrations] = await Promise.all([
     crownsOf(supabase, ids),
     fetchAll((from, to) =>
       supabase
@@ -156,23 +162,27 @@ export async function loadStaffWorld(
         .range(from, to),
     ),
     loadSizeSuggestions(supabase, parcelId),
+    loadRegistrations(supabase, [...clouds.keys()]),
   ]);
 
   const visits: StaffWorldVisit[] = (sessions ?? [])
     .map((s) => ({ s, time: sessionTime(s) }))
     .sort((a, b) => Date.parse(b.time) - Date.parse(a.time) || a.s.id.localeCompare(b.s.id))
     .flatMap(({ s, time }) => {
-      const assetId = clouds.get(s.id) ?? null;
+      const band = registrationBand(registrations.get(s.id) ?? []);
+      const cloud = pickCloud(clouds.get(s.id) ?? [], band?.current.id ?? null);
       const values = crowns.get(s.id);
-      if (!assetId && !values) return [];
+      if (!cloud && !values) return [];
       const published = s.status === "published";
       return [
         {
           id: s.id,
           label: published ? formatDate(time) : t.staffWorld.unpublished(formatDate(time)),
-          assetId,
+          assetId: cloud?.id ?? null,
           crowns: Object.fromEntries(values ?? []),
           published,
+          registration: band,
+          cloudRegistrationId: cloud?.registrationId ?? null,
         },
       ];
     });
@@ -187,19 +197,43 @@ export async function loadStaffWorld(
   return { parcelId, visits, trees, suggestions: Object.fromEntries(suggestions) };
 }
 
-// The newest world cloud of each visit (visit -> asset id).
+interface WorldCloudRow {
+  id: string;
+  registrationId: string | null;
+}
+
+// The world clouds of each visit, newest first (visit -> clouds).
 async function worldCloudsOf(supabase: Client, sessionIds: string[]) {
-  const out = new Map<string, string>();
+  const out = new Map<string, WorldCloudRow[]>();
   const { data, error } = await supabase
     .from("asset")
-    .select("id, session_id, produced_at")
+    .select("id, session_id, produced_at, registration_id:pose->>registration_id")
     .eq("kind", "world_cloud")
     .in("session_id", sessionIds)
     .order("produced_at", { ascending: false })
     .order("id");
   if (error) throw error;
-  for (const row of data ?? []) if (!out.has(row.session_id)) out.set(row.session_id, row.id);
+  for (const row of data ?? []) {
+    const list = out.get(row.session_id) ?? [];
+    list.push({ id: row.id, registrationId: row.registration_id ?? null });
+    out.set(row.session_id, list);
+  }
   return out;
+}
+
+// The cloud the staff world shows for a visit: the one of the registration
+// on the band (the run under review, or the newest run), so the reviewer
+// looks at what is being decided; otherwise the visit's newest cloud (a run
+// without a cloud yet, or clouds without a registration).
+export function pickCloud(
+  clouds: WorldCloudRow[],
+  registrationId: string | null,
+): WorldCloudRow | null {
+  return (
+    (registrationId ? clouds.find((c) => c.registrationId === registrationId) : undefined) ??
+    clouds[0] ??
+    null
+  );
 }
 
 async function crownsOf(supabase: Client, sessionIds: string[]) {

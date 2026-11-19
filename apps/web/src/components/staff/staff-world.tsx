@@ -18,6 +18,7 @@ import {
 } from "@/lib/lidar/size-class";
 import type { StaffWorld } from "@/lib/lidar/staff";
 import { DEFAULT_CAMERA_HEIGHT_M } from "@/lib/portal/crown-guide";
+import { RegistrationBand, type DecideRegistration } from "./registration-band";
 import styles from "./staff-world.module.css";
 
 // The 3D world on the staff screens (docs/3d-dunya.md §9.4): a button that
@@ -25,6 +26,8 @@ import styles from "./staff-world.module.css";
 // overview (no panorama to start from). Every visit with a cloud is offered,
 // those in review included. The tree panel shows the recorded size class and
 // the LiDAR suggestion; with `accept` it can be accepted from the panel.
+// Above the world, the band of the shown visit's LiDAR registration; with
+// `decide` (ops) a run in review is accepted or rejected there.
 
 const WorldView = dynamic(() => import("@/components/portal/world-view"), { ssr: false });
 
@@ -44,6 +47,8 @@ export function StaffWorldButton({
   sign,
   accept,
   reviewSessionId,
+  decide,
+  initialOpen = false,
 }: {
   world: StaffWorld;
   // The visit to open; the newest visit with a cloud when it has none.
@@ -54,8 +59,12 @@ export function StaffWorldButton({
   accept?: AcceptSizeClass;
   // Expert: the review the tree link opens.
   reviewSessionId?: string;
+  // Ops: decides a LiDAR registration in review; absent: the band only shows it.
+  decide?: DecideRegistration;
+  // Opens the world with the page (the ops dashboard's link).
+  initialOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const router = useRouter();
   // Classes accepted while the world is open (the page refreshes behind it).
   const [accepted, setAccepted] = useState<Record<string, AgeClass>>({});
@@ -68,6 +77,9 @@ export function StaffWorldButton({
     world.visits.find((v) => v.id === visitId && v.assetId) ??
     world.visits.find((v) => v.assetId) ??
     null;
+  // The visit on screen in the world (its registration is on the band).
+  const [shownId, setShownId] = useState<string | null>(null);
+  const shown = world.visits.find((v) => v.id === (shownId ?? start?.id)) ?? null;
   const recorded = useCallback(
     (treeId: string): AgeClass =>
       accepted[treeId] ?? world.trees.find((x) => x.id === treeId)?.ageClass ?? "unknown",
@@ -165,21 +177,33 @@ export function StaffWorldButton({
       </Button>
       {open && (
         <div className={styles.overlay} role="dialog" aria-modal="true" aria-label={sw.enter}>
-          <WorldView
-            visits={world.visits}
-            visitId={start.id}
-            start={null}
-            cameraHeightM={DEFAULT_CAMERA_HEIGHT_M}
-            trees={world.trees}
-            sign={signCloud}
-            treeLink={treeLink}
-            treeExtra={treeExtra}
-            sizeFlags={flags}
-            focusTreeId={focusTreeId}
-            backLabel={sw.close}
-            hint={sw.hint}
-            onExit={() => setOpen(false)}
-          />
+          {shown?.registration && (
+            <RegistrationBand
+              key={shown.id}
+              band={shown.registration}
+              cloudRegistrationId={shown.cloudRegistrationId}
+              decide={decide}
+              onDecided={() => router.refresh()}
+            />
+          )}
+          <div className={styles.world}>
+            <WorldView
+              visits={world.visits}
+              visitId={start.id}
+              start={null}
+              cameraHeightM={DEFAULT_CAMERA_HEIGHT_M}
+              trees={world.trees}
+              sign={signCloud}
+              treeLink={treeLink}
+              treeExtra={treeExtra}
+              sizeFlags={flags}
+              focusTreeId={focusTreeId}
+              backLabel={sw.close}
+              hint={sw.hint}
+              onVisitChange={setShownId}
+              onExit={() => setOpen(false)}
+            />
+          </div>
         </div>
       )}
     </>
