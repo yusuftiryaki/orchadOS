@@ -5,7 +5,8 @@
 # startup script on GCP; it is idempotent (GCP runs it on every boot). It installs:
 #   - the NVIDIA driver (ubuntu-drivers; skipped without an NVIDIA card),
 #   - Docker (Ubuntu's docker.io) and the NVIDIA container toolkit,
-#   - /usr/local/bin/orchados-run-job: pull the image and process one session,
+#   - /usr/local/bin/orchados-run-job: pull the image and process one session (the
+#     LiDAR front-end image orchados-lio-point-lio:local is loaded by machine.sh lio-image),
 #   - an idle watchdog: powers the machine off after IDLE_MINUTES without a job
 #     or a logged-in user (cost guard; on Azure see docs: power-off != deallocate).
 # Settings: /etc/orchados/machine.conf (written below if missing).
@@ -67,9 +68,16 @@ trap 'rm -f /var/lib/orchados/job-running; touch /var/lib/orchados/activity' EXI
 gpu=()
 if command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1; then gpu=(--gpus all); fi
 docker pull "$IMAGE"
+# The work disk is mounted at the same path inside the container, and the Docker socket
+# is passed in: the LiDAR front end runs as a sibling container whose bind mounts the
+# host's daemon resolves, so a path inside must be the same path on the host.
+WORK=/srv/orchados/work
 status=0
 docker run --rm "${gpu[@]}" --env-file /etc/orchados/process.env \
-  -v /srv/orchados/work:/work "$IMAGE" orchados-process "$SID" \
+  -v "$WORK:$WORK" -e ORCHADOS_WORK_DIR="$WORK" \
+  -e ORCHADOS_INGEST_STATE="$WORK/.state/ingest" -e AI_WORKER_STATE_DIR="$WORK/.state/ai-worker" \
+  -v /var/run/docker.sock:/var/run/docker.sock --group-add "$(stat -c %g /var/run/docker.sock)" \
+  "$IMAGE" orchados-process "$SID" \
   2>&1 | tee -a "/var/log/orchados-job-$SID.log" || status=$?
 echo "job $SID finished with status $status"
 if [ "${SHUTDOWN_AFTER_JOB:-1}" = "1" ]; then

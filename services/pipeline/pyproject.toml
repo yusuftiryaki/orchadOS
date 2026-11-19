@@ -5,7 +5,10 @@ description = "orchadOS processing pipeline: ingest, positioning, time sync, fra
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "gtsam>=4.3.0",
     "httpx>=0.28.1",
+    "mcap>=1.6.0",
+    "mcap-ros2-support>=0.6.0",
     "numpy>=1.26",
     "opencv-python-headless>=4.9",
     "pydantic>=2.6",

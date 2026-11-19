@@ -66,6 +66,11 @@ jobs:
       - name: Machine scripts against fake provider CLIs
         run: deploy/processing/tests/machine-dry-run.sh
 
+      - name: orchados-process against fake tools (LiDAR step)
+        run: |
+          deploy/processing/tests/process-dry-run.sh
+          docker run --rm orchados-processing:ci docker --version
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4

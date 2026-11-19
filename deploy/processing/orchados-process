@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Process one visit end to end inside the processing image:
 #   orchados-ingest pull -> orchados-pipeline run --trees-from-db [--boundary] --upload
-#   -> optionally ai-worker run.
+#   -> lidar process --upload (sessions with lidar/raw) -> optionally ai-worker run.
 # Configuration is environment only (docs/bulut-isleme.md, "Container").
 set -euo pipefail
 
@@ -10,7 +10,8 @@ usage() {
 usage: orchados-process <session-id>
 
 Pulls the session from the raw store, runs the pipeline with tree positions from
-the database, uploads the results to Supabase and optionally runs the AI worker.
+the database, uploads the results to Supabase, registers the kit LiDAR log (when the
+session has lidar/raw) and optionally runs the AI worker.
 
 Environment (required):
   ORCHADOS_STORE_*             raw store (services/ingest/README.md) + provider credentials
@@ -19,13 +20,17 @@ Environment (required):
 Environment (optional):
   PROCESS_BOUNDARY=auto|1|0    boundary stage; auto = inventory sessions or corner events
   PROCESS_TREES_FROM_DB=1|0    crops from the database inventory (default 1)
+  PROCESS_LIDAR=auto|1|0       LiDAR registration; auto = the session has lidar/raw
+  PROCESS_LIDAR_FRONTEND=<fe>  point_lio (default; Docker socket + front-end image) | fake
+  ORCHADOS_POINT_LIO_IMAGE     front-end image (default orchados-lio-point-lio:local)
   PROCESS_AI=0|1               run ai-worker after the upload (needs ANTHROPIC_API_KEY)
   PROCESS_PARAMS=<file>        pipeline parameter overrides (JSON)
   PROCESS_UPLOAD_ONLY=<kinds>  upload --only (default: pipeline default)
   PROCESS_STATION=<name>       station name in capture uris (default cloud-<hostname>)
   PROCESS_PULL_EXCLUDE=<glob>  not pulled (default camera/*: originals for stitching)
   PROCESS_KEEP_WORK=0|1        keep the work folder afterwards (default 0)
-  ORCHADOS_WORK_DIR=/work      scratch disk
+  ORCHADOS_WORK_DIR=/work      scratch disk; with point_lio the same path on the host
+                               (the front end is a sibling container: docs/bulut-isleme.md)
 EOF
 }
 
@@ -38,6 +43,10 @@ if ! [[ "$SID" =~ ^[A-Za-z0-9_-]{1,64}$ ]]; then
   echo "error: bad session id: $SID" >&2
   exit 2
 fi
+lidar="${PROCESS_LIDAR:-auto}"
+case "$lidar" in auto | 0 | 1) ;; *) echo "error: PROCESS_LIDAR=$lidar (auto|0|1)" >&2; exit 2 ;; esac
+frontend="${PROCESS_LIDAR_FRONTEND:-point_lio}"
+case "$frontend" in point_lio | fake) ;; *) echo "error: PROCESS_LIDAR_FRONTEND=$frontend (point_lio|fake)" >&2; exit 2 ;; esac
 for v in SUPABASE_URL SUPABASE_ANON_KEY ORCHADOS_EMAIL ORCHADOS_PASSWORD ORCHADOS_STORE_BACKEND; do
   if [ -z "${!v:-}" ]; then
     echo "error: $v is not set" >&2
@@ -68,6 +77,23 @@ step "store: $(orchados-ingest config | tail -n 1)"
 step "pull $SID"
 orchados-ingest pull "$SID" "$SESSION" --exclude "${PROCESS_PULL_EXCLUDE:-camera/*}" -q
 
+if [ "$lidar" = "auto" ]; then
+  if [ -d "$SESSION/lidar/raw" ]; then lidar=1; else lidar=0; fi
+fi
+if [ "$lidar" = "1" ] && [ "$frontend" = "point_lio" ]; then
+  # Point-LIO runs as a sibling container through the host's Docker daemon: check it
+  # before the long camera run.
+  lio_image="${ORCHADOS_POINT_LIO_IMAGE:-orchados-lio-point-lio:local}"
+  if ! docker version >/dev/null 2>&1; then
+    echo "error: LiDAR registration needs the Docker socket (-v /var/run/docker.sock:/var/run/docker.sock, docs/bulut-isleme.md); PROCESS_LIDAR=0 skips it" >&2
+    exit 1
+  fi
+  if ! docker image inspect "$lio_image" >/dev/null 2>&1; then
+    echo "error: front-end image $lio_image is not on this machine (machine.sh <provider> lio-image); PROCESS_LIDAR=0 skips it" >&2
+    exit 1
+  fi
+fi
+
 args=(run "$SESSION" --out "$OUT")
 if [ "${PROCESS_TREES_FROM_DB:-1}" = "1" ]; then
   args+=(--trees-from-db)
@@ -93,6 +119,30 @@ if [ -n "${PROCESS_UPLOAD_ONLY:-}" ]; then
 fi
 step "orchados-pipeline ${args[*]}"
 orchados-pipeline "${args[@]}"
+
+if [ "$lidar" = "1" ]; then
+  largs=(lidar process "$SESSION" --frontend "$frontend" --out "$OUT/lidar/registration")
+  # The camera run just written (the newest v<version>_<hash>/ under $OUT): its
+  # trajectory (PPK) places the cloud, its panoramas colour the world. They are not in
+  # <session>.processed, where lidar process would look by default.
+  run_dir=""
+  for d in "$OUT"/v*/; do
+    [ -d "$d" ] || continue
+    if [ -z "$run_dir" ] || [ "$d" -nt "$run_dir" ]; then run_dir="${d%/}"; fi
+  done
+  if [ -n "$run_dir" ]; then
+    for f in trajectory panoramas trees; do
+      if [ -f "$run_dir/$f.json" ]; then largs+=("--$f" "$run_dir/$f.json"); fi
+    done
+  fi
+  largs+=(--upload)
+  # Temporary files (e.g. the front end's inputs) under the work folder: a sibling
+  # container can mount only paths that exist on the host.
+  export TMPDIR="$WORK/tmp"
+  mkdir -p "$TMPDIR"
+  step "orchados-pipeline ${largs[*]}"
+  orchados-pipeline "${largs[@]}"
+fi
 
 if [ "${PROCESS_AI:-0}" = "1" ]; then
   step "ai-worker run --session-id $SID"

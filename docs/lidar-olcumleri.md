@@ -14,7 +14,7 @@ Bu doküman yöntemleri, doğruluklarını, veritabanına yazılışlarını ve 
 | Konu | Durum |
 | --- | --- |
 | Kayıtlı bulut biçimi (`lidar/cloud.ply` + `cloud.json`) | Sözleşme yazıldı ([arayuzler.md](arayuzler.md#kayıtlı-nokta-bulutu)) |
-| Ham MCAP'ten kayıtlı buluta (LiDAR-inertial SLAM + PPK) | **Yazılmadı.** Ayrı iş; LiDAR'lı kit yapılınca |
+| Ham MCAP'ten kayıtlı buluta (LiDAR-inertial SLAM + PPK) | **Tasarlandı** (18 Kasım 2026, [tasarım](superpowers/specs/2026-11-18-lidar-kayit-adimi-design.md), [plan](superpowers/plans/2026-11-18-lidar-kayit-adimi.md)); uygulama `claude/lidar-registration` dalında. `lidar register` ve `lidar process`: Point-LIO ön ucu, PPK'lı yörüngeyle birleştirme, kalite raporu ve karar (otomatik kabul, operasyon incelemesi, otomatik ret). Sözleşme [arayuzler.md](arayuzler.md#kayıtlı-nokta-bulutu), kapı [veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı) |
 | Ağaç başına ayırma, zemin | Var (`lidar/cloud.py`) |
 | Taç ölçümleri, büyüklük sınıfı önerisi | Var (`lidar crown`), sentetik ağaçlarla test edildi |
 | Kış iskeleti | Var (`lidar skeleton`), araştırma |
@@ -33,7 +33,7 @@ Bu doküman yöntemleri, doğruluklarını, veritabanına yazılışlarını ve 
 
 ```mermaid
 flowchart LR
-    M["MCAP<br/>LiDAR + IMU + GNSS"] -. "kayıt (yazılmadı)<br/>SLAM + PPK" .-> C["lidar/cloud.ply<br/>+ cloud.json"]
+    M["MCAP<br/>LiDAR + IMU + GNSS"] -. "lidar register (tasarlandı)<br/>ön uç + PPK, kalite kararı" .-> C["cloud.ply + cloud.json<br/>+ registration.json"]
     T["trees.json<br/>envanter konumları"] --> X
     C --> X["Ağaç başına ayırma<br/>zemin düzlemi"]
     X --> CR["lidar crown<br/>crown.json"]
@@ -43,7 +43,10 @@ flowchart LR
     SK --> U
     PR --> U
     U --> DB["public.measurement<br/>source = algorithm"]
+    C -. "registration_id" .-> U
 ```
+
+**Kayıt adımı (tasarlandı):** `lidar register <oturum>` ham kayıttan çalıştırma klasörüne (`<oturum>.processed/lidar/registration/<…>-<run_id[:8]>/`) bulutu ve kalite raporunu (`registration.json`) yazar. `lidar process <oturum>` zinciri çalıştırır: register, kayıt reddedilmediyse crown (envanter varsa) ve world, sonra upload. Ölçüm aşamaları bulutu `--cloud` ile ya da sözleşmedeki arama sırasıyla bulur ([arayuzler.md](arayuzler.md#kayıtlı-nokta-bulutu)). Bekleyen ya da reddedilen kaydın ölçümleri sahibe görünmez ([veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı)). Tasarım: [superpowers/specs/2026-11-18-lidar-kayit-adimi-design.md](superpowers/specs/2026-11-18-lidar-kayit-adimi-design.md).
 
 Komutlar (`services/pipeline/`):
 
@@ -220,14 +223,14 @@ Migration `20261107300000_lidar_measurements.sql`. Yeni tablo yok; ölçümler `
 
 "Değerlendirilecek" ve "gizli" metrikler karnede ve uzman formunda görünmez. Mevcut `crown_diameter`, `crown_volume`, `scaffold_branch_count` ve `pruning_status` zaten gösteriliyordu. Kesilen odun hacmi ve payı sistematik olarak düşük ölçüldüğü için (§5.2) değerlendirmede kalır. Sahip, yayımlanmış ziyaretin bütün ölçüm satırlarını okuyabilir (satır yetkisi `card_visibility`'ye bakmaz); gizli `crown_base_height` bu yüzden çizimde kullanılabilir.
 
-**`record_lidar_measurements(p_session_id, p_payload)`** (yalnız operasyon) → `{created, existing, skipped: [...]}`. `p_payload`: `{measured_at?, items: [{tree_id, slot_code?, metric, value_numeric | value_category, unit?, uncertainty?, confidence?, method, method_version, params_hash?}]}`.
+**`record_lidar_measurements(p_session_id, p_payload)`** (yalnız operasyon) → `{created, existing, skipped: [...]}`. `p_payload`: `{measured_at?, registration_id?, items: [{tree_id, slot_code?, metric, value_numeric | value_category, unit?, uncertainty?, confidence?, method, method_version, params_hash?}]}`.
 
 - Demo claim'i ops hesabında bile reddedilir (`demo_read_only`). Yetki ve oturum denetimleri `record_tree_presence` ile aynı.
 - Yöntem ve metrik eşleşmesi sabittir: `lidar_crown` → `tree_height`, `crown_diameter`, `crown_volume`, `size_class`, `crown_base_height`; `lidar_qsm` → `scaffold_branch_count`, `wood_volume`, `fractal_dimension`; `lidar_pruning` → `pruned_wood_volume`, `pruned_wood_fraction`, `pruning_cut_count`, `pruning_status`. Başka bir yöntem ya da metrik reddedilir.
 - Ağaç, oturumun parselinin aktif ağacı olmalı. Değer metriğin türüne uymalı, kategori listede olmalı, sayısal değerde belirsizlik zorunlu, birim metriğin birimi olmalı.
 - Değeri olmayan kalem (aşama ağacı ölçemediyse) yazılmaz, `skipped`'e `no_value` gerekçesiyle girer.
 - Satırlar `source = algorithm`, `method`, `method_version`, `params_hash`, `session_id` taşır. `measured_at` yükten (`cloud.json`'daki tarama başlangıcı), yoksa oturum başlangıcından gelir.
-- Aynı oturum, ağaç, metrik, yöntem, sürüm ve parametre hash'iyle ölçüm varsa kalem `existing` sayılır. Yeni yöntem sürümü yeni satır ekler; eski satırlar kalır (ölçümler sürümlüdür). Yük ya hep ya hiç yazılır.
+- Aynı oturum, ağaç, metrik, yöntem, sürüm ve parametre hash'iyle ölçüm varsa kalem `existing` sayılır (kayıt adımıyla anahtara `registration_id` de girer: [veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı)). Yeni yöntem sürümü yeni satır ekler; eski satırlar kalır (ölçümler sürümlüdür). Yük ya hep ya hiç yazılır.
 - **Mevsim denetlenmez.** `valid_seasons` hiçbir ölçüm yolunda zorlanmaz (mevsim takvimi metodoloji sürümüne bağlı). Kışın ölçülen taç çapı da yazılır; taç aşaması yapraksız bulutta rapor düzeyinde uyarı verir, uzman ve ofis aracı ölçümü mevsimiyle okumalıdır.
 
 **Yükleme:** `orchados-pipeline lidar upload <oturum>.processed/lidar --session-id <uuid> [--dry-run]` klasördeki raporları okur, oturum ve parsel tutarlılığını ve yukarıdaki kuralları göndermeden önce yerelde denetler, sonra fonksiyonu ops kullanıcısıyla çağırır (ortam değişkenleri `upload` ile aynı). Budama raporunun oturumu budama **sonrası** taramadır.
@@ -257,7 +260,7 @@ Gerçek ağaçlarda sentetikte olmayan zorluklar beklenir: ince sürgün yoğunl
 
 ## 9. Sahibe gösterim
 
-**Karar (5 Kasım 2026, sahip):** LiDAR ölçümleri doğrulama beklenmeden sahibe gösterilir; doğrulama pilotta yapılır (§7). Uzman LiDAR ölçümünü ayrıca onaylamaz: ziyaret yayımlandığında (uzman imzası) ölçümler de sahibe açılır. Çizim taç geometrisinin üç değerine dayanır: ağaç boyu, taç çapı ve taç tabanı yüksekliği.
+**Karar (5 Kasım 2026, sahip):** LiDAR ölçümleri doğrulama beklenmeden sahibe gösterilir; doğrulama pilotta yapılır (§7). Uzman LiDAR ölçümünü ayrıca onaylamaz: ziyaret yayımlandığında (uzman imzası) ölçümler de sahibe açılır. Kalite kapısı kayıt adımıdır: ölçümün kaydı varsa ziyaretin geçerli kabulü olmalıdır ([veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı)). Çizim taç geometrisinin üç değerine dayanır: ağaç boyu, taç çapı ve taç tabanı yüksekliği.
 
 - **Ağaç karnesi:** Ölçüm tablosunda ağaç boyu, taç çapı, taç hacmi, ana kol sayısı, kesim sayısı ve budama durumu ziyaret ziyaret görünür. Kesit fotoğraflarının üzerine çizim konur. Çizimde gövdeden ağacın tepesine boy çizgisi, taç ortası yüksekliğinde taç çapı ayracı ve taç tabanında kesikli çizgi bulunur. Çizim açılıp kapatılabilir. Altında çizimin tarama sırasında ölçülen değerlerden çizildiği ve yaklaşık olduğu yazar.
 - **360° gezi:** Seçilen ağacın panelinde bakılan ziyaretin değerleri (boy, taç çapı, taç hacmi) görünür. Aynı çizim panoramanın üzerinde yalnız o ağaç için durur. Ziyaretler arasında gezinince değerler ve çizim o ziyarete geçer.

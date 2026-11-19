@@ -10,7 +10,7 @@ trap 'rm -rf "$T"' EXIT
 mkdir -p "$T/bin"
 LOG="$T/calls.log"
 
-for tool in aws az gcloud ssh; do
+for tool in aws az gcloud ssh docker; do
   cat >"$T/bin/$tool" <<EOF
 #!/usr/bin/env bash
 echo "$tool \$*" >>"$LOG"
@@ -25,6 +25,9 @@ case "$tool \$*" in
   "az vm show"*publicIps*) echo 198.51.100.8 ;;
   "az storage account show"*) echo /subscriptions/x/sa ;;
   "gcloud compute instances describe"*) echo 198.51.100.9 ;;
+  "docker image inspect missing:1"*) exit 1 ;;
+  "docker save"*) echo image-tar ;;
+  "ssh "*"docker load"*) [ "\$(gunzip)" = image-tar ] || exit 1 ;;
 esac
 exit 0
 EOF
@@ -75,6 +78,18 @@ m gcp win-create
 expect "nvidia-tesla-t4-vws"
 m gcp budget
 expect "gcloud billing budgets create"
+
+m gcp lio-image
+expect "docker save orchados-lio-point-lio:local"
+expect "ssh .* ubuntu@198.51.100.9 .*gunzip \\| sudo docker load"
+LIO_IMAGE=missing:1 m aws lio-image 2>/dev/null && { echo "missing front-end image accepted" >&2; exit 1; }
+
+# startup.sh: the job container gets the Docker socket and the work disk at the same path.
+# shellcheck disable=SC2016 # literal text of the script
+grep -qF -- '-v "$WORK:$WORK" -e ORCHADOS_WORK_DIR="$WORK"' "$HERE/linux/startup.sh" ||
+  { echo "startup.sh: work disk not mounted at the same path" >&2; exit 1; }
+grep -q -- '-v /var/run/docker.sock:/var/run/docker.sock' "$HERE/linux/startup.sh" ||
+  { echo "startup.sh: no Docker socket" >&2; exit 1; }
 
 if m aws run "bad id;rm" 2>/dev/null; then echo "bad session id accepted" >&2; exit 1; fi
 echo "machine.sh dry run: ok ($(wc -l <"$LOG") CLI calls)"

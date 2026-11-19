@@ -1,0 +1,32 @@
+orchadOS: the ROS 2 node fills the IMU orientation in the SDK's order.
+
+Upstream: unitreerobotics/unilidar_sdk2 issue #14 (open). LidarImuData::quaternion
+is (w, x, y, z): the ROS 1 driver reads it so (unitree_lidar_ros.h) and so does
+this node's own imu_initial -> imu transform. The ROS 2 Imu message read it as
+(x, y, z, w). The SDK's example.h prints the same array labelled "(x, y, z, w)",
+so the order is checked on the bench (README, "L2 sürücüsü").
+
+Made on upstream commit 0e3c51f512e6b8ff60b8c32f160b412cb48445c2 (v2.0.10);
+services/kit-recorder/setup/install.sh pins it (UNILIDAR_COMMIT).
+
+diff --git a/unitree_lidar_ros2/src/unitree_lidar_ros2/include/unitree_lidar_ros2.h b/unitree_lidar_ros2/src/unitree_lidar_ros2/include/unitree_lidar_ros2.h
+index 29c094c..83b2696 100644
+--- a/unitree_lidar_ros2/src/unitree_lidar_ros2/include/unitree_lidar_ros2.h
++++ b/unitree_lidar_ros2/src/unitree_lidar_ros2/include/unitree_lidar_ros2.h
+@@ -176,10 +176,12 @@ void UnitreeLidarSDKNode::timer_callback()
+             imuMsg.header.frame_id = imu_frame_;
+             imuMsg.header.stamp = timestamp;
+ 
+-            imuMsg.orientation.x = imu.quaternion[0];
+-            imuMsg.orientation.y = imu.quaternion[1];
+-            imuMsg.orientation.z = imu.quaternion[2];
+-            imuMsg.orientation.w = imu.quaternion[3];
++            // The SDK's quaternion is (w, x, y, z): as in the ROS 1 driver and
++            // in this node's own imu_initial -> imu transform below.
++            imuMsg.orientation.w = imu.quaternion[0];
++            imuMsg.orientation.x = imu.quaternion[1];
++            imuMsg.orientation.y = imu.quaternion[2];
++            imuMsg.orientation.z = imu.quaternion[3];
+ 
+             imuMsg.angular_velocity.x = imu.angular_velocity[0];
+             imuMsg.angular_velocity.y = imu.angular_velocity[1];

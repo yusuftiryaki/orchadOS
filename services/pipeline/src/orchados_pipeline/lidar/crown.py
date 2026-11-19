@@ -667,6 +667,7 @@ def measure(
     *,
     session_id: str,
     parcel_id: str,
+    run_id: str | None = None,
 ) -> CrownReport:
     qualities, details, meas = [], [], []
     for tc in trees:
@@ -690,6 +691,7 @@ def measure(
         method_version=METHOD_VERSION,
         session_id=session_id,
         parcel_id=parcel_id,
+        run_id=run_id,
         trees=qualities,
         measurements=meas,
         point_sigma_m=point_sigma_m,
@@ -699,10 +701,14 @@ def measure(
 
 
 def run(
-    session_dir: Path, trees_path: Path, out_dir: Path, params_path: Path | None = None
+    session_dir: Path,
+    trees_path: Path,
+    out_dir: Path,
+    params_path: Path | None = None,
+    cloud_dir: Path | None = None,
 ) -> CrownReport:
     p = CrownParams.load(params_path)
-    cloud = load_session_cloud(Path(session_dir))
+    cloud = load_session_cloud(Path(session_dir), cloud_dir)
     positions = load_tree_positions(Path(trees_path))
     tcs = extract_trees(
         cloud,
@@ -717,6 +723,7 @@ def run(
         p,
         session_id=cloud.meta.session_id,
         parcel_id=cloud.meta.parcel_id,
+        run_id=cloud.meta.run_id,
     )
     write_model(report, Path(out_dir) / REPORT_FILE)
     return report

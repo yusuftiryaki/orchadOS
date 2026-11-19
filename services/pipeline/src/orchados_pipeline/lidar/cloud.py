@@ -85,6 +85,20 @@ def read_ply(path: Path) -> tuple[np.ndarray, np.ndarray | None]:
     return pts, inten
 
 
+def ply_point_count(path: Path) -> int:
+    """The vertex count of a PLY file's header (the body is not read)."""
+    with open(path, "rb") as f:
+        if f.readline().strip() != b"ply":
+            raise CloudError(f"{path}: not a PLY file")
+        for line in f:
+            words = line.decode("ascii", "replace").split()
+            if words[:2] == ["element", "vertex"]:
+                return int(words[2])
+            if words[:1] == ["end_header"]:
+                break
+    raise CloudError(f"{path}: no vertex element")
+
+
 def write_ply(path: Path, points: np.ndarray, intensity: np.ndarray | None = None) -> Path:
     """Write float64 x, y, z (+ float32 intensity). Deterministic bytes for equal input."""
     pts = np.asarray(points, dtype=np.float64).reshape(-1, 3)
@@ -123,12 +137,62 @@ def session_cloud_paths(session_dir: Path) -> tuple[Path, Path]:
     return d / CLOUD_FILE, d / CLOUD_META_FILE
 
 
-def load_session_cloud(session_dir: Path) -> RegisteredCloud:
-    ply, meta_path = session_cloud_paths(session_dir)
-    if not ply.is_file() or not meta_path.is_file():
-        raise CloudError(
-            f"{session_dir}: no registered cloud ({LIDAR_DIR}/{CLOUD_FILE} + {CLOUD_META_FILE})"
+REGISTRATION_ROOT = Path(LIDAR_DIR) / "registration"  # under <session>.processed/
+
+
+def _has_cloud(folder: Path) -> bool:
+    return (folder / CLOUD_FILE).is_file() and (folder / CLOUD_META_FILE).is_file()
+
+
+def resolve_cloud(
+    session_dir: Path, cloud_dir: Path | None = None, log: Callable[[str], None] = print
+) -> Path:
+    """The folder holding the session's cloud.ply + cloud.json (docs/arayuzler.md):
+
+    1. cloud_dir when given (--cloud);
+    2. <session>/lidar/ (synthetic sessions, the old layout);
+    3. the newest registration run under <session>.processed/lidar/registration/ whose
+       verdict is not rejected_auto (registration.json, created_utc); log says which.
+    """
+    session_dir = Path(session_dir)
+    if cloud_dir is not None:
+        cloud_dir = Path(cloud_dir)
+        if not _has_cloud(cloud_dir):
+            raise CloudError(f"{cloud_dir}: no {CLOUD_FILE} + {CLOUD_META_FILE}")
+        return cloud_dir
+    own = session_dir / LIDAR_DIR
+    if _has_cloud(own):
+        return own
+    root = session_dir.parent / f"{session_dir.name}.processed" / REGISTRATION_ROOT
+    runs = []
+    if root.is_dir():
+        for d in root.iterdir():
+            rep = d / "registration.json"
+            if d.name.startswith(".") or not rep.is_file() or not _has_cloud(d):
+                continue
+            try:
+                body = json.loads(rep.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if body.get("verdict") != "rejected_auto":
+                runs.append((body.get("created_utc") or "", d.name, d))
+    if runs:
+        created, _name, chosen = max(runs)
+        log(
+            f"cloud: registration run {chosen.name} (created {created or '?'}; newest of "
+            f"{len(runs)} not rejected; --cloud chooses another)"
         )
+        return chosen
+    raise CloudError(
+        f"{session_dir}: no registered cloud ({LIDAR_DIR}/{CLOUD_FILE} + {CLOUD_META_FILE}, "
+        f"or a registration under {root} that was not rejected)"
+    )
+
+
+def load_session_cloud(session_dir: Path, cloud_dir: Path | None = None) -> RegisteredCloud:
+    """The session's registered cloud, found by resolve_cloud()."""
+    folder = resolve_cloud(session_dir, cloud_dir)
+    ply, meta_path = folder / CLOUD_FILE, folder / CLOUD_META_FILE
     meta = CloudMeta.model_validate(json.loads(meta_path.read_text(encoding="utf-8")))
     pts, inten = read_ply(ply)
     return RegisteredCloud(pts, meta, inten)
