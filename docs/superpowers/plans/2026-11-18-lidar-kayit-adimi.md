@@ -48,10 +48,10 @@
 
 **Files:** `docs/arayuzler.md` ("Kayıtlı nokta bulutu"), `docs/veri-modeli.md`, `docs/lidar-olcumleri.md` (§1, §2), `docs/3d-dunya.md` (§9.4), `docs/plan.md` (progress row).
 
-- [ ] arayuzler: registration output folder; `--cloud` resolution order (spec §5.10); `registration.json` schema `orchados.lidar_registration/1` (spec §5.7 fields); front-end output `orchados.lio_frontend/1` (spec §5.3) as an internal contract; `registration_method` values.
-- [ ] veri-modeli: `lidar_registration` (spec §5.8 columns, states, rules) and the reader gate; `world_cloud.pose.registration_id`.
-- [ ] lidar-olcumleri §1 status row "Ham MCAP'ten kayıtlı buluta" → in progress with link to spec; 3d-dunya §9.4 review band; plan.md row.
-- [ ] Commit `Docs: LiDAR registration contracts and gate`.
+- [x] arayuzler: registration output folder; `--cloud` resolution order (spec §5.10); `registration.json` schema `orchados.lidar_registration/1` (spec §5.7 fields); front-end output `orchados.lio_frontend/1` (spec §5.3) as an internal contract; `registration_method` values.
+- [x] veri-modeli: `lidar_registration` (spec §5.8 columns, states, rules) and the reader gate; `world_cloud.pose.registration_id`.
+- [x] lidar-olcumleri §1 status row "Ham MCAP'ten kayıtlı buluta" → in progress with link to spec; 3d-dunya §9.4 review band; plan.md row.
+- [x] Commit `Docs: LiDAR registration contracts and gate`.
 
 ### Task 3: Synthetic moving scan
 
@@ -59,9 +59,9 @@
 
 **Interfaces:** Produces `make_moving_session(dest: Path, cfg: MovingConfig | None = None) -> MovingTruth`; `MovingConfig(rows=3, trees_per_row=6, row_spacing_m=7.0, tree_spacing_m=6.0, speed_mps=1.5, duration_s=None, seed=0, gap=None | tuple[float, float], second_bag_at_s=None, stamp_offset_s=0.0, imu_hz=250.0, ppk=True)`; `MovingTruth(poses: np.ndarray (N×8: gps_time_ns,x,y,z,qx,qy,qz,qw in ENU of origin), origin_lat, origin_lon, origin_height_m, lever_arm_m, trees: list[(tree_id, e, n)])` written as `<dest>/truth.json`.
 
-- [ ] Test: session folder has `session.json`, `gnss/gnss.ubx` (NAV-PVT 5 Hz along antenna path = pose ⊕ lever arm), `gnss/session.json`, `lidar/raw/bag/bag_0.mcap` with topics `/unilidar/cloud` (sensor_msgs/msg/PointCloud2, fields x,y,z,intensity float32, ring uint16, time float32 relative s) and `/unilidar/imu` (sensor_msgs/msg/Imu) at `imu_hz`, `lidar/raw/recording.json` (`orchados.lidar_recording/1`, gaps when `gap` set, second segment dir `bag.1/` when `second_bag_at_s`), `trees.json`; messages decode with `mcap_ros2.reader`; ~64 000 points/s; log_time = header.stamp + `stamp_offset_s`.
-- [ ] Implement: lawn-mower path along rows (turns at row ends), trees as trunk cylinders + ellipsoid crowns + ground plane, rays from LiDAR at 10 Hz messages over the upper hemisphere (−6°..90°), IMU = analytic derivatives of the path + noise. Keep under ~5 s for the default CI config (short: 2 rows, 60 s).
-- [ ] CLI `lidar synth --moving <dir> [--gap A,B] [--second-bag S] [--no-ppk]`. Commit `pipeline: synthetic moving LiDAR scan`.
+- [x] Test: session folder has `session.json`, `gnss/gnss.ubx` (NAV-PVT 5 Hz along antenna path = pose ⊕ lever arm), `gnss/session.json`, `lidar/raw/bag/bag_0.mcap` with topics `/unilidar/cloud` (sensor_msgs/msg/PointCloud2, fields x,y,z,intensity float32, ring uint16, time float32 relative s) and `/unilidar/imu` (sensor_msgs/msg/Imu) at `imu_hz`, `lidar/raw/recording.json` (`orchados.lidar_recording/1`, gaps when `gap` set, second segment dir `bag.1/` when `second_bag_at_s`), `trees.json`; messages decode with `mcap_ros2.reader`; ~64 000 points/s; log_time = header.stamp + `stamp_offset_s`.
+- [x] Implement: lawn-mower path along rows (turns at row ends), trees as trunk cylinders + ellipsoid crowns + ground plane, rays from LiDAR at 10 Hz messages over the upper hemisphere (−6°..90°), IMU = analytic derivatives of the path + noise. Keep under ~5 s for the default CI config (short: 2 rows, 60 s).
+- [x] CLI `lidar synth --moving <dir> [--gap A,B] [--second-bag S] [--no-ppk]`. Commit `pipeline: synthetic moving LiDAR scan`.
 
 ### Task 4: Segments, stamps, front-end interface, fake front end, fusion
 
@@ -74,11 +74,11 @@
 - `fake.FakeFrontend(drift_m_per_100m=0.0, yaw_drift_deg_per_100m=0.0, noise_m=0.0, swap_tree_at=None)`: reads `truth.json`, keyframes by spec spacing (0.5 m / 10° / 1 s), scans = the segment's MCAP points around the keyframe time transformed into the true body frame, then the reported pose gets the configured drift/noise in the segment's own odom frame (origin = first keyframe).
 - `fusion.fuse(keyframes: list[Keyframe], trajectory: Trajectory, frame: LocalFrame, params: RegistrationParams) -> FusionResult`; `FusionResult(poses_enu: dict[(segment,index), (t:np.ndarray, q:np.ndarray)], residuals: list[(gps_time_ns, quality, residual_m)], used_gnss:int)`.
 
-- [ ] Tests rawlog: gaps > 2 s and `bag.1/` split segments; < 20 s dropped with reason; `stamp_offset_s=0.2` → `needs_restamp`; low IMU rate → `skip_reason="imu_rate_low"`; empty/missing raw → `[]`.
-- [ ] Tests frontend: write/read round trip; fake with zero drift reproduces truth poses within 1e-6.
-- [ ] Tests fusion: fake drift 2 m/100 m + PPK fix trajectory → fused positions within 0.05 m of truth; `test_keyframes_outside_trajectory_have_no_gnss_factor`; NAV-PVT trajectory (sd ~1.5 m) still runs; Huber limits a single 5 m outlier fix to < 0.1 m effect; two segments tied only by GNSS.
-- [ ] Implement. Between-factor sigmas: `between_sigma_m_per_m`, `between_sigma_deg_per_m` (params); GNSS sigma = max(trajectory sd, floor per quality: fix 0.02, float 0.3, other 2.0 m — params); lever arm param `lever_arm_m: [x,y,z]` in LiDAR body frame (default from truth/synthetic kit: `[0,0,0.5]`).
-- [ ] pytest + ruff. Commit(s) `pipeline: LiDAR segments, front-end interface and fake`, `pipeline: pose-graph fusion with the GNSS trajectory`.
+- [x] Tests rawlog: gaps > 2 s and `bag.1/` split segments; < 20 s dropped with reason; `stamp_offset_s=0.2` → `needs_restamp`; low IMU rate → `skip_reason="imu_rate_low"`; empty/missing raw → `[]`.
+- [x] Tests frontend: write/read round trip; fake with zero drift reproduces truth poses within 1e-6.
+- [x] Tests fusion: fake drift 2 m/100 m + PPK fix trajectory → fused positions within 0.05 m of truth; `test_keyframes_outside_trajectory_have_no_gnss_factor`; NAV-PVT trajectory (sd ~1.5 m) still runs; Huber limits a single 5 m outlier fix to < 0.1 m effect; two segments tied only by GNSS.
+- [x] Implement. Between-factor sigmas: `between_sigma_m_per_m`, `between_sigma_deg_per_m` (params); GNSS sigma = max(trajectory sd, floor per quality: fix 0.02, float 0.3, other 2.0 m — params); lever arm param `lever_arm_m: [x,y,z]` in LiDAR body frame (default from truth/synthetic kit: `[0,0,0.5]`).
+- [x] pytest + ruff. Commit(s) `pipeline: LiDAR segments, front-end interface and fake`, `pipeline: pose-graph fusion with the GNSS trajectory`.
 
 ### Task 5: Cloud, quality metrics, verdict, register and process commands
 
@@ -92,8 +92,8 @@
 - `cloud.resolve_cloud(session_dir: Path, cloud_dir: Path | None = None) -> Path` (folder holding cloud.ply+cloud.json; order: explicit → `<session>/lidar/` → newest non-`rejected_auto` registration folder).
 - CLI `lidar register <session> [--frontend fake|point_lio] [--out] [--params]` prints the verdict line; `lidar process <session> [--frontend] [--upload] [--trees]` = register → if not `rejected_auto`: crown, world → if `--upload`: upload (Task 7).
 
-- [ ] Tests: zero-drift fake + PPK → `accepted_auto`, cloud trunks within 0.05 m of truth trees; drift without enough GNSS / `swap_tree_at` (double trunk) → `review` or `rejected_auto` with matching reasons; `--no-ppk` → never `accepted_auto`, reason `no_ppk`; self-mask removes pole points; `cloud.json` fields per contract and readable by `load_session_cloud` via `resolve_cloud`; `test_register_twice_new_run`; `test_process_without_lidar_is_noop`; `test_process_without_inventory_skips_crown`; `--reuse-registration` runs crown on the newest non-rejected run without a new run; unlocked clock / missing recording.json → at most `review` with reason; `lidar crown --cloud <folder>` works; existing lidar tests unchanged.
-- [ ] Implement; cloud written in chunks (no full in-memory copy beyond one segment). Commit `pipeline: lidar register and process`.
+- [x] Tests: zero-drift fake + PPK → `accepted_auto`, cloud trunks within 0.05 m of truth trees; drift without enough GNSS / `swap_tree_at` (double trunk) → `review` or `rejected_auto` with matching reasons; `--no-ppk` → never `accepted_auto`, reason `no_ppk`; self-mask removes pole points; `cloud.json` fields per contract and readable by `load_session_cloud` via `resolve_cloud`; `test_register_twice_new_run`; `test_process_without_lidar_is_noop`; `test_process_without_inventory_skips_crown`; `--reuse-registration` runs crown on the newest non-rejected run without a new run; unlocked clock / missing recording.json → at most `review` with reason; `lidar crown --cloud <folder>` works; existing lidar tests unchanged.
+- [x] Implement; cloud written in chunks (no full in-memory copy beyond one segment). Commit `pipeline: lidar register and process`.
 
 ### Task 6: Database gate
 
@@ -101,9 +101,9 @@
 
 **Interfaces:** `public.lidar_registration` (spec §5.8 + §5.11: `run_id uuid unique`, status adds `superseded`); `public.record_lidar_registration(p_session_id uuid, p_payload jsonb) returns uuid` (payload = registration.json subset: method, method_version, params_hash, ppk_status, metrics, verdict, reasons; idempotent on the unique key; ops only); `public.decide_lidar_registration(p_id uuid, p_accept boolean, p_note text) returns public.lidar_registration` (ops only, pending only, note required on reject); `record_lidar_measurements` payload accepts optional `registration_id uuid` (must belong to the same session; refused if that registration is `rejected`); world_cloud `pose.registration_id`.
 
-- [ ] `record_lidar_measurements` dedup key includes `registration_id`; owners see only measurements/world_cloud of the session's current accepted registration (or null-registration rows).
-- [ ] pgTAP: `accept_supersedes_previous`; ops records and decides; non-ops cannot; second decision fails; owner/shareholder/viewer/demo cannot read LiDAR measurements or world_cloud of pending/rejected registration (`accept_reveals_measurements`, `reject_keeps_hidden`); null registration keeps current behaviour (existing tests pass); staff read all; demo guard attached.
-- [ ] `pnpm db:reset && pnpm db:test` all pass; `scripts/check-migration-order.sh` passes. Commit `db: lidar registration and reader gate`.
+- [x] `record_lidar_measurements` dedup key includes `registration_id`; owners see only measurements/world_cloud of the session's current accepted registration (or null-registration rows).
+- [x] pgTAP: `accept_supersedes_previous`; ops records and decides; non-ops cannot; second decision fails; owner/shareholder/viewer/demo cannot read LiDAR measurements or world_cloud of pending/rejected registration (`accept_reveals_measurements`, `reject_keeps_hidden`); null registration keeps current behaviour (existing tests pass); staff read all; demo guard attached.
+- [x] `pnpm db:reset && pnpm db:test` all pass; `scripts/check-migration-order.sh` passes. Commit `db: lidar registration and reader gate`.
 
 ### Task 7: Upload
 
@@ -126,9 +126,9 @@
 
 **Interfaces:** Image reads `/in/segments.json` (list of {index, mcap paths, start/end ns}) and writes `/out/` in the `orchados.lio_frontend/1` layout; `PointLioFrontend(image: str = env ORCHADOS_POINT_LIO_IMAGE or "orchados-lio-point-lio:local", rate: float = 1.0, docker: str = "docker")` builds and runs `docker run --rm -v <session>:/in/session:ro -v <work>:/out <image>`.
 
-- [ ] Dockerfile: `ros:humble-ros-base`, build `dfloreaa/point_lio_ros2` at a pinned commit with the L2 config (lidar type/topics `/unilidar/cloud`, `/unilidar/imu`, Unitree's L2 extrinsics); `keyframe_recorder.py` (rclpy) subscribes odometry and the body-frame scan topic and writes keyframes per spec spacing; `entrypoint.sh` loops segments: `ros2 bag play --clock --rate $RATE` + Point-LIO with `use_sim_time`.
-- [ ] Unit test (no Docker): command line built correctly; output read back via `read_frontend_output`. `smoke.sh`: builds the image, runs it on a short `lidar synth --moving` session and checks the output layout (manual; document the result in README).
-- [ ] Try the build and smoke here; record honestly in README what was verified. Commit `lidar front end: Point-LIO image (L2)`.
+- [x] Dockerfile: `ros:humble-ros-base`, build `dfloreaa/point_lio_ros2` at a pinned commit with the L2 config (lidar type/topics `/unilidar/cloud`, `/unilidar/imu`, Unitree's L2 extrinsics); `keyframe_recorder.py` (rclpy) subscribes odometry and the body-frame scan topic and writes keyframes per spec spacing; `entrypoint.sh` loops segments: `ros2 bag play --clock --rate $RATE` + Point-LIO with `use_sim_time`.
+- [x] Unit test (no Docker): command line built correctly; output read back via `read_frontend_output`. `smoke.sh`: builds the image, runs it on a short `lidar synth --moving` session and checks the output layout (manual; document the result in README).
+- [x] Try the build and smoke here; record honestly in README what was verified. Commit `lidar front end: Point-LIO image (L2)`.
 
 ### Task 10: Processing flow, commands, plan
 
