@@ -140,7 +140,9 @@ def test_reads_reports_with_extra_fields_and_skips_other_json(tmp_path):
 
 def test_payload_items(tmp_path):
     out = write_session(tmp_path, {"crown.json": crown(), "skeleton.json": skeleton()})
-    payload = build_payload(load_reports(out), SESSION, scan_start(out, SESSION))
+    payload = build_payload(
+        load_reports(out), SESSION, scan_start(out, SESSION), allow_unregistered=True
+    )
     assert payload["measured_at"] == gps_ns_to_iso(START_NS)
     items = payload["items"]
     assert len(items) == 9
@@ -168,7 +170,7 @@ def test_no_cloud_json_leaves_measured_at_to_the_database(tmp_path):
     out.mkdir()
     (out / "crown.json").write_text(json.dumps(crown()))
     assert scan_start(out, SESSION) is None
-    assert "measured_at" not in build_payload(load_reports(out), SESSION)
+    assert "measured_at" not in build_payload(load_reports(out), SESSION, allow_unregistered=True)
 
 
 def test_report_of_another_session_is_refused(tmp_path):
@@ -181,7 +183,7 @@ def test_report_of_another_session_is_refused(tmp_path):
     )
     out = write_session(tmp_path, {"crown.json": crown(), "pruning.json": pruning})
     with pytest.raises(LidarUploadError, match="pruning.json is for session .*after pruning"):
-        build_payload(load_reports(out), SESSION)
+        build_payload(load_reports(out), SESSION, allow_unregistered=True)
 
 
 def test_folder_without_reports(tmp_path):
@@ -226,7 +228,7 @@ def test_dry_run_prints_the_payload_and_signs_in_nowhere(tmp_path, capsys, monke
 
     monkeypatch.setattr(SupabaseClient, "sign_in", no_sign_in)
     out = write_session(tmp_path, {"crown.json": crown()})
-    assert lidar_upload.run(out, SESSION, dry_run=True, env={}) == 0
+    assert lidar_upload.run(out, SESSION, dry_run=True, env={}, allow_unregistered=True) == 0
     text = capsys.readouterr().out
     body = json.loads(text[: text.rindex("}") + 1])
     assert body["p_session_id"] == SESSION and len(body["p_payload"]["items"]) == 6
@@ -238,7 +240,7 @@ def test_run_stops_on_problems_before_signing_in(tmp_path, capsys):
     bad["measurements"][0]["uncertainty"] = None
     out = write_session(tmp_path, {"crown.json": bad})
     # Empty env: signing in would fail with "missing environment variables".
-    assert lidar_upload.run(out, SESSION, env={}) == 1
+    assert lidar_upload.run(out, SESSION, env={}, allow_unregistered=True) == 1
     assert "needs an uncertainty" in capsys.readouterr().err
 
 
@@ -278,10 +280,10 @@ class FakeCatalog:
         assert session_id == self.row.id
         return self.row
 
-    def assets(self, session_id, pipeline_version):
-        rows = enumerate(self.rows)
+    def world_clouds(self, session_id):
         return {
-            r["content_hash"]: str(i) for i, r in rows if r["pipeline_version"] == pipeline_version
+            (r["content_hash"], r["pipeline_version"], r["pose"].get("registration_id"))
+            for r in self.rows
         }
 
     def insert_asset(self, row):
@@ -330,7 +332,7 @@ def test_world_cloud_must_match_its_sidecar(tmp_path):
 def test_dry_run_with_only_a_world_cloud(tmp_path, capsys):
     out = write_session(tmp_path, {})
     write_world_cloud(out)
-    assert lidar_upload.run(out, SESSION, dry_run=True, env={}) == 0
+    assert lidar_upload.run(out, SESSION, dry_run=True, env={}, allow_unregistered=True) == 0
     text = capsys.readouterr().out
     assert '"kind": "world_cloud"' in text and "nothing uploaded" in text
 
@@ -365,10 +367,15 @@ def test_records_against_local_supabase(supabase_env, test_sessions, tmp_path, c
     )
 
     # Only ops writes algorithm results.
-    assert lidar_upload.run(out, session_id, env=creds(supabase_env, "expert")) == 1
+    assert (
+        lidar_upload.run(
+            out, session_id, env=creds(supabase_env, "expert"), allow_unregistered=True
+        )
+        == 1
+    )
     assert "forbidden" in capsys.readouterr().err
 
-    assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
+    assert lidar_upload.run(out, session_id, env=creds(supabase_env), allow_unregistered=True) == 0
     text = capsys.readouterr().out
     assert "8 created, 0 already recorded" in text
     assert "1 not measured" in text and T2 in text
@@ -400,17 +407,17 @@ def test_records_against_local_supabase(supabase_env, test_sessions, tmp_path, c
     assert by_code["fractal_dimension"]["unit"] is None
 
     # Re-running adds nothing; a new crown version adds its rows and keeps the old ones.
-    assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
+    assert lidar_upload.run(out, session_id, env=creds(supabase_env), allow_unregistered=True) == 0
     assert "0 created, 8 already recorded" in capsys.readouterr().out
     (out / "crown.json").write_text(json.dumps(crown(session_id, version="0.2.0")))
-    assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
+    assert lidar_upload.run(out, session_id, env=creds(supabase_env), allow_unregistered=True) == 0
     assert "5 created, 3 already recorded" in capsys.readouterr().out
 
     # The world cloud: object in the media bucket, one asset row; again: nothing new.
     write_world_cloud(out, session=session_id)
-    assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
+    assert lidar_upload.run(out, session_id, env=creds(supabase_env), allow_unregistered=True) == 0
     assert "world cloud: recorded" in capsys.readouterr().out
-    assert lidar_upload.run(out, session_id, env=creds(supabase_env)) == 0
+    assert lidar_upload.run(out, session_id, env=creds(supabase_env), allow_unregistered=True) == 0
     assert "world cloud: already recorded" in capsys.readouterr().out
     (row,) = ops.select(
         "asset",
