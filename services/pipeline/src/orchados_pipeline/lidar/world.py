@@ -1102,10 +1102,12 @@ def run(
     panoramas: Path | None = None,
     log: Callable[[str], None] = lambda _m: None,
     wood: WoodInputs | None = None,
+    cloud_dir: Path | None = None,
 ) -> WorldReport:
-    """wood: the skeleton and pruning inputs (WoodInputs; default_wood picks them up)."""
+    """wood: the skeleton and pruning inputs (WoodInputs; default_wood picks them up).
+    cloud_dir: the cloud's folder (default: resolve_cloud's order)."""
     p = WorldParams.load(params_path)
-    cloud = load_session_cloud(Path(session_dir))
+    cloud = load_session_cloud(Path(session_dir), cloud_dir)
     trees = load_tree_positions(Path(trees_path)) if Path(trees_path).is_file() else []
     source = Path(panoramas) if panoramas else default_panoramas(Path(session_dir))
     views: list[View] = []

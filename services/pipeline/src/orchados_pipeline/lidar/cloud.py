@@ -123,12 +123,55 @@ def session_cloud_paths(session_dir: Path) -> tuple[Path, Path]:
     return d / CLOUD_FILE, d / CLOUD_META_FILE
 
 
-def load_session_cloud(session_dir: Path) -> RegisteredCloud:
-    ply, meta_path = session_cloud_paths(session_dir)
-    if not ply.is_file() or not meta_path.is_file():
-        raise CloudError(
-            f"{session_dir}: no registered cloud ({LIDAR_DIR}/{CLOUD_FILE} + {CLOUD_META_FILE})"
-        )
+REGISTRATION_ROOT = Path(LIDAR_DIR) / "registration"  # under <session>.processed/
+
+
+def _has_cloud(folder: Path) -> bool:
+    return (folder / CLOUD_FILE).is_file() and (folder / CLOUD_META_FILE).is_file()
+
+
+def resolve_cloud(session_dir: Path, cloud_dir: Path | None = None) -> Path:
+    """The folder holding the session's cloud.ply + cloud.json (docs/arayuzler.md):
+
+    1. cloud_dir when given (--cloud);
+    2. <session>/lidar/ (synthetic sessions, the old layout);
+    3. the newest registration run under <session>.processed/lidar/registration/ whose
+       verdict is not rejected_auto (registration.json, created_utc).
+    """
+    session_dir = Path(session_dir)
+    if cloud_dir is not None:
+        cloud_dir = Path(cloud_dir)
+        if not _has_cloud(cloud_dir):
+            raise CloudError(f"{cloud_dir}: no {CLOUD_FILE} + {CLOUD_META_FILE}")
+        return cloud_dir
+    own = session_dir / LIDAR_DIR
+    if _has_cloud(own):
+        return own
+    root = session_dir.parent / f"{session_dir.name}.processed" / REGISTRATION_ROOT
+    runs = []
+    if root.is_dir():
+        for d in root.iterdir():
+            rep = d / "registration.json"
+            if d.name.startswith(".") or not rep.is_file() or not _has_cloud(d):
+                continue
+            try:
+                body = json.loads(rep.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if body.get("verdict") != "rejected_auto":
+                runs.append((body.get("created_utc") or "", d.name, d))
+    if runs:
+        return max(runs)[2]
+    raise CloudError(
+        f"{session_dir}: no registered cloud ({LIDAR_DIR}/{CLOUD_FILE} + {CLOUD_META_FILE}, "
+        f"or a registration under {root} that was not rejected)"
+    )
+
+
+def load_session_cloud(session_dir: Path, cloud_dir: Path | None = None) -> RegisteredCloud:
+    """The session's registered cloud, found by resolve_cloud()."""
+    folder = resolve_cloud(session_dir, cloud_dir)
+    ply, meta_path = folder / CLOUD_FILE, folder / CLOUD_META_FILE
     meta = CloudMeta.model_validate(json.loads(meta_path.read_text(encoding="utf-8")))
     pts, inten = read_ply(ply)
     return RegisteredCloud(pts, meta, inten)
