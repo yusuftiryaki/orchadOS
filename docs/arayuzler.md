@@ -805,7 +805,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 | `reasons` | metin[] | Neden kodları (aşağıda); boş olabilir |
 | `thresholds` | nesne | Kararda kullanılan eşikler (parametrelerden) |
 
-- **Parçalar:** Oturum, `recording.json`'daki `gaps` ve `segments`'ten parçalara bölünür: 2 sn'den uzun her LiDAR boşluğu ve her `bag.N/` başlangıcı yeni parça açar. `recording.json` yoksa parçalar yalnız MCAP'ten çıkarılır. Her parça `{index, bags, start_gps_ns, end_gps_ns, duration_s, imu_rate_hz, restamped, keyframe_count, status, skip_reason, message}` taşır. `status`: `ok`, `failed` (ön uç başarısız; `message`), `skipped`. `skip_reason`: `too_short` (20 sn'den kısa) ya da `imu_rate_low` (IMU mesaj hızı beklenenin yarısının altında; beklenen hız parametredir). `restamped`: `header.stamp` ile MCAP `log_time` arasındaki fark 50 ms'yi ya da eğimin 1'den sapması 10⁻⁴'ü aştığı için ön uca giden kopyada mesaj damgaları `log_time`'a taşındı.
+- **Parçalar:** Oturum, `recording.json`'daki `gaps` ve `segments`'ten parçalara bölünür: 2 sn'den uzun her LiDAR boşluğu ve her `bag.N/` başlangıcı yeni parça açar. `recording.json` yoksa parçalar yalnız MCAP'ten çıkarılır. Her parça `{index, bags, start_gps_ns, end_gps_ns, duration_s, imu_rate_hz, restamped, keyframe_count, status, skip_reason, message}` taşır. `status`: `ok`, `failed` (ön uç başarısız; `message`), `skipped`. `skip_reason`: `too_short` (20 sn'den kısa) ya da `imu_rate_low` (IMU mesaj hızı beklenenin yarısının altında; beklenen hız parametredir). `restamped`: `header.stamp` ile MCAP `log_time` arasındaki fark 50 ms'yi ya da eğimin 1'den sapması 10⁻⁴'ü aştığı için ön uca giden kopyada mesaj damgaları Pi saatine taşındı: parçanın bulut mesajlarına uydurulan doğruyla (`log_time` = kayma + hız × `header.stamp`), eksi `stamp_latency_s` parametresi (sensörden kayda gecikme; vars. 0). Her mesajın kendi `log_time`'ı kopyalanmaz (USB titremesi ve yığılmaları IMU damgalarına geçmesin).
 - **`metrics`:**
 
   | Alan | Anlamı |
@@ -838,7 +838,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `clock_unlocked` | `recording.json` `clock_state_at_start` `pps` değil | En iyi `review` |
   | `no_recording_json` | `recording.json` yok (ör. güç kesintisi); parçalar MCAP'ten | En iyi `review` |
   | `imu_rate_low` | En az bir parça düşük IMU hızıyla atlandı | Bilgi; kapsamayı düşürür |
-  | `restamped` | En az bir parçanın damgaları `log_time`'a taşındı | Bilgi |
+  | `restamped` | En az bir parçanın damgaları Pi saatine taşındı | Bilgi |
 
 **Ön uç çıktısı** (`frontend/`, `schema: orchados.lio_frontend/1`): **iç sözleşme**, hattın kendi içinde ön uç (ayrı container ya da testlerde sahte ön uç) ile kayıt adımının Python kodu arasında. Başka bileşen okumaz; ön uç değiştirilebilir (Point-LIO, sonra GLIM) ve hepsi bu biçimde yazar.
 

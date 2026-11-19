@@ -143,3 +143,71 @@ def test_write_restamped(tmp_path):
     assert a.log_gps_ns == b.log_gps_ns
     np.testing.assert_array_equal(a.xyz, b.xyz)
     np.testing.assert_array_equal(a.rel_time_s, b.rel_time_s)
+
+
+def _jitter_log_times(src: Path, rng: np.random.Generator) -> None:
+    """Rewrites an MCAP with USB-like delivery: every log time late by 0-4 ms, and every
+    40th message starts a burst (the next few delivered together, up to 30 ms late).
+    header.stamp is left as it was (the sensor's smooth clock)."""
+    out = src.with_suffix(".tmp")
+    with open(src, "rb") as f, open(out, "wb") as g:
+        reader = make_reader(f)
+        w = Writer(g)
+        w.start(profile="ros2")
+        summary = reader.get_summary()
+        ids = {
+            sid: w.register_schema(s.name, s.encoding, s.data) for sid, s in summary.schemas.items()
+        }
+        chans = {
+            cid: w.register_channel(c.topic, c.message_encoding, ids[c.schema_id])
+            for cid, c in summary.channels.items()
+        }
+        burst_until = 0
+        for i, (_s, ch, msg) in enumerate(reader.iter_messages()):
+            late = int(rng.uniform(0, 4e6))
+            if i % 40 == 0:
+                burst_until = msg.log_time + 30_000_000
+            if msg.log_time < burst_until:
+                late = burst_until - msg.log_time
+            w.add_message(chans[ch.id], msg.log_time + late, msg.data, msg.publish_time)
+        w.finish()
+    out.replace(src)
+
+
+def _imu_stamps(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """(header.stamp, log time) of the IMU messages, ns."""
+    stamps, logs = [], []
+    with open(path, "rb") as f:
+        for _s, ch, msg in make_reader(f).iter_messages(log_time_order=False):
+            if ch.topic == "/unilidar/imu":
+                stamps.append(ros2msg.stamp_ns(msg.data))
+                logs.append(msg.log_time)
+    order = np.argsort(stamps)
+    return np.asarray(stamps, np.int64)[order], np.asarray(logs, np.int64)[order]
+
+
+def test_restamped_imu_is_smooth_under_log_jitter(tmp_path):
+    """Restamping maps header.stamp onto the Pi clock through the segment's fitted line
+    (offset + rate) instead of copying each message's log time: USB delivery jitter and
+    bursts in the log times do not reach the front end's IMU stamps."""
+    dest, _ = _session(tmp_path, "jitter", duration_s=22.0, stamp_offset_s=0.2)
+    _jitter_log_times(dest / "lidar/raw/bag/bag_0.mcap", np.random.default_rng(3))
+    (seg,) = plan_segments(dest, RegistrationParams())
+    assert seg.needs_restamp
+    raw_stamps, raw_logs = _imu_stamps(dest / "lidar/raw/bag/bag_0.mcap")
+    assert np.diff(raw_logs).std() > 2e6  # the log times are jittery (ns)
+
+    out = write_restamped(seg, tmp_path / "restamped")
+    stamps, logs = _imu_stamps(out)
+    d = np.diff(stamps)
+    assert abs(np.median(d) - 4e6) < 1e4  # 250 Hz
+    assert d.std() < 2e4  # smooth: as smooth as the sensor's own stamps
+    assert np.abs(d - np.median(np.diff(raw_stamps))).max() < 2e4
+    # On the Pi clock: the stamps sit within the delivery delays of the log times.
+    lag = (logs - stamps) / 1e6  # ms
+    assert -5 < np.median(lag) < 10 and lag.min() > -20
+
+    # stamp_latency_s moves every stamp earlier by that much.
+    out2 = write_restamped(seg, tmp_path / "late.mcap", latency_s=0.005)
+    stamps2, _ = _imu_stamps(out2)
+    np.testing.assert_allclose(stamps - stamps2, 5_000_000, atol=2)

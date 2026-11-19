@@ -650,7 +650,9 @@ def run(
             if s.skip_reason is not None:
                 continue
             if s.needs_restamp:
-                path = write_restamped(s, work / "restamped" / f"seg{s.index}")
+                path = write_restamped(
+                    s, work / "restamped" / f"seg{s.index}", params.stamp_latency_s
+                )
                 s = replace(s, bag_dirs=[path.parent])
             runnable.append(s)
         if runnable:

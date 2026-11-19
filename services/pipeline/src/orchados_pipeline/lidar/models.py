@@ -130,6 +130,10 @@ class RegistrationParams(Model):
     # rate differs from the log clock's by more than restamp_max_slope_dev.
     restamp_max_offset_s: float = 0.05
     restamp_max_slope_dev: float = 1e-4
+    # Restamped stamps are the segment's fitted line header.stamp -> log time minus this
+    # latency (s): the delay from the sensor's sample to the Pi's log time (USB, driver),
+    # measured on the bench; 0 leaves the mean delivery delay in the stamps.
+    stamp_latency_s: float = 0.0
     # IMU rate expected from the L2 driver (measured on the bench after the driver fix);
     # a segment below min_imu_rate_ratio of it is skipped (imu_rate_low).
     expected_imu_hz: float = 250.0

@@ -9,7 +9,11 @@ Times: MCAP log times are the Pi's clock as UNIX ns (UTC), PPS-locked during a
 normal recording; segments and keyframes carry GPS ns (docs/arayuzler.md, Zaman).
 header.stamp may come from the L2's own clock (unilidar_sdk2 #25); a segment whose
 stamps disagree with the log times is restamped (spec 2026-11-18 §5.2): the copy
-carries header.stamp := log time, points and their relative times unchanged.
+carries header.stamp mapped onto the Pi clock through the segment's fitted line
+(log time = offset + rate x header.stamp, fitted over its cloud messages), minus
+the sensor-to-log latency stamp_latency_s; points and their relative times are
+unchanged. The log times themselves are not copied: USB delivery jitter and bursts
+would reach the front end's IMU stamps.
 """
 
 from __future__ import annotations
@@ -64,6 +68,20 @@ class Segment:
     # Median header.stamp - log time (s) and the stamp clock's rate against the log clock.
     stamp_offset_s: float = 0.0
     stamp_rate: float = 1.0
+    # The fitted line header.stamp -> Pi clock (UNIX ns) that restamping uses:
+    # log = log_anchor_ns + (fit_offset_s + fit_rate * (stamp - stamp_anchor_ns) / 1e9) * 1e9,
+    # anchored at the segment's first cloud message.
+    stamp_anchor_ns: int = 0
+    log_anchor_ns: int = 0
+    fit_offset_s: float = 0.0
+    fit_rate: float = 1.0
+
+    def restamp_ns(self, stamp_ns: int, latency_s: float = 0.0) -> int:
+        """header.stamp (sensor clock, ns) -> Pi clock (UNIX ns), minus latency_s."""
+        rel = (int(stamp_ns) - self.stamp_anchor_ns) / 1e9
+        return self.log_anchor_ns + int(
+            round((self.fit_offset_s + self.fit_rate * rel - latency_s) * 1e9)
+        )
 
     @property
     def duration_s(self) -> float:
@@ -213,11 +231,14 @@ def plan_segments(session_dir: Path, params: RegistrationParams) -> list[Segment
             n_imu = int(np.searchsorted(il, end, "right") - np.searchsorted(il, start, "left"))
             rate = n_imu / dur if dur > 0 else 0.0
             o = off[a : b + 1] / 1e9
-            if b - a >= 2 and dur > 0:
-                x = (cl[a : b + 1] - start) / 1e9
-                slope = float(np.polyfit(x, x + o, 1)[0])
+            # Stamp and log times relative to the first cloud message (s).
+            x = (cl[a : b + 1] - start) / 1e9
+            y = x + (off[a : b + 1] - off[a]) / 1e9
+            if b - a >= 2 and dur > 0 and np.ptp(y) > 0:
+                slope = float(np.polyfit(x, y, 1)[0])
+                fit_rate, fit_offset = (float(v) for v in np.polyfit(y, x, 1))
             else:
-                slope = 1.0
+                slope, fit_rate, fit_offset = 1.0, 1.0, 0.0
             restamp = bool(
                 np.abs(o).max() > params.restamp_max_offset_s
                 or abs(slope - 1.0) > params.restamp_max_slope_dev
@@ -239,6 +260,10 @@ def plan_segments(session_dir: Path, params: RegistrationParams) -> list[Segment
                     cloud_messages=int(b - a + 1),
                     stamp_offset_s=round(float(np.median(o)), 6),
                     stamp_rate=round(slope, 9),
+                    stamp_anchor_ns=gps_to_unix_ns(start) + int(off[a]),
+                    log_anchor_ns=gps_to_unix_ns(start),
+                    fit_offset_s=fit_offset,
+                    fit_rate=fit_rate,
                 )
             )
     return out
@@ -265,8 +290,10 @@ def iter_clouds(segment: Segment) -> Iterator[CloudMsg]:
         yield CloudMsg(log_time + shift, stamp, xyz, inten, rel)
 
 
-def write_restamped(segment: Segment, out: Path) -> Path:
-    """MCAP of the segment's window with header.stamp := log time on clouds and IMU.
+def write_restamped(segment: Segment, out: Path, latency_s: float = 0.0) -> Path:
+    """MCAP of the segment's window with header.stamp on the Pi clock, clouds and IMU:
+    stamp' = segment.restamp_ns(stamp, latency_s), the segment's fitted line (not each
+    message's own log time, which carries the USB delivery jitter).
 
     out is the MCAP file (when it ends in .mcap) or a folder for <out>/seg<index>_0.mcap.
     Schemas, channels, log and publish times and every other byte are kept.
@@ -293,7 +320,9 @@ def write_restamped(segment: Segment, out: Path) -> Path:
             w.add_message(
                 channels[topic],
                 log_time=log_time,
-                data=ros2msg.with_stamp(data, log_time),
+                data=ros2msg.with_stamp(
+                    data, segment.restamp_ns(ros2msg.stamp_ns(data), latency_s)
+                ),
                 publish_time=pub,
                 sequence=seq[topic],
             )
