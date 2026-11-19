@@ -8,7 +8,8 @@ reported pose is the true pose in the segment's odometry frame (origin and yaw
 of the first keyframe, gravity aligned), then degraded on request: position
 drift growing with the distance travelled, yaw drift about the odometry origin,
 white noise, and a jump by one tree spacing along the heading at swap_tree_at
-seconds (a front end that mistakes one tree for its neighbour).
+seconds (a front end that mistakes one tree for its neighbour). Raw points closer
+than blind_m are dropped before deskewing (Point-LIO's `blind`).
 """
 
 from __future__ import annotations
@@ -51,6 +52,7 @@ class FakeFrontend:
         keyframe_dist_m: float = 0.5,
         keyframe_angle_deg: float = 10.0,
         keyframe_dt_s: float = 1.0,
+        blind_m: float = 0.6,
         seed: int = 0,
     ):
         self.drift = drift_m_per_100m
@@ -60,6 +62,7 @@ class FakeFrontend:
         self.kf_dist = keyframe_dist_m
         self.kf_angle = math.radians(keyframe_angle_deg)
         self.kf_dt_ns = int(keyframe_dt_s * 1e9)
+        self.blind = blind_m
         self.seed = seed
 
     @property
@@ -71,6 +74,7 @@ class FakeFrontend:
                 "noise_m": self.noise,
                 "swap_tree_at": self.swap_tree_at,
                 "keyframe": [self.kf_dist, self.kf_angle, self.kf_dt_ns],
+                "blind_m": self.blind,
                 "seed": self.seed,
             }
         )
@@ -143,12 +147,16 @@ class FakeFrontend:
                 flush()
                 odo.step(msg.log_gps_ns)
             kf = odo.current
+            # Blind range on the raw points (the kit's mast), as Point-LIO's `blind`: after
+            # deskewing into a moving keyframe frame the mast is smeared along the path.
+            far = np.linalg.norm(msg.xyz, axis=1) >= self.blind
+            xyz, rel = msg.xyz[far].astype(np.float64), msg.rel_time_s[far].astype(np.float64)
             # Deskew: each point's own true pose -> world -> keyframe body frame.
-            times = msg.log_gps_ns + np.round(msg.rel_time_s.astype(np.float64) * 1e9)
+            times = msg.log_gps_ns + np.round(rel * 1e9)
             pos, rot = truth.pose_at(times.astype(np.int64))
-            world = pos + np.einsum("nij,nj->ni", rot, msg.xyz.astype(np.float64))
+            world = pos + np.einsum("nij,nj->ni", rot, xyz)
             buf_xyz.append(((world - kf["p"]) @ kf["r"]).astype(np.float32))
-            buf_int.append(msg.intensity)
+            buf_int.append(msg.intensity[far])
         flush()
         return odo.keyframes, n_points
 

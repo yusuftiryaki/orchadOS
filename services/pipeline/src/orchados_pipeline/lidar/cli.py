@@ -33,6 +33,12 @@ def add_parser(sub) -> None:
         p.add_argument("--trees", help="trees JSON (default: <session>/trees.json)")
         p.add_argument("--out", help="output folder (default: <session>.processed/lidar)")
         p.add_argument("--params", help="JSON file overriding the stage's default parameters")
+        p.add_argument(
+            "--cloud",
+            help="folder with cloud.ply + cloud.json (default: <session>/lidar/, else the "
+            "newest registration under <session>.processed/lidar/registration/ that was not "
+            "rejected)",
+        )
         return p
 
     measuring("crown", "crown diameter, tree height, crown volume, size class proposal")
@@ -66,6 +72,41 @@ def add_parser(sub) -> None:
         action="store_true",
         help="leave the skeleton and pruning out even if the reports are there",
     )
+
+    def registering(name: str, help_: str):
+        p = lsub.add_parser(name, help=help_)
+        p.add_argument("session", help="session folder with lidar/raw (kit recorder)")
+        p.add_argument(
+            "--frontend",
+            choices=["point_lio", "fake"],
+            help="LIO front end (default: the parameters' frontend, point_lio); fake: "
+            "synthetic sessions only",
+        )
+        p.add_argument(
+            "--out", help="registration root (default: <session>.processed/lidar/registration)"
+        )
+        p.add_argument("--params", help="JSON file overriding the registration parameters")
+        return p
+
+    registering(
+        "register",
+        "raw kit LiDAR (lidar/raw MCAP) + GNSS trajectory -> registered cloud, quality "
+        "report and verdict (accepted_auto, review, rejected_auto)",
+    )
+    pc = registering(
+        "process",
+        "register, then (unless rejected) crown and world in the run folder, then upload; "
+        "a session without LiDAR data is skipped",
+    )
+    pc.add_argument("--trees", help="trees JSON (default: <session>/trees.json)")
+    pc.add_argument("--upload", action="store_true", help="upload the registration and its results")
+    pc.add_argument(
+        "--reuse-registration",
+        action="store_true",
+        help="no new registration: run crown on the newest one that was not rejected "
+        "(after the inventory is recorded)",
+    )
+
     pr = lsub.add_parser("pruning", help="compare two winter skeletons: what was pruned")
     pr.add_argument("before", help="session folder before pruning")
     pr.add_argument("after", help="session folder after pruning")
@@ -156,6 +197,10 @@ def run(args: argparse.Namespace) -> int:
             cuts = sum(len(t.pruned) for t in pruned.values())
             print(f"{args.pruned_copy}: {len(after.points)} points, {cuts} cuts")
         return 0
+    if cmd == "register":
+        return _register(args)
+    if cmd == "process":
+        return _process(args)
     if cmd == "upload":
         from .upload import run as run_upload
 
@@ -185,6 +230,7 @@ def run(args: argparse.Namespace) -> int:
             params,
             Path(args.panoramas) if args.panoramas else None,
             wood=wood,
+            cloud_dir=Path(args.cloud) if args.cloud else None,
         )
         print(mod.summary_line(report))
         return 0
@@ -197,7 +243,7 @@ def run(args: argparse.Namespace) -> int:
         session = Path(args.session)
         trees = Path(args.trees) if args.trees else session / "trees.json"
         out = Path(args.out) if args.out else default_out(session)
-        report = mod.run(session, trees, out, params)
+        report = mod.run(session, trees, out, params, Path(args.cloud) if args.cloud else None)
     print(mod.summary_line(report))
     return 0
 
@@ -225,3 +271,98 @@ def _synth_moving(args: argparse.Namespace) -> int:
         f"{cfg.points_per_s} points/s, {'PPK' if cfg.ppk else 'NAV-PVT only'}"
     )
     return 0
+
+
+def _registration_params(args: argparse.Namespace):
+    from .models import RegistrationParams
+
+    params = RegistrationParams.load(Path(args.params) if args.params else None)
+    if args.frontend:
+        params = params.model_copy(update={"frontend": args.frontend})
+    return params
+
+
+def _register(args: argparse.Namespace) -> int:
+    from . import registration
+
+    try:
+        folder, report = registration.run(
+            Path(args.session),
+            Path(args.out) if args.out else None,
+            _registration_params(args),
+        )
+    except registration.NoLidarData as exc:
+        print(f"lidar register: {exc}")
+        return 1
+    print(registration.summary_line(report, folder))
+    return 0
+
+
+def _process(args: argparse.Namespace) -> int:
+    """register -> (not rejected) crown, world -> upload. Results go into the run folder."""
+    import json
+
+    from ..models import read_model
+    from . import crown, registration, world
+    from .models import RegistrationReport
+
+    session = Path(args.session)
+    trees = Path(args.trees) if args.trees else session / "trees.json"
+    out_root = Path(args.out) if args.out else None
+    steps: dict = {}
+    if args.reuse_registration:
+        folder = registration.latest_registration(session, out_root)
+        if folder is None:
+            print(f"lidar process: {session}: no registration with a cloud that was not rejected")
+            return 1
+        report = read_model(RegistrationReport, folder / registration.REPORT_FILE)
+        try:
+            prev = json.loads((folder / registration.PROCESS_FILE).read_text(encoding="utf-8"))
+            steps = dict(prev.get("steps") or {})
+        except (OSError, ValueError):
+            steps = {}
+        print(f"lidar process: reusing {folder.name} ({report.verdict})")
+    else:
+        try:
+            folder, report = registration.run(session, out_root, _registration_params(args))
+        except registration.NoLidarData as exc:
+            print(f"lidar process: {exc}; LiDAR skipped")
+            return 0
+        print(registration.summary_line(report, folder))
+        steps["register"] = {"status": "done", "verdict": report.verdict}
+    if report.verdict == "rejected_auto":
+        for step in ("crown", "world"):
+            steps[step] = {"status": "skipped", "reason": "rejected_auto"}
+        print("lidar process: registration rejected; crown and world skipped")
+    else:
+        if trees.is_file():
+            cr = crown.run(session, trees, folder, None, cloud_dir=folder)
+            steps["crown"] = {"status": "done", "trees": len(cr.trees)}
+            print(crown.summary_line(cr))
+        else:
+            steps["crown"] = {"status": "skipped", "reason": f"no inventory ({trees.name})"}
+            print(f"lidar process: no inventory ({trees}); crown skipped")
+        if not args.reuse_registration:
+            wr = world.run(session, trees, folder, cloud_dir=folder)
+            steps["world"] = {"status": "done", "points": wr.header.get("point_count")}
+            print(world.summary_line(wr))
+    registration.write_process_report(folder, steps)
+    if args.upload:
+        return _upload_registration(folder, report)
+    return 0
+
+
+def _upload_registration(folder: Path, report) -> int:
+    import inspect
+    import sys
+
+    from . import upload
+
+    if "registration" not in inspect.signature(upload.run).parameters:
+        print(
+            "lidar process --upload: this build's lidar upload cannot record a registration "
+            "yet (plan Task 7); nothing uploaded",
+            file=sys.stderr,
+        )
+        return 2
+    return upload.run(folder, report.session_id, registration=folder)

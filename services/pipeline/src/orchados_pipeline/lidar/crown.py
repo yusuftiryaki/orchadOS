@@ -699,10 +699,14 @@ def measure(
 
 
 def run(
-    session_dir: Path, trees_path: Path, out_dir: Path, params_path: Path | None = None
+    session_dir: Path,
+    trees_path: Path,
+    out_dir: Path,
+    params_path: Path | None = None,
+    cloud_dir: Path | None = None,
 ) -> CrownReport:
     p = CrownParams.load(params_path)
-    cloud = load_session_cloud(Path(session_dir))
+    cloud = load_session_cloud(Path(session_dir), cloud_dir)
     positions = load_tree_positions(Path(trees_path))
     tcs = extract_trees(
         cloud,

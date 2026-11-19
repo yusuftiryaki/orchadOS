@@ -37,7 +37,7 @@ def _messages(mcap: Path, topic: str):
 @pytest.fixture(scope="module")
 def short(tmp_path_factory) -> tuple[Path, MovingTruth]:
     dest = tmp_path_factory.mktemp("moving") / "session"
-    truth = make_moving_session(dest, MovingConfig(rows=1, trees_per_row=3, duration_s=6.0))
+    truth = make_moving_session(dest, MovingConfig(rows=1, trees_per_row=3, duration_s=4.0))
     return dest, truth
 
 

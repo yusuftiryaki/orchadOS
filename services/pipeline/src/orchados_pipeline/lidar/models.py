@@ -178,3 +178,57 @@ class RegistrationParams(Model):
         if path is None:
             return cls()
         return cls.model_validate(json.loads(Path(path).read_text(encoding="utf-8")))
+
+
+VERDICTS = ("accepted_auto", "review", "rejected_auto")
+
+
+class RegistrationSegment(Model):
+    """One segment of the raw log and what became of it."""
+
+    index: int
+    bags: list[str]  # bag folders, relative to lidar/raw
+    start_gps_ns: int
+    end_gps_ns: int
+    duration_s: float
+    imu_rate_hz: float
+    needs_restamp: bool
+    restamped: bool = False
+    stamp_offset_s: float = 0.0
+    stamp_rate: float = 1.0
+    skip_reason: str | None = None  # too_short | imu_rate_low
+    # ok: in the cloud; skipped: not run; failed: the front end gave no keyframes;
+    # not_placed: no GNSS to place it.
+    status: Literal["ok", "skipped", "failed", "not_placed"]
+    keyframes: int = 0
+    message: str = ""
+
+
+class RegistrationReport(Model):
+    """registration.json (orchados.lidar_registration/1): quality report and verdict of one
+    register run (docs/arayuzler.md, "Kayıtlı nokta bulutu")."""
+
+    schema_: Literal["orchados.lidar_registration/1"] = Field(
+        "orchados.lidar_registration/1", alias="schema"
+    )
+    producer: Producer
+    run_id: str
+    created_utc: str
+    session_id: str
+    parcel_id: str
+    # registration_method of cloud.json, e.g. point_lio+gtsam_ppk; method_version is the
+    # pipeline version + the front end's version (image hash), as registration_version.
+    method: str
+    method_version: str
+    params_hash: str
+    ppk_status: str  # ppk | no_ppk | ppk_failed | none (no trajectory)
+    frontend: dict = Field(default_factory=dict)  # method, method_version, config_hash
+    trajectory: str | None = None  # where the GNSS trajectory came from
+    segments: list[RegistrationSegment] = Field(default_factory=list)
+    metrics: dict = Field(default_factory=dict)
+    verdict: Literal["accepted_auto", "review", "rejected_auto"]
+    reasons: list[str] = Field(default_factory=list)
+    thresholds: RegistrationThresholds = Field(default_factory=RegistrationThresholds)
+    notes: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "forbid", "populate_by_name": True}
