@@ -19,6 +19,9 @@ Each run gets a run_id and its own folder
 <out_root>/<method>-<method_version>-<params_hash[:8]>-<run_id[:8]>/ (default
 out_root <session>.processed/lidar/registration); the work happens in a hidden
 folder renamed at the end, so a folder with registration.json is always complete.
+The front end's scans (frontend/scans/, several GB per session) are work files:
+removed when the run completes unless keep_frontend_scans; frontend.json and
+keyframes.csv stay with the cloud and poses.csv.
 """
 
 from __future__ import annotations
@@ -39,7 +42,7 @@ from ..geo import LocalFrame
 from ..models import PpkStatus, Producer, Trajectory, read_model, write_model
 from ..position import trajectory_from_nav_pvt
 from . import CLOUD_FILE, CLOUD_META_FILE
-from .frontend import Frontend, FrontendResult, get_frontend, load_scan
+from .frontend import SCANS_DIR, Frontend, FrontendResult, frontend_dir, get_frontend, load_scan
 from .fusion import FusionResult, fuse, quat_to_rot, rigid_drift, sample_gnss
 from .models import (
     CloudMeta,
@@ -580,8 +583,11 @@ def run(
     out_root: Path | None = None,
     params: RegistrationParams | None = None,
     frontend: Frontend | None = None,
+    *,
+    keep_frontend_scans: bool = False,
 ) -> tuple[Path, RegistrationReport]:
     """Register the session's raw LiDAR log. Returns the run folder and its report.
+    The front end's scans are removed at the end unless keep_frontend_scans.
 
     Raises NoLidarData when there is nothing to register."""
     session_dir = Path(session_dir)
@@ -731,6 +737,7 @@ def run(
             "keyframes": len(fe.keyframes),
             "keyframes_placed": len(placed),
             "gnss_factors": fusion.used_gnss,
+            "frontend_jumps": fusion.between_outliers,
             "points": n_points,
             "clock_state": (recording or {}).get("clock_state_at_start"),
             "recording_json": recording is not None,
@@ -790,6 +797,8 @@ def run(
             write_poses(work / POSES_FILE, placed, fusion)
         (work / "params.json").write_text(params.model_dump_json(indent=2) + "\n", "utf-8")
         write_model(report, work / REPORT_FILE)
+        if not keep_frontend_scans:
+            shutil.rmtree(frontend_dir(work) / SCANS_DIR, ignore_errors=True)
         final = out_root / f"{method}-{method_version}-{params_hash[:8]}-{run_id[:8]}"
         work.rename(final)
     except BaseException:
