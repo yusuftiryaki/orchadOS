@@ -827,6 +827,7 @@ def run(
                 point_sigma_m=round(sigma, 4),
                 sensor=params.sensor,
                 calibration_id=calibration_id,
+                run_id=run_id,
             )
             (work / CLOUD_META_FILE).write_text(
                 meta.model_dump_json(indent=2, by_alias=True) + "\n", encoding="utf-8"

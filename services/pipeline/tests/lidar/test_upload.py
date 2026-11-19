@@ -72,14 +72,14 @@ def write_run(
     meta = CloudMeta(
         session_id=session, parcel_id=PARCEL, origin_lat=37.0662, origin_lon=37.3833,
         origin_height_m=850.0, gps_time_start_ns=REG_START_NS, registration_method=rep.method,
-        registration_version=rep.method_version,
+        registration_version=rep.method_version, run_id=run_id,
     )  # fmt: skip
     (run / "cloud.json").write_text(meta.model_dump_json(by_alias=True))
     (run / "process.json").write_text(json.dumps({"steps": {}}))
     if results:
-        (run / "crown.json").write_text(json.dumps(crown(session)))
-        (run / "skeleton.json").write_text(json.dumps(skeleton(session)))
-        write_world_cloud(run, session=session)
+        (run / "crown.json").write_text(json.dumps({**crown(session), "run_id": run_id}))
+        (run / "skeleton.json").write_text(json.dumps({**skeleton(session), "run_id": run_id}))
+        write_world_cloud(run, session=session, run_id=run_id)
     return run
 
 
@@ -317,7 +317,7 @@ def test_registration_flag_with_a_separate_output_folder(tmp_path, fake):
     """--registration <run folder> with the reports in <session>.processed/lidar."""
     run = write_run(tmp_path, results=False)
     out = tmp_path / "scan.processed" / "lidar"
-    (out / "crown.json").write_text(json.dumps(crown()))
+    (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
     assert lidar_upload.run(out, SESSION, env=ENV, registration=run) == 0
     assert fake.rpcs() == [REGISTRATION_RPC, RPC]
     payload = fake.calls[-1][2]["p_payload"]
@@ -334,11 +334,52 @@ def test_registration_checks(tmp_path):
     with pytest.raises(LidarUploadError, match="no registration.json"):
         plan_upload(run, SESSION, registration=tmp_path)
     # A report of another parcel than the registration's.
-    other = crown()
+    other = {**crown(), "run_id": RUN_ID}
     other["parcel_id"] = "c0000000-0000-4000-8000-000000000002"
     (run / "crown.json").write_text(json.dumps(other))
     with pytest.raises(LidarUploadError, match="crown.json is of parcel"):
         plan_upload(run, SESSION)
+
+
+def test_results_must_come_from_the_registration_run(tmp_path, monkeypatch, capsys):
+    """Reports and the world cloud carry the run_id of the cloud they were made from
+    (cloud.json); an upload refuses those of another run, and those without one, when a
+    registration is given."""
+    no_sign_in(monkeypatch)
+    run = write_run(tmp_path)
+    other = "6a1d2c3e-0000-4000-8000-0000000000a2"
+    (run / "crown.json").write_text(json.dumps({**crown(), "run_id": other}))
+    with pytest.raises(
+        LidarUploadError, match=f"crown.json was made from registration run {other[:8]}"
+    ):
+        plan_upload(run, SESSION)
+    assert lidar_upload.run(run, SESSION, env=ENV) == 1
+    assert "registration run" in capsys.readouterr().err
+    (run / "crown.json").write_text(json.dumps(crown()))  # no run_id
+    with pytest.raises(LidarUploadError, match="crown.json names no registration run"):
+        plan_upload(run, SESSION)
+    (run / "crown.json").unlink()
+    write_world_cloud(run, run_id=other)
+    with pytest.raises(LidarUploadError, match="world.json was made from registration run"):
+        plan_upload(run, SESSION)
+    write_world_cloud(run)
+    with pytest.raises(LidarUploadError, match="world.json names no registration run"):
+        plan_upload(run, SESSION)
+
+
+def test_unregistered_upload_refuses_results_of_a_registration_run(tmp_path, monkeypatch):
+    """--allow-unregistered is for clouds without a registration (synthetic, demo): a
+    report made from a registration run has to go up with it."""
+    no_sign_in(monkeypatch)
+    out = tmp_path / "scan.processed" / "lidar"
+    out.mkdir(parents=True)
+    (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
+    with pytest.raises(LidarUploadError, match="--registration"):
+        plan_upload(out, SESSION, allow_unregistered=True)
+    (out / "crown.json").write_text(json.dumps(crown()))
+    write_world_cloud(out, run_id=RUN_ID)
+    with pytest.raises(LidarUploadError, match="--registration"):
+        plan_upload(out, SESSION, allow_unregistered=True)
 
 
 def test_ppk_status_none_is_recorded_as_no_ppk(tmp_path, fake):
@@ -375,7 +416,7 @@ def test_cli_upload_flags(tmp_path, fake, monkeypatch):
 
     run = write_run(tmp_path, results=False)
     out = tmp_path / "scan.processed" / "lidar"
-    (out / "crown.json").write_text(json.dumps(crown()))
+    (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
     for k, v in ENV.items():
         monkeypatch.setenv(k, v)
     assert main(["lidar", "upload", str(out), "--session-id", SESSION]) == 1
@@ -383,6 +424,7 @@ def test_cli_upload_flags(tmp_path, fake, monkeypatch):
     args = ["lidar", "upload", str(out), "--session-id", SESSION, "--registration", str(run)]
     assert main(args) == 0
     assert fake.rpcs() == [REGISTRATION_RPC, RPC]
+    (out / "crown.json").write_text(json.dumps(crown()))  # a synthetic cloud's report
     assert main(["lidar", "upload", str(out), "--session-id", SESSION, "--allow-unregistered"]) == 0
     assert "registration_id" not in fake.calls[-1][2]["p_payload"]
 

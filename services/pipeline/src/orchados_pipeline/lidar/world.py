@@ -989,11 +989,16 @@ class WorldReport(BaseModel):
     # 1-sigma point noise of the registration (cloud.json), metres: the asset
     # row's position uncertainty.
     origin_sigma_m: float
+    # run_id of the cloud's registration run (cloud.json); not in world.owc's header,
+    # which the portal reads. lidar upload ties the world cloud to that run only.
+    run_id: str | None = None
     header: dict[str, Any]
     stats: dict[str, Any]
 
 
-def write_world(world: World, out_dir: Path, origin_sigma_m: float) -> WorldReport:
+def write_world(
+    world: World, out_dir: Path, origin_sigma_m: float, run_id: str | None = None
+) -> WorldReport:
     data = encode_world(world)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1008,6 +1013,7 @@ def write_world(world: World, out_dir: Path, origin_sigma_m: float) -> WorldRepo
             stage=STAGE,
         ),
         origin_sigma_m=origin_sigma_m,
+        run_id=run_id,
         header=world.header,
         stats=world.stats,
     )
@@ -1123,7 +1129,7 @@ def run(
         views = views_from_records(recs, base, cloud.meta, p)
     w = load_wood(wood, trees, cloud.meta.session_id) if wood is not None else None
     world = build_world(cloud.points, cloud.meta, trees, views, p, log, w)
-    return write_world(world, Path(out_dir), cloud.meta.point_sigma_m)
+    return write_world(world, Path(out_dir), cloud.meta.point_sigma_m, cloud.meta.run_id)
 
 
 def summary_line(report: WorldReport) -> str:

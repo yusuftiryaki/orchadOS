@@ -41,6 +41,9 @@ class CloudMeta(Model):
     point_sigma_m: float = 0.03
     sensor: str | None = None  # e.g. "livox_mid360"
     calibration_id: str | None = None
+    # run_id of the registration run (registration.json) that wrote the cloud; None for a
+    # cloud without one (lidar synth, the old layout). Reports made from the cloud repeat it.
+    run_id: str | None = None
 
     model_config = {"extra": "forbid", "populate_by_name": True}
 
@@ -85,6 +88,9 @@ class LidarReport(Model):
     method_version: str
     session_id: str
     parcel_id: str
+    # run_id of the cloud's registration run (cloud.json; pruning: the scan after);
+    # lidar upload ties the measurements to that run only.
+    run_id: str | None = None
     trees: list[TreeQuality] = Field(default_factory=list)
     measurements: list[LidarMeasurement] = Field(default_factory=list)
 

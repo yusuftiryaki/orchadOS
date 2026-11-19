@@ -1147,6 +1147,7 @@ def make_report(
         method_version=METHOD_VERSION,
         session_id=meta.session_id,
         parcel_id=meta.parcel_id,
+        run_id=meta.run_id,
         trees=[r.quality for r in results],
         measurements=[m for r in results for m in r.measurements],
         params=p,

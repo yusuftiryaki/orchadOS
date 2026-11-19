@@ -174,3 +174,20 @@ def test_default_panoramas_under_a_processed_root(tmp_path):
     (root / "v1" / "panoramas.json").write_text("{}")
     assert default_panoramas(session) is None
     assert default_panoramas(session, root) == root / "v1" / "panoramas.json"
+
+
+def test_results_carry_the_run_id(small_ppk, tmp_path, capsys):
+    """cloud.json names its registration run; crown.json and world.json repeat it, so the
+    upload can tie them to that run. A measuring stage that picks a run by itself says
+    which one."""
+    session = link_session(small_ppk[0], tmp_path / "s")
+    assert main(["lidar", "process", str(session), "--frontend", "fake"]) == 0
+    ((run, body),) = registration_runs(session)
+    for name in ("cloud.json", "crown.json", "world.json"):
+        assert json.loads((run / name).read_text())["run_id"] == body["run_id"], name
+    capsys.readouterr()
+    out = tmp_path / "crown"
+    assert main(["lidar", "crown", str(session), "--out", str(out)]) == 0
+    text = capsys.readouterr().out
+    assert f"cloud: registration run {run.name}" in text
+    assert json.loads((out / "crown.json").read_text())["run_id"] == body["run_id"]

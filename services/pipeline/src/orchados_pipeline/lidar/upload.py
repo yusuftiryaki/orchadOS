@@ -16,6 +16,9 @@ ops user of the environment (Credentials.ENV, as for ``orchados-pipeline upload`
 - Re-running is safe: a measurement with the same session, tree, metric, method,
   version, parameters and registration is not written again; a new method
   version or a new registration run adds rows.
+- Reports and world.json carry the run_id of the cloud they were made from
+  (cloud.json); with a registration they must name that run, without one
+  (--allow-unregistered) none may name a run (check_run_ids).
 - --dry-run prints every payload (registration, measurements, world cloud row)
   and writes nothing.
 - world.owc (lidar world, docs/arayuzler.md "3D dünya bulutu"), when the folder
@@ -130,6 +133,7 @@ class ReportFile(_Lenient):
     method_version: str
     session_id: str
     parcel_id: str
+    run_id: str | None = None  # the cloud's registration run (cloud.json)
     measurements: list[ReportMeasurement] = Field(default_factory=list)
 
 
@@ -492,6 +496,7 @@ def plan_upload(
         raise LidarUploadError(UNREGISTERED)
     if plan.world is not None:
         check_world(plan.world, session_id)
+    check_run_ids(plan)
     if plan.registration is not None:
         parcel = plan.registration.parcel_id
         for path, rep in plan.reports:
@@ -512,6 +517,35 @@ def plan_upload(
         allow_unregistered=allow_unregistered,
     )
     return plan
+
+
+def check_run_ids(plan: UploadPlan) -> None:
+    """Every report and the world cloud must come from the cloud of the registration run
+    being recorded (their run_id, from cloud.json). Without a registration
+    (--allow-unregistered) none may name a run: those go up with their registration."""
+    from .world import WORLD_META_FILE
+
+    items = [(path.name, rep.run_id) for path, rep in plan.reports]
+    if plan.world is not None:
+        items.append((WORLD_META_FILE, plan.world.run_id))
+    reg = plan.registration
+    for name, run_id in items:
+        if reg is None:
+            if run_id is not None:
+                raise LidarUploadError(
+                    f"{name} was made from registration run {run_id[:8]}: upload it with "
+                    "--registration <that run folder>"
+                )
+        elif run_id is None:
+            raise LidarUploadError(
+                f"{name} names no registration run (made from another cloud than run "
+                f"{reg.run_id[:8]}'s; rerun the stage with --cloud <run folder>)"
+            )
+        elif run_id != reg.run_id:
+            raise LidarUploadError(
+                f"{name} was made from registration run {run_id[:8]}, not {reg.run_id[:8]} "
+                "(rerun the stage with --cloud <run folder>)"
+            )
 
 
 def dry_run_lines(plan: UploadPlan) -> list[str]:

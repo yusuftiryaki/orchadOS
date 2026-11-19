@@ -130,13 +130,15 @@ def _has_cloud(folder: Path) -> bool:
     return (folder / CLOUD_FILE).is_file() and (folder / CLOUD_META_FILE).is_file()
 
 
-def resolve_cloud(session_dir: Path, cloud_dir: Path | None = None) -> Path:
+def resolve_cloud(
+    session_dir: Path, cloud_dir: Path | None = None, log: Callable[[str], None] = print
+) -> Path:
     """The folder holding the session's cloud.ply + cloud.json (docs/arayuzler.md):
 
     1. cloud_dir when given (--cloud);
     2. <session>/lidar/ (synthetic sessions, the old layout);
     3. the newest registration run under <session>.processed/lidar/registration/ whose
-       verdict is not rejected_auto (registration.json, created_utc).
+       verdict is not rejected_auto (registration.json, created_utc); log says which.
     """
     session_dir = Path(session_dir)
     if cloud_dir is not None:
@@ -161,7 +163,12 @@ def resolve_cloud(session_dir: Path, cloud_dir: Path | None = None) -> Path:
             if body.get("verdict") != "rejected_auto":
                 runs.append((body.get("created_utc") or "", d.name, d))
     if runs:
-        return max(runs)[2]
+        created, _name, chosen = max(runs)
+        log(
+            f"cloud: registration run {chosen.name} (created {created or '?'}; newest of "
+            f"{len(runs)} not rejected; --cloud chooses another)"
+        )
+        return chosen
     raise CloudError(
         f"{session_dir}: no registered cloud ({LIDAR_DIR}/{CLOUD_FILE} + {CLOUD_META_FILE}, "
         f"or a registration under {root} that was not rejected)"
