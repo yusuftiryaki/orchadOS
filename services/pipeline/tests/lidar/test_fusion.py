@@ -190,3 +190,35 @@ def test_rigid_drift(truth):
         (dev, length) = per_seg[0]
         assert length > 50
         assert lo <= dev / length * 100 <= hi
+
+
+def test_front_end_jump_is_down_weighted_against_ppk(truth):
+    """A front end that jumps one tree along the row once (row aliasing): the robust kernel
+    on the between factors lets PPK hold the poses instead of spreading the jump over the
+    GNSS factors. The fused positions stay near the truth on both sides of the jump."""
+    kfs = FakeFrontend(swap_tree_at=20.0).odometry(truth, _times(truth))
+    traj = _ppk(truth)
+    frame, h0 = _frame(traj)
+    res = fuse(kfs, traj, frame, PARAMS)
+    err = _errors(res, kfs, truth, frame, h0)
+    assert np.median(err) < 0.02
+    assert err.max() < 0.05
+    assert max(r for *_, r in res.residuals) < 0.06
+    # The jump shows as a down-weighted between factor.
+    assert res.between_outliers == 1
+    # Without the kernel the jump is absorbed: the GNSS factors give way.
+    plain = fuse(kfs, traj, frame, PARAMS.model_copy(update={"between_robust": "none"}))
+    assert _errors(plain, kfs, truth, frame, h0).max() > 0.3
+
+
+def test_between_kernel_parameter(truth):
+    kfs = FakeFrontend(drift_m_per_100m=2.0).odometry(truth, _times(truth))
+    traj = _ppk(truth)
+    frame, h0 = _frame(traj)
+    for kernel in ("cauchy", "huber"):
+        params = PARAMS.model_copy(update={"between_robust": kernel})
+        res = fuse(kfs, traj, frame, params)
+        assert _errors(res, kfs, truth, frame, h0).max() < 0.05
+        assert res.between_outliers == 0
+    with pytest.raises(ValueError, match="between_robust"):
+        fuse(kfs, traj, frame, PARAMS.model_copy(update={"between_robust": "tukey?"}))

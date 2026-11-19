@@ -137,6 +137,13 @@ class RegistrationParams(Model):
     between_sigma_deg_per_m: float = 0.1
     between_sigma_min_m: float = 0.003
     between_sigma_min_deg: float = 0.05
+    # Robust kernel on the between factors (cauchy | huber | none), k in sigmas: a front-end
+    # jump (e.g. one tree along the row, row aliasing) is down-weighted against the GNSS
+    # factors instead of being absorbed by them. A between factor further than
+    # between_outlier_sigma from the fused poses counts as a front-end jump.
+    between_robust: str = "cauchy"
+    between_robust_k: float = 3.0
+    between_outlier_sigma: float = 10.0
     # Prior on the roll and pitch of each segment's first keyframe (the front end's odometry
     # frame is gravity aligned); keeps a straight segment's roll about its line determined.
     level_prior_sigma_deg: float = 3.0

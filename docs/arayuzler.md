@@ -801,6 +801,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `lio_coverage` | Ön ucun pozladığı süre ÷ kayıt süresi |
   | `trunk_spread_p95_m`, `trees_checked` | Gövde tutarlılığı: buluttaki gövde adayları (yerden 0,5–1,5 m, 0,3 m'lik hücrelerde dikey ve ince kümeler; envanter gerekmez) geçişlere ayrılır. Geçiş, LiDAR'ın gövdeye 10 m'den yakın olduğu kesintisiz süredir. En az iki geçişte görülen gövdelerde geçişlerin gövde merkezleri arasındaki en büyük uzaklığın p95'i; `trees_checked` bu gövdelerin sayısı. Hiç gövde yoksa `null` |
   | `gaps_s_total` | LiDAR boşluklarının toplam süresi (s) |
+  | `frontend_jumps` | Birleştirmeden sonra ön ucun göreli pozundan 10 sigma'dan fazla ayrılan bağ sayısı: GNSS'in ağır bastığı ön uç sıçramaları (ör. sıra benzerliğiyle bir ağaç kayma). Bağlarda sağlam çekirdek (vars. Cauchy) olduğu için tek bir sıçrama PPK'ya yayılmaz. Karara doğrudan etkisi yok |
 
 - **Karar** (başlangıç eşikleri; hepsi parametre, pilot verisiyle sıkılaştırılır):
 

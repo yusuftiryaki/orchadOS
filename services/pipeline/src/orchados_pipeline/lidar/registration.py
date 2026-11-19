@@ -731,6 +731,7 @@ def run(
             "keyframes": len(fe.keyframes),
             "keyframes_placed": len(placed),
             "gnss_factors": fusion.used_gnss,
+            "frontend_jumps": fusion.between_outliers,
             "points": n_points,
             "clock_state": (recording or {}).get("clock_state_at_start"),
             "recording_json": recording is not None,

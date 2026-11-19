@@ -4,8 +4,10 @@ Nodes are the keyframes' LiDAR body poses in the local ENU frame (LocalFrame
 east/north, up = height above origin_height_m). Factors (GTSAM):
 
 - between: consecutive keyframes of one segment, the front end's relative pose,
-  sigma growing with the distance between them (params.between_sigma_*);
-  segments are separate chains, tied to each other only through GNSS;
+  sigma growing with the distance between them (params.between_sigma_*), robust
+  kernel params.between_robust (default Cauchy): a single front-end jump is
+  down-weighted against GNSS rather than spread over the GNSS factors; segments
+  are separate chains, tied to each other only through GNSS;
 - GNSS: the trajectory position at the keyframe time, linearly interpolated
   between two trajectory points at most params.gnss_max_gap_s apart (none
   otherwise: a keyframe in a trajectory gap or outside it gets no factor),
@@ -97,6 +99,9 @@ class FusionResult:
     residuals: list[tuple[int, str, float]]
     used_gnss: int
     dropped_segments: list[int] = field(default_factory=list)
+    # Between factors further than params.between_outlier_sigma (whitened) from the fused
+    # poses: front-end jumps the GNSS factors overruled.
+    between_outliers: int = 0
 
 
 def _floor(quality: SolutionQuality, params: RegistrationParams) -> float:
@@ -209,6 +214,17 @@ def rigid_drift(
     return out
 
 
+def _robust(params: RegistrationParams):
+    kind, k = params.between_robust, params.between_robust_k
+    if kind == "cauchy":
+        return gtsam.noiseModel.mEstimator.Cauchy.Create(k)
+    if kind == "huber":
+        return gtsam.noiseModel.mEstimator.Huber.Create(k)
+    if kind == "none":
+        return None
+    raise ValueError(f"between_robust: {kind!r} (cauchy, huber or none)")
+
+
 def fuse(
     keyframes: list[Keyframe],
     trajectory: Trajectory,
@@ -223,6 +239,9 @@ def fuse(
     graph = gtsam.NonlinearFactorGraph()
     initial = gtsam.Values()
     huber = gtsam.noiseModel.mEstimator.Huber.Create(params.gnss_huber_k)
+    between_kernel = _robust(params)
+    # (i, j, measured relative pose, sigmas rot rot rot trans trans trans)
+    betweens: list[tuple[int, int, gtsam.Pose3, np.ndarray]] = []
     level = math.radians(params.level_prior_sigma_deg)
     prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([level, level, 10.0, 1e3, 1e3, 1e3]))
     placed: list[int] = []
@@ -255,8 +274,13 @@ def fuse(
             sr = math.radians(
                 max(params.between_sigma_deg_per_m * dist, params.between_sigma_min_deg)
             )
-            noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([sr, sr, sr, st, st, st]))
-            graph.add(gtsam.BetweenFactorPose3(i, j, pi.between(pj), noise))
+            sigmas = np.array([sr, sr, sr, st, st, st])
+            noise = gtsam.noiseModel.Diagonal.Sigmas(sigmas)
+            if between_kernel is not None:
+                noise = gtsam.noiseModel.Robust.Create(between_kernel, noise)
+            rel = pi.between(pj)
+            graph.add(gtsam.BetweenFactorPose3(i, j, rel, noise))
+            betweens.append((i, j, rel, sigmas))
         for i in matched:
             s = samples[i]
             noise = gtsam.noiseModel.Robust.Create(
@@ -267,6 +291,7 @@ def fuse(
         placed += idx
     poses: dict[tuple[int, int], tuple[np.ndarray, np.ndarray]] = {}
     residuals: list[tuple[int, str, float]] = []
+    outliers = 0
     if placed:
         lm = gtsam.LevenbergMarquardtParams()
         lm.setMaxIterations(100)
@@ -287,6 +312,14 @@ def fuse(
             residuals.append(
                 (keyframes[i].gps_time_ns, s.quality, float(np.linalg.norm(ant - s.pos)))
             )
+        for i, j, rel, sigmas in betweens:
+            fused = values.atPose3(i).between(values.atPose3(j))
+            err = np.asarray(rel.localCoordinates(fused)) / sigmas
+            outliers += int(np.linalg.norm(err) > params.between_outlier_sigma)
     return FusionResult(
-        poses_enu=poses, residuals=residuals, used_gnss=len(gnss_keys), dropped_segments=dropped
+        poses_enu=poses,
+        residuals=residuals,
+        used_gnss=len(gnss_keys),
+        dropped_segments=dropped,
+        between_outliers=outliers,
     )

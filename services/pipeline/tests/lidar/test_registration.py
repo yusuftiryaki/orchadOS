@@ -143,13 +143,34 @@ def test_without_ppk_never_accepted(small_nav, tmp_path):
 
 
 def test_double_trunk_is_caught(small_nav, tmp_path):
-    """A front end that jumps one tree along the row (row similarity), without PPK to
-    pull it back: trunks seen twice do not line up."""
+    """A front end that jumps one tree along the row (row similarity), without PPK. The
+    robust between factor lets NAV-PVT hold most of it; the session is still only review.
+    A jump the fusion does not undo (no kernel here) shows as trunks seen twice that do
+    not line up: the trunk check is the safety net."""
     src, _ = small_nav
     session = link_session(src, tmp_path / "s")
-    _, report = run(session, frontend=FakeFrontend(swap_tree_at=30.0))
+    fe = FakeFrontend(swap_tree_at=30.0)
+    _, report = run(session, frontend=fe)
+    assert report.verdict == "review"
+    assert "no_ppk" in report.reasons
+    assert report.metrics["frontend_jumps"] == 1
+    plain = PARAMS.model_copy(update={"between_robust": "none"})
+    _, report = run(session, params=plain, frontend=fe)
     assert report.verdict in ("review", "rejected_auto")
     assert "trunk_spread_high" in report.reasons
+
+
+def test_front_end_jump_with_ppk_is_held(good_session, tmp_path):
+    """The same one-tree jump with PPK: the robust between factor lets GNSS hold the poses,
+    trunks line up, the jump is counted in the metrics."""
+    src, _ = good_session
+    session = link_session(src, tmp_path / "s")
+    _, report = run(session, frontend=FakeFrontend(swap_tree_at=30.0))
+    m = report.metrics
+    assert m["frontend_jumps"] == 1
+    assert m["trunk_spread_p95_m"] < 0.05
+    assert m["gnss_residual_p95_m"] < 0.05
+    assert report.verdict == "accepted_auto", report.reasons
 
 
 def test_drift_through_a_gnss_hole_is_not_accepted(good_session, tmp_path):
