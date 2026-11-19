@@ -106,7 +106,7 @@ Anahtar kare aralığı ön ucun parametresidir. Başlangıç değeri 0,5 m, 10�
 
 ### 5.5 Birleştirme
 
-- **Poz grafiği (GTSAM, Python):** Anahtar kareler düğümdür. Ardışık kareler arasında ön ucun göreli pozundan bir bağ (between factor) kurulur. Gürültüsü parametredir: metre başına ve derece başına sigma. Her parça kendi bağ zinciridir; parçalar birbirine yalnız GNSS ile bağlanır.
+- **Poz grafiği (GTSAM, Python):** Anahtar kareler düğümdür. Ardışık kareler arasında ön ucun göreli pozundan bir bağ (between factor) kurulur. Gürültüsü parametredir: metre başına ve derece başına sigma. Bağlarda sağlam çekirdek vardır (vars. Cauchy, parametre): ön ucun tek bir sıçraması (sıra benzerliğiyle bir ağaç kayma) GNSS bağlarına yayılmaz, PPK pozu tutar; sıçramalar raporda `frontend_jumps` olarak sayılır. Her parça kendi bağ zinciridir; parçalar birbirine yalnız GNSS ile bağlanır.
 - **GNSS bağı:** Yörüngeden (`trajectory.json`) anahtar kare anına aradeğerlenen konum, kaldıraç kolu (LiDAR gövdesinden anten faz merkezine vektör, parametre; kalibrasyonda ölçülür) üzerinden düğüme bağlanır. Sigma çözüm kalitesinden ve yörüngenin `sd_*` alanlarından gelir; fix, float ve single'ın tavanları parametredir. Huber çekirdeği kullanılır.
 - **PPK'sız:** NAV-PVT yörüngesi aynı yolla kullanılır; sigmalar büyük olduğu için bulut yalnız metre düzeyinde konumlanır.
 - **Çıktı:** Her anahtar karenin ENU'daki pozu. Orijin, `LocalFrame` ile yörüngenin ilk geçerli noktasıdır.

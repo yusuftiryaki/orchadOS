@@ -10,6 +10,8 @@
 #   status             state and public IP
 #   ssh [cmd...]       SSH into the machine
 #   run <session-id>   start, copy the job env, process the session, stop
+#   lio-image          copy the local LiDAR front-end image (LIO_IMAGE, default
+#                      orchados-lio-point-lio:local) to the machine; it stays running
 #   budget             create a monthly budget alert (BUDGET_* settings)
 # Windows GPU machine for Insta360 Studio (remote desktop):
 #   win-create | win-start | win-stop | win-delete | win-status
@@ -24,7 +26,7 @@ CMD="${2:-}"
 shift 2 || true
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
   exit 2
 }
 case "$PROVIDER" in aws | azure | gcp) ;; *) usage ;; esac
@@ -96,6 +98,22 @@ run_job() {
   return "$status"
 }
 
+# The Point-LIO image (GPL) is not published to a registry: built locally from
+# deploy/lidar-frontends/point-lio/ and loaded on the machine.
+lio_image() {
+  local image="${LIO_IMAGE:-orchados-lio-point-lio:local}"
+  need docker
+  docker image inspect "$image" >/dev/null 2>&1 ||
+    die "$image not found locally (build it: deploy/lidar-frontends/point-lio/README.md)"
+  p_start
+  local ip
+  ip="$(p_ip)"
+  wait_ssh "$ip"
+  echo "copying $image to $NAME at $ip"
+  docker save "$image" | gzip -1 | ssh "${ssh_opts[@]}" "$SSH_USER@$ip" \
+    'until [ -f /var/lib/orchados/packages-done ]; do sleep 10; done; gunzip | sudo docker load'
+}
+
 case "$CMD" in
   create) p_create ;;
   start) p_start ;;
@@ -104,6 +122,7 @@ case "$CMD" in
   status) p_status ;;
   ssh) ip="$(p_ip)"; exec ssh "${ssh_opts[@]}" "$SSH_USER@$ip" "$@" ;;
   run) run_job "$@" ;;
+  lio-image) lio_image ;;
   budget) p_budget ;;
   win-create) p_win_create ;;
   win-start) p_win_start ;;

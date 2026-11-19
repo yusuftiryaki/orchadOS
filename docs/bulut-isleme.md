@@ -7,8 +7,9 @@ Pilotta işleme bulutta yapılır (karar: [teknik-mimari.md](teknik-mimari.md), 
 | Parça | Yer | Ne yapar |
 | --- | --- | --- |
 | `orchados-ingest` | [services/ingest](../services/ingest/README.md) | Kartı/oturum klasörünü sağlama toplamıyla ham veri deposuna yükler, işlem makinesinde indirir ve doğrular, 30 günden eskiyi siler |
-| İşlem imajı | [deploy/processing/Dockerfile](../deploy/processing/Dockerfile) | `ghcr.io/yusuftiryaki/orchados-processing`: işleme hattı + AI worker + ingest + RTKLIB + ffmpeg |
-| `orchados-process <oturum>` | İmajın içinde | `pull` → `run --trees-from-db [--boundary] --upload` → isteğe bağlı `ai-worker run` |
+| İşlem imajı | [deploy/processing/Dockerfile](../deploy/processing/Dockerfile) | `ghcr.io/yusuftiryaki/orchados-processing`: işleme hattı + AI worker + ingest + RTKLIB + ffmpeg + Docker istemcisi |
+| `orchados-process <oturum>` | İmajın içinde | `pull` → `run --trees-from-db [--boundary] --upload` → `lidar/raw` varsa `lidar process --upload` → isteğe bağlı `ai-worker run` |
+| LiDAR ön uç imajı | [deploy/lidar-frontends/point-lio](../deploy/lidar-frontends/point-lio/README.md) | `orchados-lio-point-lio:local`: Point-LIO (GPL); yerelde derlenir, kayda gönderilmez, makineye `machine.sh <sağlayıcı> lio-image` ile kopyalanır |
 | `machine.sh` | [deploy/processing](../deploy/processing/README.md) | Linux ve Windows GPU makinesini açar, iş çalıştırır, kapatır; bütçe uyarısı kurar |
 
 ## Akış
@@ -68,6 +69,8 @@ deploy/processing/machine.sh <aws|azure|gcp> run <uuid>
 
 `run` sırasıyla: makineyi açar, SSH bekler, `process.env`'i makineye sadece root okuyabilecek şekilde kopyalar, `sudo orchados-run-job <uuid>` çalıştırır (imajı çeker, `orchados-process <uuid>`), sonra makineyi durdurur. Sonuç: oturum `processed`, kesitler ve önizlemeler Supabase'de; uzman kuyruğuna düşer.
 
+LiDAR'lı oturumlar için makinede ön uç imajı da bulunmalı. İmaj yerelde derlenir ([deploy/lidar-frontends/point-lio](../deploy/lidar-frontends/point-lio/README.md)) ve bir kez, her imaj değişikliğinde yeniden, makineye kopyalanır: `machine.sh <sağlayıcı> lio-image` (makineyi açar ve açık bırakır; boşta bekçisi kapatır). İmaj yoksa `orchados-process` kamera işine başlamadan durur ve bunu söyler; LiDAR'sız işlemek için `PROCESS_LIDAR=0`.
+
 ### 4. Kapanış ve saklama
 
 - `run` iş bitince makineyi durdurur; makine de `SHUTDOWN_AFTER_JOB=1` ile kendini 2 dakika sonra kapatır. İkisi de olmazsa boşta bekçisi 30 dakikada kapatır.
@@ -85,12 +88,24 @@ deploy/processing/machine.sh <aws|azure|gcp> run <uuid>
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ORCHADOS_EMAIL`, `ORCHADOS_PASSWORD` | Evet | ops kullanıcısı; servis anahtarı kullanılmaz |
 | `PROCESS_BOUNDARY` | Hayır | `auto` (vars.): envanter oturumu ya da kaydedicide `corner` olayı varsa sınır aşaması; `1`/`0` zorla |
 | `PROCESS_TREES_FROM_DB` | Hayır | `1` (vars.): kesitler veritabanı envanterinden |
+| `PROCESS_LIDAR` | Hayır | `auto` (vars.): oturumda `lidar/raw` varsa hat çalıştıktan sonra `orchados-pipeline lidar process <oturum> --frontend <ön uç> --upload` (kayıt, kalite kararı, taç, 3D dünya, yükleme); `1`/`0` zorla |
+| `PROCESS_LIDAR_FRONTEND` | Hayır | `point_lio` (vars.): Docker soketi ve ön uç imajı gerekir (aşağıda); `fake` yalnız sentetik oturumlar |
+| `ORCHADOS_POINT_LIO_IMAGE` | Hayır | Ön uç imajı (vars. `orchados-lio-point-lio:local`) |
 | `PROCESS_AI` | Hayır | `1`: yüklemeden sonra `ai-worker run`; `ANTHROPIC_API_KEY` gerekir |
 | `PROCESS_PARAMS` | Hayır | Hat parametre dosyası (JSON) |
 | `PROCESS_UPLOAD_ONLY` | Hayır | `upload --only` (vars. hattın varsayılanı: önizleme, kesit, yörünge) |
 | `PROCESS_STATION` | Hayır | `capture.uri`'deki istasyon adı (vars. `cloud-<makine adı>`) |
 | `PROCESS_PULL_EXCLUDE` | Hayır | İndirilmeyenler (vars. `camera/*`) |
 | `PROCESS_KEEP_WORK` | Hayır | `1`: iş klasörü silinmez |
+| `ORCHADOS_WORK_DIR` | Hayır | İş diski (imajda `/work`; makinede `/srv/orchados/work`, aşağıda) |
+
+**LiDAR ön ucu kardeş container olarak çalışır.** Point-LIO GPL lisanslı; hat onu kendi imajında `docker run` ile çağırır, koda bağlamaz. İşlem container'ı bu yüzden makinenin Docker soketini alır ve kardeş container'ı makinenin Docker'ı başlatır. Üç şart:
+
+- **Soket:** `-v /var/run/docker.sock:/var/run/docker.sock --group-add <soketin grubu>` (container kullanıcısı root değil). İmajda yalnız Docker istemcisi var. Soketi alan container makinede root yetkisine eşdeğerdir; işlem makinesi tek amaçlı olduğu için kabul edildi.
+- **İmaj:** `orchados-lio-point-lio:local` (ya da `ORCHADOS_POINT_LIO_IMAGE`) makinenin Docker'ında bulunur (`machine.sh <sağlayıcı> lio-image`).
+- **Aynı yol:** Kardeş container'ın bağlama yollarını (`-v <oturum>:/in/session`, `-v <iş klasörü>:/out`) makinenin Docker'ı çözer, işlem container'ı değil. Bu yüzden iş diski container'ın içinde makinedekiyle **aynı yola** bağlanır ve `ORCHADOS_WORK_DIR` o yol olur: `orchados-run-job` `-v /srv/orchados/work:/srv/orchados/work -e ORCHADOS_WORK_DIR=/srv/orchados/work` ile çalıştırır. `orchados-process` LiDAR adımında `TMPDIR`'i de iş klasörüne (`<iş>/<oturum>/tmp`) alır; ön uca giden geçici dosyalar da makinede görünür. `/work` gibi farklı bir yola bağlamak Point-LIO adımını bozar (kardeş container boş klasör görür).
+
+`orchados-process` LiDAR'lı bir oturumda Docker'a ve imaja kamera işinden önce bakar, eksikse durur. LiDAR adımı kamera sonuçları yüklendikten sonra çalışır; başarısız olursa iş başarısız biter, kamera sonuçları Supabase'de kalır.
 
 **GPU:** İmajın tabanı NVIDIA'nın CUDA imajı (`nvcr.io`). Makinede NVIDIA container toolkit varsa `orchados-run-job` `--gpus all` ile çalıştırır; ffmpeg NVDEC/NVENC'i kullanabilir. GPU yoksa her şey işlemciyle çalışır. **Not:** işleme hattı bugün tamamen işlemcide (OpenCV); GPU asıl olarak Windows'ta Studio birleştirmesi ve ileride Linux Media SDK için. Pilotta Linux işlem makinesi GPU'suz, işlemci ağırlıklı bir tür de olabilir; ilk gerçek ziyarette süre ölçülüp karar verilir.
 
@@ -99,7 +114,12 @@ deploy/processing/machine.sh <aws|azure|gcp> run <uuid>
 ```bash
 docker build -f deploy/processing/Dockerfile -t orchados-processing:dev .
 docker run --rm --env-file process.env -v /srv/work:/work orchados-processing:dev orchados-process <uuid>
+# LiDAR'lı oturum (Point-LIO): iş klasörü aynı yolda, soket içeride
+docker run --rm --env-file process.env -v /srv/work:/srv/work -e ORCHADOS_WORK_DIR=/srv/work \
+  -v /var/run/docker.sock:/var/run/docker.sock --group-add "$(stat -c %g /var/run/docker.sock)" \
+  orchados-processing:dev orchados-process <uuid>
 deploy/processing/tests/e2e.sh orchados-processing:dev     # pnpm db:start && pnpm db:reset önce
+deploy/processing/tests/process-dry-run.sh                 # orchados-process, sahte araçlarla (LiDAR adımı)
 ```
 
 TLS denetleyen bir vekil sunucu arkasında derlerken: `docker build --secret id=extra_ca,src=ca.pem ...`.
@@ -115,11 +135,12 @@ TLS denetleyen bir vekil sunucu arkasında derlerken: `docker build --secret id=
 | `create` / `delete` | Linux GPU makinesini açar (başlangıç betiğiyle) / siler |
 | `start` / `stop` / `status` | Başlatır / durdurur (Azure'da **deallocate**) / durum ve IP |
 | `run <uuid>` | Başlat → iş ortamını kopyala → işle → durdur |
+| `lio-image` | Yereldeki LiDAR ön uç imajını (`LIO_IMAGE`, vars. `orchados-lio-point-lio:local`) makineye kopyalar (`docker save` → SSH → `docker load`) |
 | `ssh [komut]` | Makineye bağlanır |
 | `budget` | Aylık bütçe uyarısı |
 | `win-create`, `win-start`, `win-stop`, `win-delete`, `win-status` | Windows GPU makinesi |
 
-**Başlangıç betiği** ([`linux/startup.sh`](../deploy/processing/linux/startup.sh)): AWS'de user data, Azure'da custom data, GCP'de startup script olarak aynı dosya. NVIDIA sürücüsü (`ubuntu-drivers install --gpgpu`), Docker (Ubuntu'nun `docker.io` paketi), NVIDIA container toolkit, `orchados-run-job` ve boşta bekçisi (5 dakikada bir; iş yok, oturum açmış kullanıcı yok, 30 dakikadır hareket yoksa kapatır). Ayarlar makinede `/etc/orchados/machine.conf`: `IMAGE`, `IDLE_MINUTES`, `SHUTDOWN_AFTER_JOB`.
+**Başlangıç betiği** ([`linux/startup.sh`](../deploy/processing/linux/startup.sh)): AWS'de user data, Azure'da custom data, GCP'de startup script olarak aynı dosya. NVIDIA sürücüsü (`ubuntu-drivers install --gpgpu`), Docker (Ubuntu'nun `docker.io` paketi), NVIDIA container toolkit, `orchados-run-job` (iş diski aynı yolda, Docker soketi içeride) ve boşta bekçisi (5 dakikada bir; iş yok, oturum açmış kullanıcı yok, 30 dakikadır hareket yoksa kapatır). Ayarlar makinede `/etc/orchados/machine.conf`: `IMAGE`, `IDLE_MINUTES`, `SHUTDOWN_AFTER_JOB`.
 
 **Karar: Terraform/OpenTofu yok.** Pilotta iş başına tek bir makine açılıp kapanıyor; kalıcı altyapı bir kova ve bir rol. Üç sağlayıcı için üç modül, durum dosyası ve onun saklanması bu ölçekte betiklerden fazla iş. Düz CLI betikleri sağlayıcının kendi belgelerindeki komutlarla birebir, okunması ve elle tekrarlanması kolay. Sağlayıcı seçildikten sonra kalıcı parçalar (kova, rol, ağ, bütçe) çoğalırsa o sağlayıcı için OpenTofu'ya geçilir.
 
@@ -282,7 +303,7 @@ GPU kotası birçok sağlayıcıda yeni hesapta **0** gelir ve artırma talebi s
 | İş akışı | Ne |
 | --- | --- |
 | `ci-ingest` | `services/ingest`: lint, birim testleri, MinIO ve Azurite entegrasyon testleri (container'da; atlanırsa başarısız) |
-| `build-processing-image` | İmaj derlenir; betikler `shellcheck`'ten ve sahte CLI'larla kuru çalıştırmadan geçer; yerel Supabase + MinIO ile sentetik bir oturum ofisten yüklenir, yeni bir container çeker, işler, Supabase'e yükler, oturum `processed` olur (işlemci, GPU yok). `main`'de ghcr.io'ya yayın |
+| `build-processing-image` | İmaj derlenir; betikler `shellcheck`'ten ve sahte CLI'larla kuru çalıştırmadan geçer (`machine.sh`; `orchados-process` sahte ingest, hat ve Docker ile: LiDAR adımı ne zaman ve nasıl çalışır); yerel Supabase + MinIO ile sentetik bir oturum ofisten yüklenir, yeni bir container çeker, işler, Supabase'e yükler, oturum `processed` olur (işlemci, GPU yok). `main`'de ghcr.io'ya yayın |
 
 Hiçbir testte gerçek bulut hesabı kullanılmaz. Container imajları Docker Hub dışından gelir: `nvcr.io` (CUDA tabanı), `ghcr.io` (uv), `cgr.dev` (MinIO), `mcr.microsoft.com` (Azurite).
 

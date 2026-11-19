@@ -137,6 +137,13 @@ class RegistrationParams(Model):
     between_sigma_deg_per_m: float = 0.1
     between_sigma_min_m: float = 0.003
     between_sigma_min_deg: float = 0.05
+    # Robust kernel on the between factors (cauchy | huber | none), k in sigmas: a front-end
+    # jump (e.g. one tree along the row, row aliasing) is down-weighted against the GNSS
+    # factors instead of being absorbed by them. A between factor further than
+    # between_outlier_sigma from the fused poses counts as a front-end jump.
+    between_robust: str = "cauchy"
+    between_robust_k: float = 3.0
+    between_outlier_sigma: float = 10.0
     # Prior on the roll and pitch of each segment's first keyframe (the front end's odometry
     # frame is gravity aligned); keeps a straight segment's roll about its line determined.
     level_prior_sigma_deg: float = 3.0
@@ -148,8 +155,9 @@ class RegistrationParams(Model):
     # A keyframe gets a GNSS factor only between two trajectory points at most this far
     # apart in time (no interpolation across trajectory gaps).
     gnss_max_gap_s: float = 1.0
-    # LiDAR body frame -> antenna phase centre, metres (from calibration once measured).
-    lever_arm_m: tuple[float, float, float] = (0.0, 0.0, 0.5)
+    # LiDAR body frame -> antenna phase centre, metres: antenna ~2.1 m, LiDAR ~1.2 m above
+    # the ground (docs/tarama-kiti.md); from the calibration record once measured.
+    lever_arm_m: tuple[float, float, float] = (0.0, 0.0, 0.9)
     # Cloud (§5.6): self mask (points closer than self_mask_radius_m, and points in a cone
     # of self_mask_cone_deg around the lever arm direction closer than
     # self_mask_cone_range_m: the mast and the antenna), voxel dedupe.
