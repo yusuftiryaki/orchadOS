@@ -54,6 +54,26 @@ def _errors(result, keyframes, truth, frame, h0) -> np.ndarray:
     return np.linalg.norm(got - want, axis=1)
 
 
+def test_lever_arm_default_is_the_kit():
+    # docs/tarama-kiti.md: LiDAR ~1.2 m, GNSS antenna ~2.1 m above the ground.
+    assert RegistrationParams().lever_arm_m == (0.0, 0.0, 0.9)
+
+
+def test_synthetic_lever_arm_is_the_truth_one():
+    """A synthetic kit with another lever arm: its truth carries it, its antenna trajectory
+    uses it, and fusing with that lever arm places the LiDAR right; the default does not."""
+    lever = (0.2, -0.1, 0.6)
+    truth = moving_truth(MovingConfig(rows=2, trees_per_row=4, duration_s=40.0, lever_arm_m=lever))
+    assert truth.lever_arm_m == list(lever)
+    kfs = FakeFrontend().odometry(truth, _times(truth))
+    traj = _ppk(truth)
+    frame, h0 = _frame(traj)
+    own = fuse(kfs, traj, frame, PARAMS.model_copy(update={"lever_arm_m": lever}))
+    assert _errors(own, kfs, truth, frame, h0).max() < 0.05
+    default = fuse(kfs, traj, frame, PARAMS)
+    assert _errors(default, kfs, truth, frame, h0).max() > 0.2
+
+
 def test_drift_is_removed_by_ppk(truth):
     kfs = FakeFrontend(drift_m_per_100m=2.0, yaw_drift_deg_per_100m=1.0).odometry(
         truth, _times(truth)
