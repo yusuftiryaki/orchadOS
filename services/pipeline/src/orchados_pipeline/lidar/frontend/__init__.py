@@ -160,28 +160,13 @@ def read_frontend_output(work_dir: Path) -> FrontendResult:
     )
 
 
-class PointLioPending:
-    """Stand-in until the Point-LIO runner (frontend/point_lio.py, plan Task 9) exists."""
-
-    method = "point_lio"
-
-    def run(self, session_dir: Path, segments: list[Segment], work_dir: Path) -> FrontendResult:
-        raise NotImplementedError(
-            "the Point-LIO front end runner (lidar/frontend/point_lio.py, its Docker image "
-            "deploy/lidar-frontends/point-lio) is not available in this build; "
-            "use --frontend fake on synthetic sessions"
-        )
-
-
 def get_frontend(name: str) -> Frontend:
     if name == "fake":
         from .fake import FakeFrontend
 
         return FakeFrontend()
     if name == "point_lio":
-        try:
-            from .point_lio import PointLioFrontend  # type: ignore[import-not-found]
-        except ImportError:
-            return PointLioPending()
+        from .point_lio import PointLioFrontend
+
         return PointLioFrontend()
     raise ValueError(f"unknown LiDAR front end {name!r} (fake, point_lio)")

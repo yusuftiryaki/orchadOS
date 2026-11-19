@@ -310,7 +310,10 @@ def _registration_params(args: argparse.Namespace):
 
 
 def _register(args: argparse.Namespace) -> int:
+    import sys
+
     from . import registration
+    from .frontend import FrontendError
 
     try:
         folder, report = registration.run(
@@ -322,6 +325,9 @@ def _register(args: argparse.Namespace) -> int:
     except registration.NoLidarData as exc:
         print(f"lidar register: {exc}")
         return 1
+    except FrontendError as exc:
+        print(f"lidar register: {exc}", file=sys.stderr)
+        return 2
     print(registration.summary_line(report, folder))
     return 0
 
@@ -329,9 +335,11 @@ def _register(args: argparse.Namespace) -> int:
 def _process(args: argparse.Namespace) -> int:
     """register -> (not rejected) crown, world -> upload. Results go into the run folder."""
     import json
+    import sys
 
     from ..models import read_model
     from . import crown, registration, world
+    from .frontend import FrontendError
     from .models import RegistrationReport
 
     session = Path(args.session)
@@ -361,6 +369,9 @@ def _process(args: argparse.Namespace) -> int:
         except registration.NoLidarData as exc:
             print(f"lidar process: {exc}; LiDAR skipped")
             return 0
+        except FrontendError as exc:
+            print(f"lidar process: {exc}", file=sys.stderr)
+            return 2
         print(registration.summary_line(report, folder))
         steps["register"] = {"status": "done", "verdict": report.verdict}
     if report.verdict == "rejected_auto":

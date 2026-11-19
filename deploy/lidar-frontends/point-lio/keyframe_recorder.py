@@ -6,9 +6,12 @@ Subcommands (called by entrypoint.sh):
   plan      Read /in/segments.json, resolve each segment's MCAP files and their
             playback start offsets, write one work folder per segment.
   record    ROS 2 node for one segment: pairs Point-LIO's odometry with its
-            body-frame scan of the same stamp, deskews the scan, and writes a
+            body-frame scan of the same stamp, deskews the scan, and starts a
             keyframe whenever the LiDAR moved >= dist_m, turned >= angle_deg
-            or dt_s passed. Also measures the IMU rate and counts input points.
+            or dt_s passed. A keyframe's scan holds its own scan and every
+            following one up to the next keyframe, moved with the odometry into
+            the keyframe's LiDAR frame (no point is lost between keyframes).
+            Also measures the IMU rate and counts input points.
   finalize  Merge the per-segment results into the orchados.lio_frontend/1
             layout: frontend.json, keyframes.csv, scans/<segment>_<index>.npz.
 
@@ -160,6 +163,25 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+# Raw points closer than this to the LiDAR are dropped before Point-LIO sees them
+# (preprocess.blind, overriding the config file): the kit's mast and mount. Point-LIO
+# does not deskew, so the recorder would otherwise smear the mast along the path.
+DEFAULT_BLIND_M = 0.6
+
+
+def blind_m(spec: dict) -> float:
+    value = float(spec.get("blind_m", DEFAULT_BLIND_M))
+    if not 0.0 <= value < 10.0:
+        raise SystemExit(f"segments.json: blind_m must be in [0, 10), got {value}")
+    return value
+
+
+def config_hash(config: Path, blind: float) -> str:
+    """The config file and the runtime override: anything that changes Point-LIO's input."""
+    body = json.dumps({"config_sha256": sha256_file(config), "blind_m": blind}, sort_keys=True)
+    return hashlib.sha256(body.encode()).hexdigest()
+
+
 # --------------------------------------------------------------------------- plan
 
 
@@ -186,6 +208,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     if not rate > 0:
         raise SystemExit(f"segments.json: rate must be > 0, got {rate}")
     (work / "rate").write_text(f"{rate}\n")
+    (work / "blind").write_text(f"{blind_m(spec)}\n")
     indices = []
     for seg in spec["segments"]:
         idx = int(seg["index"])
@@ -294,6 +317,11 @@ class Recorder:
         self.last_kf: tuple | None = None  # (stamp_ns, R_wl, t_wl)
         self.origin: np.ndarray | None = None  # first keyframe's LiDAR position
         self.kf_index = 0
+        # The current keyframe's scan: its own scan and the following ones, in its frame.
+        self.buf_xyz: list[np.ndarray] = []
+        self.buf_int: list[np.ndarray] = []
+        self.scan_written = True
+        self.scans_in_keyframes = 0
         self.kf_csv = open(self.work / "keyframes.csv", "w", newline="")
         self.kf_writer = csv.writer(self.kf_csv)
         self.kf_writer.writerow(KF_HEADER)
@@ -375,8 +403,10 @@ class Recorder:
             r_wl = r_wi @ self.r_ext
             t_wl = p_wi + r_wi @ self.t_ext
             if self.is_keyframe(t, r_wl, t_wl):
-                omega_b, v_b = self.body_velocity(t, r_wi, p_wi, v_w, omega_twist)
-                self.write_keyframe(t, r_wl, t_wl, body, omega_b, v_b)
+                self.flush_scan()
+                self.write_keyframe(t, r_wl, t_wl)
+            omega_b, v_b = self.body_velocity(t, r_wi, p_wi, v_w, omega_twist)
+            self.add_scan(body, r_wl, t_wl, omega_b, v_b)
         self.prev = (t, r_wi, p_wi)
 
     def is_keyframe(self, t: int, r_wl: np.ndarray, t_wl: np.ndarray) -> bool:
@@ -406,7 +436,8 @@ class Recorder:
         self.deskew_from_twist += 1
         return omega_twist, r_wi.T @ v_w
 
-    def write_keyframe(self, t, r_wl, t_wl, body, omega_b, v_b) -> None:
+    def scan_in_lidar(self, body, omega_b, v_b) -> tuple[np.ndarray, np.ndarray]:
+        """The body-frame scan deskewed to its end time, in the LiDAR frame."""
         pts = cloud_fields(body)
         xyz_i = np.stack([pts["x"], pts["y"], pts["z"]], axis=1).astype(np.float64)
         if "intensity" in pts.dtype.names:
@@ -418,9 +449,34 @@ class Recorder:
             dt_before_end = np.clip((c.max() - c) / 1000.0, 0.0, 1.0)
             xyz_i = deskew(xyz_i, dt_before_end, omega_b, v_b)
         # IMU body frame -> LiDAR body frame.
-        xyz_l = (xyz_i - self.t_ext) @ self.r_ext
+        return (xyz_i - self.t_ext) @ self.r_ext, intensity
+
+    def add_scan(self, body, r_wl, t_wl, omega_b, v_b) -> None:
+        """Every scan in the window goes into the current keyframe's scan: moved with
+        the odometry from its own LiDAR pose into the keyframe's LiDAR frame."""
+        if self.last_kf is None:
+            return
+        xyz_l, intensity = self.scan_in_lidar(body, omega_b, v_b)
+        _t0, r_k, t_k = self.last_kf
+        world = xyz_l @ r_wl.T + t_wl
+        self.buf_xyz.append(((world - t_k) @ r_k).astype(np.float32))
+        self.buf_int.append(intensity)
+        self.scans_in_keyframes += 1
+
+    def flush_scan(self) -> None:
+        """Write the current keyframe's scan (its own and the following scans)."""
+        if self.last_kf is None or self.scan_written:
+            return
+        xyz = np.concatenate(self.buf_xyz) if self.buf_xyz else np.zeros((0, 3), np.float32)
+        inten = np.concatenate(self.buf_int) if self.buf_int else np.zeros(0, np.float32)
+        name = f"{self.segment}_{self.kf_index - 1}.npz"
+        np.savez(self.scans_dir / name, xyz=xyz, intensity=inten)
+        self.buf_xyz.clear()
+        self.buf_int.clear()
+        self.scan_written = True
+
+    def write_keyframe(self, t, r_wl, t_wl) -> None:
         name = f"{self.segment}_{self.kf_index}.npz"
-        np.savez(self.scans_dir / name, xyz=xyz_l.astype(np.float32), intensity=intensity)
         q = rot_to_quat(r_wl)
         if self.origin is None:
             self.origin = t_wl.copy()
@@ -436,6 +492,7 @@ class Recorder:
         self.kf_csv.flush()
         self.kf_index += 1
         self.last_kf = (t, r_wl, t_wl)
+        self.scan_written = False
 
     # -- lifecycle
     def check_ready(self) -> None:
@@ -472,6 +529,7 @@ class Recorder:
         except KeyboardInterrupt:
             pass
         finally:
+            self.flush_scan()
             self.kf_csv.close()
             rate = None
             if self.imu_count > 1 and self.imu_last > self.imu_first:
@@ -488,6 +546,7 @@ class Recorder:
                 "cloud_msgs": self.cloud_msgs,
                 "points_total": self.points_total,
                 "deskew_from_twist": self.deskew_from_twist,
+                "scans_in_keyframes": self.scans_in_keyframes,
                 "timed_out": timed_out,
             }
             (self.work / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
@@ -541,6 +600,10 @@ def cmd_finalize(args: argparse.Namespace) -> int:
         if (sdir / "keyframes.csv").exists():
             with open(sdir / "keyframes.csv", newline="") as fh:
                 seg_rows = list(csv.reader(fh))[1:]
+        # A keyframe whose scan is missing (recorder killed before writing it) is dropped.
+        seg_rows = [r for r in seg_rows if (out / "scans" / r[10]).is_file()]
+        if status == "ok" and not seg_rows:
+            status, message = "failed", "no keyframe scans written"
         if status == "ok":
             rows.extend(seg_rows)
         if summary.get("imu_span_s"):
@@ -575,7 +638,8 @@ def cmd_finalize(args: argparse.Namespace) -> int:
         "schema": SCHEMA,
         "method": METHOD,
         "method_version": f"{commit[:7]}-r{recipe}",
-        "config_hash": sha256_file(config),
+        "config_hash": config_hash(config, blind_m(spec)),
+        "blind_m": blind_m(spec),
         "segments": segments,
         "imu_rate_hz": (imu_n / imu_span) if imu_span > 0 else None,
         "points_total": points_total,
