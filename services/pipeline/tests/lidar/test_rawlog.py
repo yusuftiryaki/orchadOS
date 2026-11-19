@@ -30,10 +30,8 @@ def _session(root: Path, name: str, **kw) -> tuple[Path, MovingTruth]:
 
 @pytest.fixture(scope="module")
 def split_session(tmp_path_factory):
-    return _session(
-        tmp_path_factory.mktemp("raw"), "split", duration_s=70.0, gap=(25.0, 28.0),
-        second_bag_at_s=50.0,
-    )  # fmt: skip
+    root = tmp_path_factory.mktemp("raw")
+    return _session(root, "split", duration_s=70.0, gap=(25.0, 28.0), second_bag_at_s=50.0)
 
 
 def test_gps_unix_round_trip():

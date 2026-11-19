@@ -19,33 +19,13 @@ from pathlib import Path
 import numpy as np
 
 from ...hashing import hash_object
+from ..fusion import rot_to_quat
 from ..rawlog import Segment, iter_clouds
 from ..synth_moving import MovingTruth
 from . import FrontendResult, Keyframe, scan_path, write_frontend_output, write_scan
 
 TRUTH_FILE = "truth.json"
 _DRIFT_DIR = np.array([1.0, 1.0, 0.0]) / math.sqrt(2.0)
-
-
-def rot_to_quat(r: np.ndarray) -> np.ndarray:
-    """Rotation matrix -> quaternion x, y, z, w (w >= 0)."""
-    m = np.asarray(r, dtype=np.float64)
-    tr = m[0, 0] + m[1, 1] + m[2, 2]
-    if tr > 0:
-        s = math.sqrt(tr + 1.0) * 2
-        q = [(m[2, 1] - m[1, 2]) / s, (m[0, 2] - m[2, 0]) / s, (m[1, 0] - m[0, 1]) / s, s / 4]
-    elif m[0, 0] > m[1, 1] and m[0, 0] > m[2, 2]:
-        s = math.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2]) * 2
-        q = [s / 4, (m[0, 1] + m[1, 0]) / s, (m[0, 2] + m[2, 0]) / s, (m[2, 1] - m[1, 2]) / s]
-    elif m[1, 1] > m[2, 2]:
-        s = math.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2]) * 2
-        q = [(m[0, 1] + m[1, 0]) / s, s / 4, (m[1, 2] + m[2, 1]) / s, (m[0, 2] - m[2, 0]) / s]
-    else:
-        s = math.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1]) * 2
-        q = [(m[0, 2] + m[2, 0]) / s, (m[1, 2] + m[2, 1]) / s, s / 4, (m[1, 0] - m[0, 1]) / s]
-    q = np.array(q)
-    q /= np.linalg.norm(q)
-    return q if q[3] >= 0 else -q
 
 
 def _rz(a: float) -> np.ndarray:
@@ -126,56 +106,43 @@ class FakeFrontend:
         write_frontend_output(work_dir, result)
         return result
 
+    def odometry(
+        self,
+        truth: MovingTruth,
+        times_ns,
+        segment: int = 0,
+        work_dir: Path | None = None,
+        rng: np.random.Generator | None = None,
+    ) -> list[Keyframe]:
+        """Keyframes among candidate times (e.g. message times) without scans: the same
+        selection and degradation as run(). Scan paths point under work_dir (or nowhere)."""
+        odo = _Odometry(
+            self, truth, segment, Path(work_dir or ""), rng or np.random.default_rng(self.seed)
+        )
+        for t in times_ns:
+            odo.step(int(t))
+        return odo.keyframes
+
     def _segment(self, truth: MovingTruth, seg: Segment, work_dir: Path, rng):
-        keyframes: list[Keyframe] = []
+        odo = _Odometry(self, truth, seg.index, work_dir, rng)
         buf_xyz: list[np.ndarray] = []
         buf_int: list[np.ndarray] = []
         n_points = 0
-        kf: dict | None = None  # current keyframe: time, true pose
-        origin = None  # (p0, R0z^T)
-        travelled = 0.0
-        shift = np.zeros(3)
-        t_first = None
 
         def flush():
-            if kf is not None:
+            if odo.keyframes:
                 xyz = np.concatenate(buf_xyz) if buf_xyz else np.zeros((0, 3), np.float32)
                 inten = np.concatenate(buf_int) if buf_int else np.zeros(0, np.float32)
-                write_scan(work_dir, seg.index, len(keyframes) - 1, xyz, inten)
+                write_scan(work_dir, seg.index, len(odo.keyframes) - 1, xyz, inten)
                 buf_xyz.clear()
                 buf_int.clear()
 
         for msg in iter_clouds(seg):
             n_points += len(msg.xyz)
-            (p,), (r,) = truth.pose_at([msg.log_gps_ns])
-            new = kf is None
-            if not new:
-                step = float(np.linalg.norm(p - kf["p"]))
-                turn = abs(math.remainder(_yaw(r) - _yaw(kf["r"]), 2 * math.pi))
-                new = (
-                    step >= self.kf_dist
-                    or turn >= self.kf_angle
-                    or msg.log_gps_ns - kf["t"] >= self.kf_dt_ns
-                )
-            if new:
+            if odo.would_start(msg.log_gps_ns):
                 flush()
-                if kf is not None:
-                    travelled += float(np.linalg.norm(p - kf["p"]))
-                kf = {"t": msg.log_gps_ns, "p": p, "r": r}
-                if origin is None:
-                    origin = (p, _rz(_yaw(r)).T)
-                    t_first = msg.log_gps_ns
-                keyframes.append(
-                    self._keyframe(seg, len(keyframes), kf, origin, travelled, rng, work_dir)
-                )
-                if (
-                    self.swap_tree_at is not None
-                    and not shift.any()
-                    and (msg.log_gps_ns - t_first) / 1e9 >= self.swap_tree_at
-                ):
-                    heading = origin[1] @ r[:, 0]
-                    shift = heading * truth.tree_spacing_m
-                keyframes[-1].t = keyframes[-1].t + shift
+                odo.step(msg.log_gps_ns)
+            kf = odo.current
             # Deskew: each point's own true pose -> world -> keyframe body frame.
             times = msg.log_gps_ns + np.round(msg.rel_time_s.astype(np.float64) * 1e9)
             pos, rot = truth.pose_at(times.astype(np.int64))
@@ -183,23 +150,70 @@ class FakeFrontend:
             buf_xyz.append(((world - kf["p"]) @ kf["r"]).astype(np.float32))
             buf_int.append(msg.intensity)
         flush()
-        return keyframes, n_points
+        return odo.keyframes, n_points
 
-    def _keyframe(self, seg, index, kf, origin, travelled, rng, work_dir) -> Keyframe:
-        p0, r0t = origin
-        t = r0t @ (kf["p"] - p0)
-        r = r0t @ kf["r"]
-        t = t + _DRIFT_DIR * self.drift / 100.0 * travelled
-        if self.yaw_drift:
-            rz = _rz(math.radians(self.yaw_drift / 100.0 * travelled))
-            t, r = rz @ t, rz @ r
-        if self.noise:
-            t = t + rng.normal(0, self.noise, 3)
-        return Keyframe(
-            segment=seg.index,
-            index=index,
-            gps_time_ns=int(kf["t"]),
-            t=t,
-            q=rot_to_quat(r),
-            scan=scan_path(work_dir, seg.index, index),
+
+class _Odometry:
+    """Keyframe selection on the true poses and the degraded odometry poses."""
+
+    def __init__(self, fe: FakeFrontend, truth: MovingTruth, segment: int, work_dir: Path, rng):
+        self.fe, self.truth, self.segment = fe, truth, segment
+        self.work_dir, self.rng = work_dir, rng
+        self.keyframes: list[Keyframe] = []
+        self.current: dict | None = None  # time, true position and rotation
+        self.origin: tuple[np.ndarray, np.ndarray] | None = None  # (p0, R0z^T)
+        self.travelled = 0.0
+        self.shift = np.zeros(3)
+        self.t_first = 0
+
+    def would_start(self, t_ns: int) -> bool:
+        kf = self.current
+        if kf is None:
+            return True
+        (p,), (r,) = self.truth.pose_at([t_ns])
+        step = float(np.linalg.norm(p - kf["p"]))
+        turn = abs(math.remainder(_yaw(r) - _yaw(kf["r"]), 2 * math.pi))
+        return (
+            step >= self.fe.kf_dist
+            or turn >= self.fe.kf_angle
+            or t_ns - kf["t"] >= self.fe.kf_dt_ns
+        )
+
+    def step(self, t_ns: int) -> None:
+        """Consider t_ns as a keyframe time; start one if the spacing rule says so."""
+        if not self.would_start(t_ns):
+            return
+        (p,), (r,) = self.truth.pose_at([t_ns])
+        if self.current is not None:
+            self.travelled += float(np.linalg.norm(p - self.current["p"]))
+        self.current = {"t": t_ns, "p": p, "r": r}
+        if self.origin is None:
+            self.origin = (p, _rz(_yaw(r)).T)
+            self.t_first = t_ns
+        fe = self.fe
+        p0, r0t = self.origin
+        t = r0t @ (p - p0)
+        rot = r0t @ r
+        t = t + _DRIFT_DIR * fe.drift / 100.0 * self.travelled
+        if fe.yaw_drift:
+            rz = _rz(math.radians(fe.yaw_drift / 100.0 * self.travelled))
+            t, rot = rz @ t, rz @ rot
+        if fe.noise:
+            t = t + self.rng.normal(0, fe.noise, 3)
+        if (
+            fe.swap_tree_at is not None
+            and not self.shift.any()
+            and (t_ns - self.t_first) / 1e9 >= fe.swap_tree_at
+        ):
+            self.shift = (r0t @ r[:, 0]) * self.truth.tree_spacing_m
+        index = len(self.keyframes)
+        self.keyframes.append(
+            Keyframe(
+                segment=self.segment,
+                index=index,
+                gps_time_ns=int(t_ns),
+                t=t + self.shift,
+                q=rot_to_quat(rot),
+                scan=scan_path(self.work_dir, self.segment, index),
+            )
         )
