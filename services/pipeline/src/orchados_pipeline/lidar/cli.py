@@ -87,6 +87,17 @@ def add_parser(sub) -> None:
         )
         p.add_argument("--params", help="JSON file overriding the registration parameters")
         p.add_argument(
+            "--trajectory",
+            help="the position stage's trajectory.json to fuse with (default: the newest "
+            "under the processed root, a PPK one first; else NAV-PVT of gnss/gnss.ubx)",
+        )
+        p.add_argument(
+            "--processed-root",
+            help="the camera pipeline's output root, where trajectory.json and "
+            "panoramas.json are looked up (default: <session>.processed; also moves the "
+            "default --out to <root>/lidar/registration)",
+        )
+        p.add_argument(
             "--keep-frontend-scans",
             action="store_true",
             help="keep the front end's keyframe scans (frontend/scans/, GBs per session; "
@@ -105,6 +116,12 @@ def add_parser(sub) -> None:
         "a session without LiDAR data is skipped",
     )
     pc.add_argument("--trees", help="trees JSON (default: <session>/trees.json)")
+    pc.add_argument(
+        "--panoramas",
+        help="panoramas of the scan for the world's colours: a run folder, its "
+        "panoramas.json or a folder of pano-*.json sidecars (default: the only run under "
+        "the processed root with panoramas; none: grey by height)",
+    )
     pc.add_argument("--upload", action="store_true", help="upload the registration and its results")
     pc.add_argument(
         "--reuse-registration",
@@ -300,6 +317,10 @@ def _synth_moving(args: argparse.Namespace) -> int:
     return 0
 
 
+def _path(value: str | None) -> Path | None:
+    return Path(value) if value else None
+
+
 def _registration_params(args: argparse.Namespace):
     from .models import RegistrationParams
 
@@ -321,8 +342,10 @@ def _register(args: argparse.Namespace) -> int:
             Path(args.out) if args.out else None,
             _registration_params(args),
             keep_frontend_scans=args.keep_frontend_scans,
+            trajectory=_path(args.trajectory),
+            processed_root=_path(args.processed_root),
         )
-    except registration.NoLidarData as exc:
+    except registration.RegistrationError as exc:  # NoLidarData too
         print(f"lidar register: {exc}")
         return 1
     except FrontendError as exc:
@@ -344,7 +367,10 @@ def _process(args: argparse.Namespace) -> int:
 
     session = Path(args.session)
     trees = Path(args.trees) if args.trees else session / "trees.json"
+    processed_root = _path(args.processed_root)
     out_root = Path(args.out) if args.out else None
+    if out_root is None and processed_root is not None:
+        out_root = processed_root / registration.REGISTRATION_DIR
     steps: dict = {}
     if args.reuse_registration:
         folder = registration.latest_registration(session, out_root)
@@ -365,10 +391,15 @@ def _process(args: argparse.Namespace) -> int:
                 out_root,
                 _registration_params(args),
                 keep_frontend_scans=args.keep_frontend_scans,
+                trajectory=_path(args.trajectory),
+                processed_root=processed_root,
             )
         except registration.NoLidarData as exc:
             print(f"lidar process: {exc}; LiDAR skipped")
             return 0
+        except registration.RegistrationError as exc:
+            print(f"lidar process: {exc}", file=sys.stderr)
+            return 1
         except FrontendError as exc:
             print(f"lidar process: {exc}", file=sys.stderr)
             return 2
@@ -387,7 +418,14 @@ def _process(args: argparse.Namespace) -> int:
             steps["crown"] = {"status": "skipped", "reason": f"no inventory ({trees.name})"}
             print(f"lidar process: no inventory ({trees}); crown skipped")
         if not args.reuse_registration:
-            wr = world.run(session, trees, folder, cloud_dir=folder)
+            wr = world.run(
+                session,
+                trees,
+                folder,
+                panoramas=_path(args.panoramas),
+                cloud_dir=folder,
+                processed_root=processed_root,
+            )
             steps["world"] = {"status": "done", "points": wr.header.get("point_count")}
             print(world.summary_line(wr))
     registration.write_process_report(folder, steps)

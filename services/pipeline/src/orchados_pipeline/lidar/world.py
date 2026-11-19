@@ -959,10 +959,15 @@ def views_from_records(
     return views
 
 
-def default_panoramas(session_dir: Path) -> Path | None:
-    """The only run folder with panoramas next to the session, if there is exactly one."""
+def default_panoramas(session_dir: Path, processed_root: Path | None = None) -> Path | None:
+    """The only run folder with panoramas under processed_root (default: the session's
+    <session>.processed next to it), if there is exactly one."""
     session_dir = Path(session_dir)
-    processed = session_dir.parent / f"{session_dir.name}.processed"
+    processed = (
+        Path(processed_root)
+        if processed_root is not None
+        else session_dir.parent / f"{session_dir.name}.processed"
+    )
     runs = sorted(processed.glob("v*/panoramas.json")) if processed.is_dir() else []
     if len(runs) > 1:
         raise CloudError(
@@ -1103,13 +1108,15 @@ def run(
     log: Callable[[str], None] = lambda _m: None,
     wood: WoodInputs | None = None,
     cloud_dir: Path | None = None,
+    processed_root: Path | None = None,
 ) -> WorldReport:
     """wood: the skeleton and pruning inputs (WoodInputs; default_wood picks them up).
-    cloud_dir: the cloud's folder (default: resolve_cloud's order)."""
+    cloud_dir: the cloud's folder (default: resolve_cloud's order). processed_root:
+    where default_panoramas looks when panoramas is None."""
     p = WorldParams.load(params_path)
     cloud = load_session_cloud(Path(session_dir), cloud_dir)
     trees = load_tree_positions(Path(trees_path)) if Path(trees_path).is_file() else []
-    source = Path(panoramas) if panoramas else default_panoramas(Path(session_dir))
+    source = Path(panoramas) if panoramas else default_panoramas(Path(session_dir), processed_root)
     views: list[View] = []
     if source is not None:
         recs, base = panorama_records(source)

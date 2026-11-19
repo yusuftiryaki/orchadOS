@@ -739,6 +739,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 ```
 
 - **Çalıştırma klasörü:** `lidar register` her çalıştırmada yeni bir `run_id` (uuid) üretir ve kendi klasörüne yazar. Aynı girdi ve parametrelerle yeniden çalıştırmak yeni bir klasör açar (ön ucun kayıttan oynatması belirlenimli değildir); başka bir çalıştırmanın klasörü değişmez ve silinmez. `method`, `method_version` ve `params_hash` `registration.json`'dakilerdir.
+- **Yörünge ve panoramalar:** `lidar register` ve `lidar process` konum aşamasının yörüngesini `--trajectory <trajectory.json>` ile alır; verilmezse `--processed-root <klasör>` (vars. `<oturum>.processed`) altındaki en yeni `*/trajectory.json` (PPK'lı önce), o da yoksa `gnss/gnss.ubx`'in NAV-PVT'si. Verilen dosya okunamazsa kayıt hata verir. Hangisinin kullanıldığı `registration.json` `trajectory`'dedir. `lidar process`'te dünyanın renkleri `--panoramas` ile ya da aynı kökteki tek `v*/panoramas.json`'dan gelir. `--processed-root` varsayılan `--out`'u `<kök>/lidar/registration`'a taşır. Bulut işlemede (`orchados-process`) kamera çalıştırması `<iş>/out/v<sürüm>_<hash>/`'tadır; betik onun `trajectory.json`, `panoramas.json` ve `trees.json`'unu açıkça verir.
 - **Ölçüm aşamalarının bulutu bulması** (`lidar crown`, `skeleton`, `pruning`, `world`; budamada iki oturum için ayrı ayrı):
   1. `--cloud <klasör>` verildiyse o klasördeki `cloud.ply` ve `cloud.json`;
   2. yoksa `<oturum>/lidar/cloud.ply` (sentetik ve eski düzen);
