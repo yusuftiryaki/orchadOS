@@ -1837,6 +1837,8 @@ export const tr = {
     errors: {
       not_pending:
         "Bu kayıt için karar zaten verilmiş. Sayfayı yenileyip kaydın son durumuna bakın.",
+      newer_accepted:
+        "Bu ziyaretin daha yeni bir LiDAR kaydı kabul edilmiş; bu eski kayıt kabul edilemez. Gerekirse not yazıp reddedin.",
       note_required: "Reddetmek için bir not yazın.",
       forbidden: "Bu kaydın kararını yalnız kurumun operasyon personeli verir.",
       not_found: "Kayıt bulunamadı. Sayfayı yenileyin.",

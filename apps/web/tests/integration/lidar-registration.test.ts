@@ -250,4 +250,50 @@ describe("LiDAR registration review", () => {
       status: "pending_review",
     });
   });
+
+  it("a newer accepted run closes older runs in review; an older run cannot be accepted", async () => {
+    const inReview = (await listPendingRegistrations(ops)).filter(
+      (r) => r.sessionId === run.session,
+    );
+    expect(inReview).toHaveLength(1);
+    const newest = await record("accepted_auto", []);
+    const { data } = await admin
+      .from("lidar_registration")
+      .select("id, status")
+      .in("id", [inReview[0].id, newest]);
+    expect(Object.fromEntries((data ?? []).map((r) => [r.id, r.status]))).toEqual({
+      [inReview[0].id]: "superseded",
+      [newest]: "accepted",
+    });
+    expect((await listPendingRegistrations(ops)).some((r) => r.sessionId === run.session)).toBe(
+      false,
+    );
+
+    // A run in review older than the accepted one (a race): accepting it is
+    // refused, rejecting it is not.
+    const old = randomUUID();
+    const { error } = await admin.from("lidar_registration").insert({
+      id: old,
+      run_id: randomUUID(),
+      org_id: T.org,
+      parcel_id: T.parcel,
+      session_id: run.session,
+      method: "point_lio+gtsam_ppk",
+      method_version: "web-test",
+      params_hash: "0123456789abcdef",
+      ppk_status: "ppk",
+      auto_verdict: "review",
+      status: "pending_review",
+      created_at: "2000-01-01T00:00:00Z",
+    });
+    expect(error).toBeNull();
+    expect(await decideRegistration(ops, { id: old, accept: true, note: "" })).toEqual({
+      ok: false,
+      error: "newer_accepted",
+    });
+    expect(await decideRegistration(ops, { id: old, accept: false, note: "eski" })).toMatchObject({
+      ok: true,
+      registration: { status: "rejected" },
+    });
+  });
 });

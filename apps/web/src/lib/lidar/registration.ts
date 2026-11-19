@@ -184,6 +184,7 @@ export async function loadRegistrations(
 
 export type DecideError =
   | "not_pending"
+  | "newer_accepted"
   | "note_required"
   | "forbidden"
   | "not_found"
@@ -196,7 +197,8 @@ export type DecideResult =
 
 const MAX_NOTE = 2000;
 
-// decide_lidar_registration errors: not_pending (55000), invalid_input
+// decide_lidar_registration errors: not_pending (55000), newer_accepted
+// (P0001; accepting a run older than the visit's accepted one), invalid_input
 // (22023; the note on a reject), forbidden and demo_read_only (42501),
 // not_found (P0002).
 export function decideErrorOf(error: {
@@ -205,6 +207,7 @@ export function decideErrorOf(error: {
   details?: string | null;
 }): DecideError {
   if (error.message === "not_pending" || error.code === "55000") return "not_pending";
+  if (error.message === "newer_accepted") return "newer_accepted";
   if (error.message === "demo_read_only") return "demo_read_only";
   if (error.message === "not_found" || error.code === "P0002") return "not_found";
   if (error.message === "forbidden" || error.code === "42501") return "forbidden";

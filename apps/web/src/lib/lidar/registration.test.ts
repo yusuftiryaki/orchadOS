@@ -184,6 +184,7 @@ describe("staff world cloud", () => {
 describe("deciding a registration", () => {
   it("maps the function's errors", () => {
     expect(decideErrorOf({ code: "55000", message: "not_pending" })).toBe("not_pending");
+    expect(decideErrorOf({ code: "P0001", message: "newer_accepted" })).toBe("newer_accepted");
     expect(
       decideErrorOf({
         code: "22023",
@@ -202,6 +203,7 @@ describe("deciding a registration", () => {
     // Every error has a message for the band.
     for (const e of [
       "not_pending",
+      "newer_accepted",
       "note_required",
       "forbidden",
       "not_found",

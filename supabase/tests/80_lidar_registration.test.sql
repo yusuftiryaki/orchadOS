@@ -9,7 +9,7 @@
 -- field_staff a0..03, expert a0..04, ops a0..05. One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(88);
+select plan(105);
 
 select testing.reset_to_seed();
 
@@ -368,7 +368,66 @@ select results_eq($$ select pg_temp.status(3), pg_temp.status(5) $$, $$ values (
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select is(pg_temp.heights(), '{}'::float8[], 'owner: the rejected run stays hidden (the accepted one has none)');
 
+-- Accepting closes older runs in review (L3) -------------------------------------------------
+
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+insert into pg_temp.regs select 6, pg_temp.record(6, 'review');
+select is(pg_temp.activate(6), 'pending_review', 'a run waits for review');
+insert into pg_temp.regs select 7, pg_temp.record(7, 'accepted_auto');
+select is(pg_temp.activate(7), 'accepted', 'a newer run is auto-accepted');
+select results_eq($$ select pg_temp.status(3), pg_temp.status(6), pg_temp.status(7) $$,
+  $$ values ('superseded', 'superseded', 'accepted') $$,
+  'the older run in review is closed with the previous accepted run');
+select is((select (decided_by, decided_at, decision_note) is null
+           from public.lidar_registration where id = pg_temp.reg(6)), true,
+  'closing a run in review records no decision');
+
+-- A run in review newer than the accepted one stays open.
+insert into pg_temp.regs select 8, pg_temp.record(8, 'accepted_auto');
+insert into pg_temp.regs select 9, pg_temp.record(9, 'review');
+select is(pg_temp.activate(9), 'pending_review', 'the newer run waits for review');
+select is(pg_temp.activate(8), 'accepted', 'the older auto-accepted run is activated after it');
+select results_eq($$ select pg_temp.status(7), pg_temp.status(8), pg_temp.status(9) $$,
+  $$ values ('superseded', 'accepted', 'pending_review') $$,
+  'the newer run in review stays open');
+
+-- Ops accepting a run in review closes the older ones too.
+insert into pg_temp.regs select 10, pg_temp.record(10, 'review');
+select is(pg_temp.activate(10), 'pending_review', 'a third run waits for review');
+select lives_ok($$ select public.decide_lidar_registration(pg_temp.reg(10), true, null) $$,
+  'ops accepts the newest run in review');
+select results_eq($$ select pg_temp.status(8), pg_temp.status(9), pg_temp.status(10) $$,
+  $$ values ('superseded', 'superseded', 'accepted') $$,
+  'the older run in review is closed with the previous accepted run');
+
+-- A run activated after a newer run was accepted is superseded at once.
+insert into pg_temp.regs select 11, pg_temp.record(11, 'accepted_auto');
+insert into pg_temp.regs select 12, pg_temp.record(12, 'review');
+insert into pg_temp.regs select 13, pg_temp.record(13, 'accepted_auto');
+select is(pg_temp.activate(13), 'accepted', 'the newest run is accepted first');
+select is(pg_temp.activate(11), 'superseded', 'an older auto-accepted run activated later is superseded');
+select is(pg_temp.activate(12), 'superseded', 'so is an older review run: it never waits for review');
+select results_eq($$ select pg_temp.status(10), pg_temp.status(13) $$, $$ values ('superseded', 'accepted') $$,
+  'the newest run stays the accepted one');
+
+-- Accepting a run in review older than the accepted run is refused (newer_accepted).
+reset role;
+with x as (
+  insert into public.lidar_registration (run_id, org_id, parcel_id, session_id, method, method_version,
+                                         params_hash, ppk_status, auto_verdict, status, created_at)
+  values (pg_temp.run(14), 'b0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000001',
+          '80000000-0000-4000-8000-000000000010', 'fake+gtsam_ppk', '0.1.0', 'ph14', 'ppk', 'review',
+          'pending_review', '2000-01-01 00:00:00+00')
+  returning id)
+insert into pg_temp.regs select 14, id from x;
+set local role authenticated;
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select throws_ok($$ select public.decide_lidar_registration(pg_temp.reg(14), true, null) $$,
+  'P0001', 'newer_accepted', 'a run in review older than the accepted run cannot be accepted');
+select is(pg_temp.status(13), 'accepted', 'the accepted run stays');
+select lives_ok($$ select public.decide_lidar_registration(pg_temp.reg(14), false, 'older than the accepted run') $$,
+  'it can still be rejected');
+
 insert into pg_temp.regs select 15, pg_temp.record(15, 'review');
 
 -- Rows are never deleted; terminal states stay -------------------------------------------------
