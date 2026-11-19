@@ -206,25 +206,28 @@ LiDAR'lı kitin taramasında ölçümler (İP16) ve 3D dünya bulutu (İP17), ha
 | `ppk_status` | `ppk`, `no_ppk`, `ppk_failed` |
 | `metrics` | Kalite ölçütleri (`registration.json` `metrics`) |
 | `auto_verdict`, `reasons` | Hattın kararı (`accepted_auto`, `review`, `rejected_auto`) ve neden kodları |
-| `status` | `pending_review` (incelemede), `accepted` (kabul), `rejected` (ret), `superseded` (yerine daha yeni bir kabul geldi) |
+| `status` | `recording` (yükleniyor: ölçümleri ve bulutu henüz yükleniyor), `pending_review` (incelemede), `accepted` (kabul), `rejected` (ret), `superseded` (yerine daha yeni bir kabul geldi) |
 | `decided_by`, `decided_at`, `decision_note` | Operasyonun kararı; otomatik kararda boş |
 | `created_at` | Kayıt zamanı |
 
 Kurallar:
 
-- **Başlangıç durumu** `auto_verdict`'ten gelir: `accepted_auto` → `accepted`, `review` → `pending_review`, `rejected_auto` → `rejected`.
+- **Önce yükleme, sonra etkinleştirme:** Kayıt `recording` durumunda açılır. Bu durumda parsel okuyucuları onun satırlarını görmez, önceki kabulün yerine geçmez ve operasyonun inceleme listesine girmez. Hat ölçümleri ve dünya bulutunu yükledikten sonra kaydı `activate_lidar_registration` ile etkinleştirir; durum `auto_verdict`'ten gelir: `accepted_auto` → `accepted`, `review` → `pending_review`, `rejected_auto` → `rejected`. Yükleme yarıda kalırsa kayıt `recording`'de kalır ve sahip ziyaretin önceki kabulünün değerlerini görmeye devam eder.
 - **Ekleme-yalnız:** Satır silinmez. Yeniden işleme yeni bir `run_id` ile yeni satır ekler; eskisi kalır.
-- **Karar bir kez:** `pending_review` kayıt yalnız `decide_lidar_registration` ile ve yalnız bir kez `accepted` ya da `rejected` olur. Başka tek geçiş `accepted` → `superseded`'dir ve kendiliğinden olur (aşağıda). `rejected` ve `superseded` son durumdur.
+- **Karar bir kez:** `pending_review` kayıt yalnız `decide_lidar_registration` ile ve yalnız bir kez `accepted` ya da `rejected` olur (ya da daha yeni bir kabulle `superseded`, aşağıda). `recording` yalnız etkinleştirmeyle ve yalnız kararının verdiği duruma ya da `superseded`'e geçer. Başka tek geçiş `accepted` → `superseded`'dir ve kendiliğinden olur (aşağıda). `rejected` ve `superseded` son durumdur.
 - **Ziyarette tek geçerli kabul:** Bir kayıt `accepted` olunca (otomatik ya da operasyon kararıyla) aynı ziyaretin o ana kadar geçerli `accepted` kaydı `superseded` olur. Ziyaretin geçerli kaydı tek `accepted` satırıdır; olmayabilir.
-- **`record_lidar_registration(p_session_id, p_payload)`** (yalnız operasyon; hat, `lidar upload`) → satırın kimliği. `p_payload`: `registration.json` (`run_id`, `method`, `method_version`, `params_hash`, `ppk_status`, `metrics`, `verdict`, `reasons`). Aynı `run_id` yeniden gelirse yeni satır açılmaz, var olanın kimliği döner. Demo claim'i reddedilir.
-- **`decide_lidar_registration(p_id, p_accept, p_note)`** (yalnız operasyon) → güncel satır. Kayıt `pending_review` değilse (ikinci karar, yarış) hata verir. Ret notu zorunludur. Demo claim'i reddedilir.
+- **Eski kayıtlar kabulün önüne geçmez:** Kabul edilen kayıttan önce açılmış (`created_at`) `pending_review` kayıtlar aynı anda kararsız `superseded` olur ve inceleme listesinden düşer; daha yeni olanlar incelemede kalır. Ziyaretin kabul edilmiş kaydından eski bir kayıt etkinleştirilirse (`accepted_auto` ya da `review`) doğrudan `superseded` olur. Operasyon, kabul edilmiş kayıttan eski bir `pending_review` kaydı kabul edemez (`newer_accepted`, P0001); reddedebilir.
+- **`record_lidar_registration(p_session_id, p_payload)`** (yalnız operasyon; hat, `lidar upload`) → satırın kimliği. `p_payload`: `registration.json` (`run_id`, `method`, `method_version`, `params_hash`, `ppk_status`, `metrics`, `verdict`, `reasons`). Satır `recording` olarak açılır. Aynı `run_id` yeniden gelirse yeni satır açılmaz, var olanın kimliği döner. Demo claim'i reddedilir.
+- **`activate_lidar_registration(p_id)`** (yalnız operasyon; hat, `lidar upload` ölçümleri ve bulutu yükledikten sonra) → güncel satır. `recording` kaydı kararının durumuna geçirir; `accepted` olursa ziyaretin önceki kabulü `superseded` olur. Zaten etkinleşmiş kayıtta bir şey değiştirmeden satırı döner. Demo claim'i reddedilir.
+- **`decide_lidar_registration(p_id, p_accept, p_note)`** (yalnız operasyon) → güncel satır. Kayıt `pending_review` değilse (ikinci karar, yarış) `not_pending` (55000), ziyaretin daha yeni bir kaydı kabul edilmişken kabulde `newer_accepted` (P0001) hatası verir. Ret notu zorunludur. Demo claim'i reddedilir.
 - **Tabloyu kim okur:** Kurum rolleri. Parsel okuyucuları (sahip, hissedar, izleyici, demo ziyaretçisi) tabloyu okumaz.
 - Migration `private.attach_demo_guard('lidar_registration')` çağırır.
 
 **Kapı (LiDAR ölçümleri ve dünya bulutu):**
 
 - LiDAR yöntemli ölçüm satırı (`lidar_crown`, `lidar_qsm`, `lidar_pruning`) hangi kayıttan geldiğini taşır (`registration_id`, boş olabilir); `world_cloud` asset'i `pose.registration_id` taşır ([arayuzler.md](arayuzler.md#asset-pose-alanı)).
-- Parsel okuyucuları bir LiDAR ölçümünü ya da `world_cloud`'u yalnız kaydı ziyaretin geçerli kabulüyse (`status = accepted`) görür. `pending_review`, `rejected` ve `superseded` kaydın satırları ve dosyaları onlara kapalıdır. [Yayın](#kurallar) kuralı ayrıca geçerlidir. Görünümler (`tree_latest_measurement` gibi) ve medya imzası aynı kurala uyar.
+- `record_lidar_measurements` ve `world_cloud` yüklemesi `recording` kaydı da kabul eder (yükleme etkinleştirmeden önce gelir); `rejected` kaydı reddeder.
+- Parsel okuyucuları bir LiDAR ölçümünü ya da `world_cloud`'u yalnız kaydı ziyaretin geçerli kabulüyse (`status = accepted`) görür. `recording`, `pending_review`, `rejected` ve `superseded` kaydın satırları ve dosyaları onlara kapalıdır. [Yayın](#kurallar) kuralı ayrıca geçerlidir. Görünümler (`tree_latest_measurement` gibi) ve medya imzası aynı kurala uyar.
 - `registration_id`'si boş satırlar bugünkü gibi görünür: bunlar demo, sentetik ve eski verilerdir. Gerçek kit verisinin her zaman kaydı olur, çünkü `lidar upload` kaydı olmayanı `--allow-unregistered` verilmedikçe yüklemez.
 - Kurum rolleri hepsini görür; personel dünyasındaki inceleme bunun için var ([3d-dunya.md](3d-dunya.md) §9.4).
 - Kabul anında ölçümler ve bulut zaten yüklü olduğu için hemen görünür olur; hattı yeniden çalıştırmak gerekmez. Ret sonrası kapalı kalırlar.

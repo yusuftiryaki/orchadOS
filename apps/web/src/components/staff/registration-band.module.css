@@ -87,6 +87,11 @@
   flex-basis: 100%;
 }
 
+.decision {
+  display: grid;
+  gap: var(--space-1);
+}
+
 .reject {
   display: grid;
   gap: var(--space-2);

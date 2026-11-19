@@ -1775,17 +1775,21 @@ export const tr = {
       accepted: "LiDAR kaydı kabul edildi",
       rejected: "LiDAR kaydı reddedildi",
       superseded: "LiDAR kaydının yerine yenisi geldi",
+      recording: "LiDAR kaydı yükleniyor",
     },
     status: {
       pending_review: "İncelemede",
       accepted: "Kabul edildi",
       rejected: "Reddedildi",
       superseded: "Yerine yenisi geldi",
+      recording: "Yükleniyor",
     },
     pendingLead:
       "Ölçümler ve bulut, kayıt kabul edilene kadar sahibe kapalı. Bulutu inceleyip kararı verin.",
     pendingLeadReadOnly:
       "Ölçümler ve bulut, kayıt kabul edilene kadar sahibe kapalı. Kararı operasyon verir.",
+    recordingLead:
+      "Hat bu kaydın ölçümlerini ve bulutunu yüklüyor; yükleme bitince kayıt otomatik kararıyla açılır. Uzun süre böyle kalırsa yükleme yarıda kalmıştır: hattı yeniden çalıştırın.",
     metrics: {
       gnss: "GNSS sapması (p95)",
       trunk: "Gövde tutarlılığı (p95)",
@@ -1833,6 +1837,8 @@ export const tr = {
     errors: {
       not_pending:
         "Bu kayıt için karar zaten verilmiş. Sayfayı yenileyip kaydın son durumuna bakın.",
+      newer_accepted:
+        "Bu ziyaretin daha yeni bir LiDAR kaydı kabul edilmiş; bu eski kayıt kabul edilemez. Gerekirse not yazıp reddedin.",
       note_required: "Reddetmek için bir not yazın.",
       forbidden: "Bu kaydın kararını yalnız kurumun operasyon personeli verir.",
       not_found: "Kayıt bulunamadı. Sayfayı yenileyin.",
@@ -1849,9 +1855,11 @@ export const tr = {
         date: "Kayıt tarihi",
         reasons: "Nedenler",
         action: "İnceleme",
+        decision: "Karar",
       },
       visit: (kind: string, date: string) => `${kind}, ${date}`,
       open: "3D dünyada incele",
+      noWorld: "3D dünya yok",
     },
   },
   // After triangulation: office workspace (attributes, infrastructure,
