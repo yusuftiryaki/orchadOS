@@ -82,13 +82,36 @@ def add_parser(sub) -> None:
     up.add_argument("--session-id", required=True, help="public.session id of the scan")
     up.add_argument("--dry-run", action="store_true", help="print the payload, write nothing")
 
-    syn = lsub.add_parser("synth", help="synthetic registered cloud of a small plot")
+    syn = lsub.add_parser(
+        "synth",
+        help="synthetic registered cloud of a small plot, or (--moving) a raw kit session",
+    )
     syn.add_argument("dest")
     syn.add_argument(
         "--rows",
         default="sapling,young,productive;old,,productive",
-        help="size presets per row, rows separated by ';' (" + ", ".join(SIZE_PRESETS) + ")",
+        help="size presets per row, rows separated by ';' (" + ", ".join(SIZE_PRESETS) + "); "
+        "with --moving: the number of rows (default 3)",
     )
+    mv = syn.add_argument_group("raw moving scan (--moving)")
+    mv.add_argument(
+        "--moving",
+        action="store_true",
+        help="write a raw kit session instead: lidar/raw MCAP (L2 cloud + IMU), gnss/gnss.ubx, "
+        "recording.json, trees.json, truth.json and, unless --no-ppk, a PPK trajectory in "
+        "<dest>.processed/synthetic-ppk/",
+    )
+    mv.add_argument("--trees-per-row", type=int, default=6)
+    mv.add_argument("--speed", type=float, default=1.5, help="m/s (default 1.5)")
+    mv.add_argument("--duration", type=float, help="seconds (default: the whole path)")
+    mv.add_argument("--points-per-s", type=int, default=64_000)
+    mv.add_argument("--imu-hz", type=float, default=250.0)
+    mv.add_argument("--gap", metavar="A,B", help="LiDAR silent from A to B seconds")
+    mv.add_argument("--second-bag", type=float, metavar="S", help="recorder restart at S s")
+    mv.add_argument(
+        "--stamp-offset", type=float, default=0.0, help="log time - header.stamp, seconds"
+    )
+    mv.add_argument("--no-ppk", action="store_true", help="no PPK trajectory (NAV-PVT only)")
     syn.add_argument("--leafless", action="store_true", help="winter scan: wood only")
     syn.add_argument("--seed", type=int, default=1)
     syn.add_argument(
@@ -104,6 +127,8 @@ def add_parser(sub) -> None:
 
 def run(args: argparse.Namespace) -> int:
     cmd = args.lidar_command
+    if cmd == "synth" and args.moving:
+        return _synth_moving(args)
     if cmd == "synth":
         sizes = [r.split(",") for r in args.rows.split(";")]
         if args.pruned_copy and not args.leafless:
@@ -174,4 +199,29 @@ def run(args: argparse.Namespace) -> int:
         out = Path(args.out) if args.out else default_out(session)
         report = mod.run(session, trees, out, params)
     print(mod.summary_line(report))
+    return 0
+
+
+def _synth_moving(args: argparse.Namespace) -> int:
+    from .synth_moving import MovingConfig, make_moving_session
+
+    cfg = MovingConfig(
+        rows=int(args.rows) if args.rows.isdigit() else MovingConfig.rows,
+        trees_per_row=args.trees_per_row,
+        speed_mps=args.speed,
+        duration_s=args.duration,
+        seed=args.seed,
+        gap=tuple(float(v) for v in args.gap.split(",")) if args.gap else None,
+        second_bag_at_s=args.second_bag,
+        stamp_offset_s=args.stamp_offset,
+        imu_hz=args.imu_hz,
+        ppk=not args.no_ppk,
+        points_per_s=args.points_per_s,
+    )
+    truth = make_moving_session(Path(args.dest), cfg)
+    span = (truth.poses[-1, 0] - truth.poses[0, 0]) / 1e9
+    print(
+        f"{args.dest}: moving scan, {span:.0f} s, {len(truth.trees)} trees, "
+        f"{cfg.points_per_s} points/s, {'PPK' if cfg.ppk else 'NAV-PVT only'}"
+    )
     return 0
