@@ -2,6 +2,8 @@
 
 16 Kasım 2026 · Yusuf (sahip) ile Claude · durum: taslak, sahip onayı bekliyor
 
+> **Not (19 Kasım 2026):** Elde Pi 5 yok; kitte Raspberry Pi 4 Model B kullanılır. Aşağıdaki "Pi 5" ifadeleri tasarım anının kaydıdır. Pi 5'e özel USB akım ayarı (`usb_max_current_enable`) kurulumdan çıkarıldı; Pi 4 notları [services/kit-recorder/README.md](../../../services/kit-recorder/README.md#pi-4)'de.
+
 ## 1. Amaç ve gerekçe
 
 LiDAR'lı kitte (karar 11 Kasım 2026) kayıt bilgisayarı Raspberry Pi 5'tir. Bugün yazılı ve testli olan kaydedici ise ESP32 ([firmware/gnss-logger/](../../../firmware/gnss-logger/)). Saha uygulaması ([apps/field/](../../../apps/field/)) onunla Bluetooth (BLE) üzerinden konuşur, işleme hattı da onun yazdığı `gnss/` klasörünü okur. Pi'da henüz hiçbir yazılım yok, işletim sistemi bile kurulu değil.

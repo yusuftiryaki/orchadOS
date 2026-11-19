@@ -214,7 +214,7 @@ Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-log
 
 ## Kit kaydedicisi (Raspberry Pi)
 
-LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 5'tir; ESP32 kaydedici kitten çıktı (karar 16 Kasım 2026, tasarım: [superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)). Pi'daki kayıt servisi (`services/kit-recorder/`) saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı BLE servisi ve cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve sonuç kodları, aynı `gnss/` dosyaları. Buna LiDAR kaydı ve kayıt sağlığı eklenir.
+LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 4'tür; ESP32 kaydedici kitten çıktı (karar 16 Kasım 2026, tasarım: [superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)). Pi'daki kayıt servisi (`services/kit-recorder/`) saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı BLE servisi ve cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve sonuç kodları, aynı `gnss/` dosyaları. Buna LiDAR kaydı ve kayıt sağlığı eklenir.
 
 ### Durum mesajı (77 bayt)
 

@@ -1,6 +1,6 @@
 # services/kit-recorder — kitteki Raspberry Pi kayıt servisi
 
-LiDAR'lı tarama kitinde kayıt bilgisayarı Raspberry Pi 5'tir. `orchados-recorder` servisi saha uygulamasına ESP32 kaydedici gibi görünür: aynı BLE servisi, aynı cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve aynı `gnss/` dosyaları. Buna şunları ekler:
+LiDAR'lı tarama kitinde kayıt bilgisayarı Raspberry Pi 4 Model B'dir (elde Pi 5 yok; sahip, 19 Kasım 2026). `orchados-recorder` servisi saha uygulamasına ESP32 kaydedici gibi görünür: aynı BLE servisi, aynı cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve aynı `gnss/` dosyaları. Buna şunları ekler:
 
 - Unitree L2'nin nokta bulutu ve IMU'sunun MCAP kaydı (`ros2 bag`),
 - ön kontrol (LiDAR, LiDAR kipi, saat, SSD, alıcı) ve atlama,
@@ -36,7 +36,7 @@ Pi'da servis `orchados-recorder run --config /etc/orchados/recorder.toml` ile ç
 | `setup/patches/unilidar_sdk2-*.patch` | `/opt/orchados/ros2_ws/src/unilidar_sdk2`'e uygulanır | L2 sürücüsünün IMU hatalarına iki yama (aşağıda, "L2 sürücüsü") |
 | `setup/orchados-ros-exec` | `/usr/local/bin/` | Bir komutu ROS 2 Jazzy ortamında çalıştırır (iki servis de bunu kullanır) |
 | `setup/chrony-orchados.conf` | `/etc/chrony/conf.d/orchados.conf` | Saat: PPS, saniyesi alıcıdan |
-| `setup/config.txt.append` | `/boot/firmware/config.txt` sonuna | PPS overlay'i (GPIO18), Pi 5 USB akım ayarı |
+| `setup/config.txt.append` | `/boot/firmware/config.txt` sonuna | PPS overlay'i (GPIO18) |
 | `setup/fstab.append` | `/etc/fstab` | SSD'yi etiketle bağlar (`nofail`) |
 | `setup/99-orchados-ssd.rules`, `setup/orchados-ssd-mount.service` | `/etc/udev/rules.d/`, `/etc/systemd/system/` | Açılıştan sonra takılan SSD'yi de bağlar |
 | `setup/netplan-orchados-lidar.yaml` | `/etc/netplan/90-orchados-lidar.yaml` | L2 için Ethernet adresi (`192.168.1.2/24`), DHCP de açık |
@@ -125,6 +125,13 @@ sudo mount /mnt/orchados-ssd
 - Açılıştan sonra takılan SSD de kendiliğinden bağlanır (udev kuralı). Çıkarmadan önce servis durdurulur ve SSD ayrılır: `sudo systemctl stop orchados-recorder && sudo umount /mnt/orchados-ssd`. Kayıt sürerken çıkarılırsa oturum `sd_error` ile kapanır; dosyalar o an yazılamadıysa SSD geri takılınca `gnss/session.json`'a `stop_reason: sd_error` yazılır (`stop` `null` kalır).
 - Oturumlar `/mnt/orchados-ssd/sessions/<session_id>/` altındadır (`gnss/`, `lidar/raw/`).
 
+## Pi 4
+
+- **Saat pili yok.** Pi açılışta saati bilmez; chrony ilk GNSS zamanında saati düzeltir (`makestep 1 -1`). Ön kontrolün saat maddesi saat kilitlenmeden geçmez.
+- **USB akımı.** Dört USB portu toplam 1,2 A verir; SSD ve alıcı bunu paylaşır. İki saatlik kayıtta SSD'nin kopmadığı `journalctl -k | grep -i usb` ile doğrulanır.
+- **Isı.** Soğutucu takılı olmalı. Kapalı kutuda yavaşlama `vcgencmd get_throttled` ile okunur; `throttled=0x0` dışındaki her değer kayıttan sonra incelenir.
+- **Besleme.** 5 V, en az 3 A. Gerilim yük altında 5,0 V'un altına inerse Pi yavaşlar ve `get_throttled` bunu gösterir.
+
 ## PPS teli
 
 - F9P'nin TIMEPULSE çıkışı Pi'ın **GPIO18'ine (fiziksel pin 12)** bağlanır; toprak ortak (ör. pin 14).
@@ -134,7 +141,7 @@ sudo mount /mnt/orchados-ssd
 
 ## L2 sürücüsü
 
-- Sürücü: Unitree `unilidar_sdk2` reposundaki ROS 2 paketi (`unitree_lidar_ros2`), `/opt/orchados/ros2_ws`'de `colcon build` ile derlenir. Unitree yalnız Ubuntu 20.04 ve ROS 2 Foxy'yi doğrulamış; **Pi 5'te Jazzy ile derlenmesi doğrulanmadı**, ilk denenecek iş budur (plan, Task 17). Derlenmezse yedek yol, ROS'suz ve SDK'dan doğrudan MCAP yazan küçük bir C++ programıdır; bu durumda ayrı bir tasarım notu açılır.
+- Sürücü: Unitree `unilidar_sdk2` reposundaki ROS 2 paketi (`unitree_lidar_ros2`), `/opt/orchados/ros2_ws`'de `colcon build` ile derlenir. Unitree yalnız Ubuntu 20.04 ve ROS 2 Foxy'yi doğrulamış; **Pi 4'te Jazzy ile derlenmesi doğrulanmadı**, ilk denenecek iş budur (plan, Task 17). Derlenmezse yedek yol, ROS'suz ve SDK'dan doğrudan MCAP yazan küçük bir C++ programıdır; bu durumda ayrı bir tasarım notu açılır.
 - Sürüm ve yamalar: kaynak `unilidar_sdk2`'nin `UNILIDAR_COMMIT` commit'idir (v2.0.10, `install.sh`'ta sabit). Derlemeden önce `setup/patches/`'teki iki yama uygulanır; ikisi de ROS 2 düğümünün IMU hatasıdır ve upstream'de açıktır:
   - `unilidar_sdk2-imu-read-once.patch` ([PR #33](https://github.com/unitreerobotics/unilidar_sdk2/pull/33)): düğüm her IMU paketinde `getImuData()`'yı iki kez çağırıyor, ilki paketi tüketiyordu; `/unilidar/imu` listede görünür ama neredeyse hiç mesaj taşımaz. Yama PR'ın bu dosyadaki değişikliğinin aynısıdır.
   - `unilidar_sdk2-imu-quaternion-order.patch` ([#14](https://github.com/unitreerobotics/unilidar_sdk2/issues/14)): SDK'nın kuaternyonu (w, x, y, z) sırasındadır; ROS 1 sürücüsü ve düğümün kendi `unilidar_imu_initial → unilidar_imu` dönüşümü öyle okur, ROS 2'deki `Imu` mesajı (x, y, z, w) diye okuyordu. Not: SDK'nın `example.h`'ı aynı diziyi "(x, y, z, w)" etiketiyle basıyor; sıra masada doğrulanır (aşağıda).
