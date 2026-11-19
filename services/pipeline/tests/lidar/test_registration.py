@@ -57,6 +57,7 @@ def _files(folder) -> dict[str, str]:
 def test_good_scan_is_accepted(good_registration):
     session, _, folder, report = good_registration
     assert report.verdict == "accepted_auto", report.reasons
+    assert report.metrics["gnss_fix_fraction"] > 0.9
     assert report.reasons == []
     m = report.metrics
     assert m["gnss_residual_p95_m"] < 0.05
@@ -270,6 +271,7 @@ GOOD_METRICS = {
     "trees_checked": 12,
     "clock_state": "pps",
     "recording_json": True,
+    "gnss_fix_fraction": 0.95,
 }
 
 
@@ -293,6 +295,10 @@ GOOD_METRICS = {
         ({"recording_json": False, "clock_state": None}, True, "review", "no_recording_json"),
         ({"restamped_segments": 1}, True, "accepted_auto", "restamped"),
         ({"imu_rate_low_segments": 1}, True, "accepted_auto", "imu_rate_low"),
+        # PPK, but the residual check runs over a handful of fix epochs only.
+        ({"gnss_fix_fraction": 0.3}, True, "review", "few_fixes"),
+        ({"gnss_fix_fraction": None}, True, "review", "few_fixes"),
+        ({"gnss_fix_fraction": 0.5}, True, "accepted_auto", None),
     ],
 )
 def test_decide(change, ppk, verdict, reason):
@@ -308,6 +314,14 @@ def test_thresholds_are_parameters():
     p = RegistrationParams.model_validate({"thresholds": {"accept_min_trees": 5}})
     assert decide({**GOOD_METRICS, "trees_checked": 6}, True, p)[0] == "accepted_auto"
     assert p.params_hash() != PARAMS.params_hash()
+    p = RegistrationParams.model_validate({"thresholds": {"min_fix_fraction": 0.2}})
+    assert decide({**GOOD_METRICS, "gnss_fix_fraction": 0.3}, True, p)[0] == "accepted_auto"
+
+
+def test_few_fixes_only_with_ppk():
+    """NAV-PVT has no fix epochs: no_ppk already holds it, few_fixes would only repeat it."""
+    _, reasons = decide({**GOOD_METRICS, "gnss_fix_fraction": 0.0}, False, PARAMS)
+    assert "few_fixes" not in reasons and "no_ppk" in reasons
 
 
 # --- finding the cloud ---------------------------------------------------------------
@@ -362,3 +376,17 @@ def test_resolve_cloud_order(tmp_path):
     )
     write_session_cloud(session, np.zeros((3, 3)), meta)
     assert resolve_cloud(session) == session / "lidar"
+
+
+def test_keyframe_params_reach_the_front_end(small_ppk, tmp_path):
+    """The front end comes from the parameters (get_frontend(name, params)): a coarser
+    keyframe spacing gives fewer keyframes."""
+    session = link_session(small_ppk[0], tmp_path / "s")
+    fine = RegistrationParams(frontend="fake")
+    coarse = RegistrationParams(
+        frontend="fake", keyframe_dist_m=3.0, keyframe_angle_deg=90.0, keyframe_dt_s=5.0
+    )
+    _, r1 = run(session, params=fine)
+    _, r2 = run(session, params=coarse)
+    assert 0 < r2.metrics["keyframes"] < r1.metrics["keyframes"] / 3
+    assert r1.frontend["config_hash"] != r2.frontend["config_hash"]

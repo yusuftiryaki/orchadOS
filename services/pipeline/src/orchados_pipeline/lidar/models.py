@@ -41,6 +41,9 @@ class CloudMeta(Model):
     point_sigma_m: float = 0.03
     sensor: str | None = None  # e.g. "livox_mid360"
     calibration_id: str | None = None
+    # run_id of the registration run (registration.json) that wrote the cloud; None for a
+    # cloud without one (lidar synth, the old layout). Reports made from the cloud repeat it.
+    run_id: str | None = None
 
     model_config = {"extra": "forbid", "populate_by_name": True}
 
@@ -85,6 +88,9 @@ class LidarReport(Model):
     method_version: str
     session_id: str
     parcel_id: str
+    # run_id of the cloud's registration run (cloud.json; pruning: the scan after);
+    # lidar upload ties the measurements to that run only.
+    run_id: str | None = None
     trees: list[TreeQuality] = Field(default_factory=list)
     measurements: list[LidarMeasurement] = Field(default_factory=list)
 
@@ -99,7 +105,8 @@ class RegistrationThresholds(Model):
     reject_gnss_p95_m, or trunk spread p95 above reject_trunk_spread_m, or no segment
     ran. accepted_auto: PPK and residual p95 <= accept_gnss_p95_m and trunk spread p95
     <= accept_trunk_spread_m over at least accept_min_trees trees and coverage >=
-    accept_min_coverage. Anything else: review.
+    accept_min_coverage and at least min_fix_fraction of the placed keyframes with a fix
+    GNSS factor. Anything else: review.
     """
 
     reject_min_coverage: float = 0.5
@@ -109,6 +116,9 @@ class RegistrationThresholds(Model):
     accept_trunk_spread_m: float = 0.15
     accept_min_trees: int = 10
     accept_min_coverage: float = 0.9
+    # With PPK, the residual check runs over fix epochs only: at least this share of the
+    # placed keyframes must have a fix GNSS factor, else at most review (few_fixes).
+    min_fix_fraction: float = 0.5
 
 
 class RegistrationParams(Model):
@@ -124,6 +134,10 @@ class RegistrationParams(Model):
     # rate differs from the log clock's by more than restamp_max_slope_dev.
     restamp_max_offset_s: float = 0.05
     restamp_max_slope_dev: float = 1e-4
+    # Restamped stamps are the segment's fitted line header.stamp -> log time minus this
+    # latency (s): the delay from the sensor's sample to the Pi's log time (USB, driver),
+    # measured on the bench; 0 leaves the mean delivery delay in the stamps.
+    stamp_latency_s: float = 0.0
     # IMU rate expected from the L2 driver (measured on the bench after the driver fix);
     # a segment below min_imu_rate_ratio of it is skipped (imu_rate_low).
     expected_imu_hz: float = 250.0
@@ -132,6 +146,11 @@ class RegistrationParams(Model):
     keyframe_dist_m: float = 0.5
     keyframe_angle_deg: float = 10.0
     keyframe_dt_s: float = 1.0
+    # Raw points closer than this to the LiDAR are dropped by the front end before
+    # deskewing (Point-LIO's preprocess.blind; the kit's mast).
+    blind_m: float = 0.6
+    # Playback rate of the raw log through the front end (Point-LIO; 1 = real time).
+    frontend_rate: float = 1.0
     # Pose graph (§5.5). Between factors: sigma grows with the distance between keyframes.
     between_sigma_m_per_m: float = 0.01
     between_sigma_deg_per_m: float = 0.1

@@ -16,13 +16,17 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pytest
 from test_lidar_upload import PARCEL, START_NS, T1, crown, skeleton, write_world_cloud
 
 from orchados_pipeline.gpstime import gps_ns_to_iso
+from orchados_pipeline.hashing import sha256_file
 from orchados_pipeline.lidar import upload as lidar_upload
+from orchados_pipeline.lidar.cloud import write_ply
 from orchados_pipeline.lidar.models import CloudMeta, RegistrationReport
 from orchados_pipeline.lidar.upload import (
+    ACTIVATE_RPC,
     REGISTRATION_PLACEHOLDER,
     REGISTRATION_RPC,
     RPC,
@@ -72,14 +76,17 @@ def write_run(
     meta = CloudMeta(
         session_id=session, parcel_id=PARCEL, origin_lat=37.0662, origin_lon=37.3833,
         origin_height_m=850.0, gps_time_start_ns=REG_START_NS, registration_method=rep.method,
-        registration_version=rep.method_version,
+        registration_version=rep.method_version, run_id=run_id,
     )  # fmt: skip
     (run / "cloud.json").write_text(meta.model_dump_json(by_alias=True))
+    write_ply(
+        run / "cloud.ply", np.arange(30, dtype=float).reshape(10, 3) + int(run_id[:8], 16) % 97
+    )
     (run / "process.json").write_text(json.dumps({"steps": {}}))
     if results:
-        (run / "crown.json").write_text(json.dumps(crown(session)))
-        (run / "skeleton.json").write_text(json.dumps(skeleton(session)))
-        write_world_cloud(run, session=session)
+        (run / "crown.json").write_text(json.dumps({**crown(session), "run_id": run_id}))
+        (run / "skeleton.json").write_text(json.dumps({**skeleton(session), "run_id": run_id}))
+        write_world_cloud(run, session=session, run_id=run_id)
     return run
 
 
@@ -93,6 +100,8 @@ class FakeClient:
         self.measurements: list[tuple] = []
         self.assets: list[dict] = []
         self.objects: dict[str, bytes] = {}
+        self.fail_on: str | None = None  # an rpc that raises
+        self.activate_as: str | None = None  # e.g. superseded (a newer run was accepted)
 
     def __enter__(self):
         return self
@@ -106,13 +115,24 @@ class FakeClient:
     def rpc(self, fn, args):
         args = json.loads(json.dumps(args))  # what goes over the wire
         self.calls.append(("rpc", fn, args))
+        if fn == ACTIVATE_RPC:
+            # Ops only, idempotent: a run still recording moves to its verdict's status
+            # (accepted would supersede the session's older ones); others stay.
+            row = self.reg_by_id(args["p_id"])
+            if row is None:
+                raise SupabaseError("not_found")
+            if row["status"] == "recording":
+                row["status"] = self.activate_as or STATUS_OF[row["payload"]["verdict"]]
+            return {"id": row["id"], "status": row["status"]}
         p = args["p_payload"]
+        if self.fail_on == fn:
+            raise SupabaseError(f"{fn} failed")
         if fn == REGISTRATION_RPC:
             assert args["p_session_id"] == self.session["id"] == p["session_id"]
             assert p["ppk_status"] in ("ppk", "no_ppk", "ppk_failed")
             if p["run_id"] not in self.registrations:
                 self.registrations[p["run_id"]] = {
-                    "id": str(uuid.uuid4()), "status": STATUS_OF[p["verdict"]], "payload": p,
+                    "id": str(uuid.uuid4()), "status": "recording", "payload": p,
                 }  # fmt: skip
             return self.registrations[p["run_id"]]["id"]
         assert fn == RPC
@@ -142,7 +162,12 @@ class FakeClient:
         if table == "session":
             return [self.session] if params["id"] == f"eq.{self.session['id']}" else []
         if table == "asset":
-            return [a for a in self.assets if f"eq.{a['session_id']}" == params["session_id"]]
+            return [
+                a
+                for a in self.assets
+                if f"eq.{a['session_id']}" == params["session_id"]
+                and params.get("kind", f"eq.{a['kind']}") == f"eq.{a['kind']}"
+            ]
         if table == "lidar_registration":
             row = self.reg_by_id(params["id"].removeprefix("eq."))
             return [{"status": row["status"]}] if row else []
@@ -168,6 +193,9 @@ class FakeClient:
     # What the upload did, in order.
     def rpcs(self):
         return [c[1] for c in self.calls if c[0] == "rpc"]
+
+    def of_kind(self, kind):
+        return [a for a in self.assets if a["kind"] == kind]
 
 
 @pytest.fixture
@@ -200,8 +228,8 @@ def json_blocks(text: str) -> list[dict]:
 def test_registration_first_then_measurements_and_world_with_its_id(tmp_path, fake, capsys):
     run = write_run(tmp_path)
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC, RPC]
-    (reg_call, meas_call) = [c for c in fake.calls if c[0] == "rpc"]
+    assert fake.rpcs() == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
+    (reg_call, meas_call, act_call) = [c for c in fake.calls if c[0] == "rpc"]
     assert reg_call[2]["p_payload"] == {
         "run_id": RUN_ID,
         "session_id": SESSION,
@@ -224,10 +252,41 @@ def test_registration_first_then_measurements_and_world_with_its_id(tmp_path, fa
     i_meas = fake.calls.index(meas_call)
     i_world = fake.calls.index(("insert", "asset"))
     assert i_world > i_meas
-    (asset,) = fake.assets
-    assert asset["kind"] == "world_cloud" and asset["pose"]["registration_id"] == reg_id
+    assert [a["kind"] for a in fake.assets] == ["world_cloud", "point_cloud", "other"]
+    asset = fake.assets[0]
+    assert asset["pose"]["registration_id"] == reg_id
+    # The registered cloud is kept: cloud.ply as a staff-only point_cloud asset, then its
+    # cloud.json, both content addressed in the media bucket.
+    ply, meta = fake.assets[1], fake.assets[2]
+    assert ply["content_hash"] == sha256_file(run / "cloud.ply")
+    assert ply["pose"] == {
+        "schema": "orchados.lidar_cloud/1",
+        "point_count": 10,
+        "crs": "local_enu",
+        "registration_id": reg_id,
+        "origin": {"lat": 37.0662, "lon": 37.3833, "height_m": 850.0},
+    }
+    assert ply["position"] == "SRID=4326;POINT(37.3833 37.0662)"
+    assert ply["position_uncertainty_m"] == 0.03 and ply["mime_type"] == "application/x-ply"
+    assert (ply["pipeline"], ply["pipeline_version"], ply["params_hash"]) == (
+        "orchados-pipeline", "0.1.0", "reg-hash",
+    )  # fmt: skip
+    assert "gps_time_ns" not in json.dumps(ply["pose"])
+    assert meta["content_hash"] == sha256_file(run / "cloud.json")
+    assert meta["mime_type"] == "application/json" and meta["position"] is None
+    assert meta["pose"] == {"schema": "orchados.lidar_cloud/1", "registration_id": reg_id,
+                            "role": "cloud_meta"}  # fmt: skip
+    assert (
+        fake.objects[ply["uri"].removeprefix("storage://media/")]
+        == (run / "cloud.ply").read_bytes()
+    )
+    assert meta["uri"].removeprefix("storage://media/") in fake.objects
     out = capsys.readouterr().out
-    assert f"LiDAR registration {reg_id}: run {RUN_ID[:8]}, review, pending_review" in out
+    assert f"LiDAR registration {reg_id}: run {RUN_ID[:8]}, review, recording" in out
+    # Activated last, after every result is in: only then does it count (and supersede).
+    assert fake.calls[-1] == act_call and act_call[2] == {"p_id": reg_id}
+    assert fake.registrations[RUN_ID]["status"] == "pending_review"
+    assert out.rstrip().endswith(f"LiDAR registration {reg_id}: activated, pending_review")
     assert "8 created, 0 already recorded" in out and "world cloud: recorded" in out
 
 
@@ -237,8 +296,9 @@ def test_upload_registration_idempotent(tmp_path, fake, capsys):
     capsys.readouterr()
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
     out = capsys.readouterr().out
-    assert len(fake.registrations) == 1 and len(fake.measurements) == 8 and len(fake.assets) == 1
+    assert len(fake.registrations) == 1 and len(fake.measurements) == 8 and len(fake.assets) == 3
     assert "0 created, 8 already recorded" in out and "world cloud: already recorded" in out
+    assert "registered cloud: already recorded" in out
     ids = {c[2]["p_payload"]["registration_id"] for c in fake.calls if c[:2] == ("rpc", RPC)}
     assert ids == {fake.registrations[RUN_ID]["id"]}
 
@@ -249,8 +309,9 @@ def test_upload_registration_idempotent(tmp_path, fake, capsys):
     assert lidar_upload.run(run2, SESSION, env=ENV) == 0
     assert "8 created, 0 already recorded" in capsys.readouterr().out
     assert len(fake.registrations) == 2 and len(fake.measurements) == 16
-    assert len(fake.assets) == 2 and len(fake.objects) == 1
-    assert {a["pose"]["registration_id"] for a in fake.assets} == {
+    worlds = fake.of_kind("world_cloud")
+    assert len(worlds) == 2 and len(fake.of_kind("point_cloud")) == 2
+    assert {a["pose"]["registration_id"] for a in worlds} == {
         r["id"] for r in fake.registrations.values()
     }
 
@@ -258,7 +319,7 @@ def test_upload_registration_idempotent(tmp_path, fake, capsys):
 def test_rejected_auto_records_only_the_registration(tmp_path, fake, capsys):
     run = write_run(tmp_path, verdict="rejected_auto")
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC]
+    assert fake.rpcs() == [REGISTRATION_RPC, ACTIVATE_RPC]
     assert fake.registrations[RUN_ID]["status"] == "rejected"
     assert not fake.measurements and not fake.assets and not fake.objects
     out = capsys.readouterr().out
@@ -266,11 +327,42 @@ def test_rejected_auto_records_only_the_registration(tmp_path, fake, capsys):
     assert "crown.json" in out and "world.owc" in out
 
 
+def test_a_failed_upload_leaves_the_registration_recording(tmp_path, fake, capsys):
+    """Activation is the last step: when a result fails to upload the run stays in
+    recording (it supersedes nothing, the owner sees none of it); the re-run then
+    uploads what is missing and activates it."""
+    run = write_run(tmp_path)
+    fake.fail_on = RPC
+    assert lidar_upload.run(run, SESSION, env=ENV) == 1
+    assert ACTIVATE_RPC not in fake.rpcs()
+    assert fake.registrations[RUN_ID]["status"] == "recording"
+    assert "record_lidar_measurements failed" in capsys.readouterr().err
+    fake.fail_on = None
+    assert lidar_upload.run(run, SESSION, env=ENV) == 0
+    assert fake.rpcs()[-3:] == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
+    assert len(fake.registrations) == 1
+    assert fake.registrations[RUN_ID]["status"] == "pending_review"
+    # Once more: same rows, activation again a no-op.
+    assert lidar_upload.run(run, SESSION, env=ENV) == 0
+    assert fake.registrations[RUN_ID]["status"] == "pending_review"
+    assert len(fake.assets) == 3 and len(fake.measurements) == 8
+
+
+def test_activation_superseded_by_a_newer_run_is_success(tmp_path, fake, capsys):
+    """A newer run of the visit was accepted meanwhile: activation gives this one
+    superseded, which is not an error."""
+    run = write_run(tmp_path, verdict="accepted_auto")
+    fake.activate_as = "superseded"
+    assert lidar_upload.run(run, SESSION, env=ENV) == 0
+    assert fake.registrations[RUN_ID]["status"] == "superseded"
+    assert "activated, superseded" in capsys.readouterr().out
+
+
 def test_rejected_without_results_still_records_the_registration(tmp_path, fake):
     """lidar process skips crown and world of a rejected run: only registration.json."""
     run = write_run(tmp_path, verdict="rejected_auto", results=False)
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC]
+    assert fake.rpcs() == [REGISTRATION_RPC, ACTIVATE_RPC]
 
 
 def test_registration_rejected_by_ops_gets_no_results(tmp_path, fake, capsys):
@@ -279,7 +371,8 @@ def test_registration_rejected_by_ops_gets_no_results(tmp_path, fake, capsys):
     run = write_run(tmp_path)
     fake.registrations[RUN_ID] = {"id": str(uuid.uuid4()), "status": "rejected", "payload": {}}
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC] and not fake.assets
+    assert fake.rpcs() == [REGISTRATION_RPC, ACTIVATE_RPC] and not fake.assets
+    assert fake.registrations[RUN_ID]["status"] == "rejected"  # activate: a no-op
     assert "pending_review" not in capsys.readouterr().out
 
 
@@ -309,7 +402,7 @@ def test_allow_unregistered_uploads_without_registration_id(tmp_path, fake):
     assert fake.rpcs() == [RPC]
     (call,) = [c for c in fake.calls if c[0] == "rpc"]
     assert "registration_id" not in call[2]["p_payload"]
-    (asset,) = fake.assets
+    (asset,) = fake.assets  # no registration run, no registered cloud to keep
     assert "registration_id" not in asset["pose"]
 
 
@@ -317,12 +410,14 @@ def test_registration_flag_with_a_separate_output_folder(tmp_path, fake):
     """--registration <run folder> with the reports in <session>.processed/lidar."""
     run = write_run(tmp_path, results=False)
     out = tmp_path / "scan.processed" / "lidar"
-    (out / "crown.json").write_text(json.dumps(crown()))
+    (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
     assert lidar_upload.run(out, SESSION, env=ENV, registration=run) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC, RPC]
-    payload = fake.calls[-1][2]["p_payload"]
+    assert fake.rpcs() == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
+    payload = [c for c in fake.calls if c[:2] == ("rpc", RPC)][-1][2]["p_payload"]
     assert payload["registration_id"] == fake.registrations[RUN_ID]["id"]
     assert payload["measured_at"] == gps_ns_to_iso(REG_START_NS)
+    # The registered cloud comes from the run folder, not the output folder.
+    assert [a["kind"] for a in fake.assets] == ["point_cloud", "other"]
 
 
 def test_registration_checks(tmp_path):
@@ -334,11 +429,64 @@ def test_registration_checks(tmp_path):
     with pytest.raises(LidarUploadError, match="no registration.json"):
         plan_upload(run, SESSION, registration=tmp_path)
     # A report of another parcel than the registration's.
-    other = crown()
+    other = {**crown(), "run_id": RUN_ID}
     other["parcel_id"] = "c0000000-0000-4000-8000-000000000002"
     (run / "crown.json").write_text(json.dumps(other))
     with pytest.raises(LidarUploadError, match="crown.json is of parcel"):
         plan_upload(run, SESSION)
+
+
+def test_results_must_come_from_the_registration_run(tmp_path, monkeypatch, capsys):
+    """Reports and the world cloud carry the run_id of the cloud they were made from
+    (cloud.json); an upload refuses those of another run, and those without one, when a
+    registration is given."""
+    no_sign_in(monkeypatch)
+    run = write_run(tmp_path)
+    other = "6a1d2c3e-0000-4000-8000-0000000000a2"
+    (run / "crown.json").write_text(json.dumps({**crown(), "run_id": other}))
+    with pytest.raises(
+        LidarUploadError, match=f"crown.json was made from registration run {other[:8]}"
+    ):
+        plan_upload(run, SESSION)
+    assert lidar_upload.run(run, SESSION, env=ENV) == 1
+    assert "registration run" in capsys.readouterr().err
+    (run / "crown.json").write_text(json.dumps(crown()))  # no run_id
+    with pytest.raises(LidarUploadError, match="crown.json names no registration run"):
+        plan_upload(run, SESSION)
+    (run / "crown.json").unlink()
+    write_world_cloud(run, run_id=other)
+    with pytest.raises(LidarUploadError, match="world.json was made from registration run"):
+        plan_upload(run, SESSION)
+    write_world_cloud(run)
+    with pytest.raises(LidarUploadError, match="world.json names no registration run"):
+        plan_upload(run, SESSION)
+
+
+def test_unregistered_upload_refuses_results_of_a_registration_run(tmp_path, monkeypatch):
+    """--allow-unregistered is for clouds without a registration (synthetic, demo): a
+    report made from a registration run has to go up with it."""
+    no_sign_in(monkeypatch)
+    out = tmp_path / "scan.processed" / "lidar"
+    out.mkdir(parents=True)
+    (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
+    with pytest.raises(LidarUploadError, match="--registration"):
+        plan_upload(out, SESSION, allow_unregistered=True)
+    (out / "crown.json").write_text(json.dumps(crown()))
+    write_world_cloud(out, run_id=RUN_ID)
+    with pytest.raises(LidarUploadError, match="--registration"):
+        plan_upload(out, SESSION, allow_unregistered=True)
+
+
+def test_registered_cloud_must_be_the_runs(tmp_path, monkeypatch):
+    no_sign_in(monkeypatch)
+    run = write_run(tmp_path)
+    meta = json.loads((run / "cloud.json").read_text())
+    (run / "cloud.json").write_text(json.dumps({**meta, "run_id": "6a1d2c3e-0000"}))
+    with pytest.raises(LidarUploadError, match="cloud.json was made by registration run"):
+        plan_upload(run, SESSION)
+    (run / "cloud.json").unlink()  # a run folder without a cloud: nothing to keep
+    plan = plan_upload(run, SESSION)
+    assert plan.cloud is None
 
 
 def test_ppk_status_none_is_recorded_as_no_ppk(tmp_path, fake):
@@ -352,12 +500,22 @@ def test_dry_run_prints_all_three_payloads(tmp_path, monkeypatch, capsys):
     run = write_run(tmp_path)
     assert lidar_upload.run(run, SESSION, dry_run=True, env={}) == 0
     text = capsys.readouterr().out
-    reg, meas, world = json_blocks(text)
+    reg, meas, world, ply, meta, _activate = json_blocks(text)
     assert reg["rpc"] == REGISTRATION_RPC and reg["p_payload"]["run_id"] == RUN_ID
     assert meas["rpc"] == RPC and meas["p_payload"]["registration_id"] == REGISTRATION_PLACEHOLDER
     assert len(meas["p_payload"]["items"]) == 9
     assert world["world_cloud_asset"]["pose"]["registration_id"] == REGISTRATION_PLACEHOLDER
+    assert ply["point_cloud_asset"]["pose"]["registration_id"] == REGISTRATION_PLACEHOLDER
+    assert meta["cloud_meta_asset"]["mime_type"] == "application/json"
     assert "nothing written" in text and "nothing uploaded" in text
+
+
+def test_dry_run_names_the_activation(tmp_path, monkeypatch, capsys):
+    no_sign_in(monkeypatch)
+    run = write_run(tmp_path)
+    assert lidar_upload.run(run, SESSION, dry_run=True, env={}) == 0
+    blocks = json_blocks(capsys.readouterr().out)
+    assert blocks[-1] == {"rpc": ACTIVATE_RPC, "p_id": REGISTRATION_PLACEHOLDER}
 
 
 def test_dry_run_of_a_rejected_registration(tmp_path, monkeypatch, capsys):
@@ -365,8 +523,8 @@ def test_dry_run_of_a_rejected_registration(tmp_path, monkeypatch, capsys):
     run = write_run(tmp_path, verdict="rejected_auto")
     assert lidar_upload.run(run, SESSION, dry_run=True, env={}) == 0
     text = capsys.readouterr().out
-    (reg,) = json_blocks(text)
-    assert reg["p_payload"]["verdict"] == "rejected_auto"
+    reg, activate = json_blocks(text)
+    assert reg["p_payload"]["verdict"] == "rejected_auto" and activate["rpc"] == ACTIVATE_RPC
     assert "rejected registration, its results would not be uploaded" in text
 
 
@@ -375,14 +533,15 @@ def test_cli_upload_flags(tmp_path, fake, monkeypatch):
 
     run = write_run(tmp_path, results=False)
     out = tmp_path / "scan.processed" / "lidar"
-    (out / "crown.json").write_text(json.dumps(crown()))
+    (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
     for k, v in ENV.items():
         monkeypatch.setenv(k, v)
     assert main(["lidar", "upload", str(out), "--session-id", SESSION]) == 1
     assert not fake.calls
     args = ["lidar", "upload", str(out), "--session-id", SESSION, "--registration", str(run)]
     assert main(args) == 0
-    assert fake.rpcs() == [REGISTRATION_RPC, RPC]
+    assert fake.rpcs() == [REGISTRATION_RPC, RPC, ACTIVATE_RPC]
+    (out / "crown.json").write_text(json.dumps(crown()))  # a synthetic cloud's report
     assert main(["lidar", "upload", str(out), "--session-id", SESSION, "--allow-unregistered"]) == 0
     assert "registration_id" not in fake.calls[-1][2]["p_payload"]
 
@@ -409,7 +568,7 @@ def test_process_upload_records_the_run(small_ppk, tmp_path, monkeypatch, capsys
 
     assert main(["lidar", "process", str(session), "--frontend", "fake", "--upload"]) == 0
     out = capsys.readouterr().out
-    assert client.rpcs()[0] == REGISTRATION_RPC
+    assert client.rpcs()[0] == REGISTRATION_RPC and client.rpcs()[-1] == ACTIVATE_RPC
     (reg,) = client.registrations.values()
     assert reg["payload"]["verdict"] == "review"  # 8 trees: few_trees_checked
     assert f"LiDAR registration {reg['id']}" in out
@@ -417,8 +576,10 @@ def test_process_upload_records_the_run(small_ppk, tmp_path, monkeypatch, capsys
     assert meas and all(p["registration_id"] == reg["id"] for p in meas)
     cloud = json.loads(next((session.parent / "s.processed").rglob("cloud.json")).read_text())
     assert meas[0]["measured_at"] == gps_ns_to_iso(cloud["gps_time_start_ns"])
-    (asset,) = client.assets
+    (asset,) = client.of_kind("world_cloud")
     assert asset["pose"]["registration_id"] == reg["id"]
+    (ply,) = client.of_kind("point_cloud")
+    assert ply["pose"]["registration_id"] == reg["id"] and ply["pose"]["point_count"] > 0
 
 
 # --- local Supabase ------------------------------------------------------------------------
@@ -461,7 +622,7 @@ def test_registration_against_local_supabase(supabase_env, test_sessions, tmp_pa
 
     assert lidar_upload.run(run, session_id, env=creds(supabase_env)) == 0
     text = capsys.readouterr().out
-    assert "review, pending_review" in text
+    assert "review, recording" in text and "activated, pending_review" in text
     assert "8 created, 0 already recorded" in text and "world cloud: recorded" in text
     (reg,) = ops.select(
         "lidar_registration",
@@ -484,6 +645,10 @@ def test_registration_against_local_supabase(supabase_env, test_sessions, tmp_pa
         "asset", {"session_id": f"eq.{session_id}", "kind": "eq.world_cloud", "select": "pose"}
     )
     assert asset["pose"]["registration_id"] == reg["id"]
+    (ply,) = ops.select(
+        "asset", {"session_id": f"eq.{session_id}", "kind": "eq.point_cloud", "select": "pose"}
+    )
+    assert ply["pose"]["registration_id"] == reg["id"] and ply["pose"]["point_count"] == 10
     # Pending: the owner sees neither the measurements nor the world cloud.
     assert owner.select("measurement", {"session_id": f"eq.{session_id}", "select": "id"}) == []
     assert owner.select("asset", {"session_id": f"eq.{session_id}", "select": "id"}) == []

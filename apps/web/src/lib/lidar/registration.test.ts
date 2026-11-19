@@ -89,6 +89,7 @@ describe("reason labels", () => {
     "gnss_residual_high",
     "trunk_spread_high",
     "few_trees_checked",
+    "few_fixes",
     "no_ppk",
     "clock_unlocked",
     "no_recording_json",

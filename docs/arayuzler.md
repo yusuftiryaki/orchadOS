@@ -372,6 +372,18 @@ Ağaca bağlı kesitleri okuyan ekranlar `tree_id` boş satırları atlar (porta
 
 Dünya bulutunun `pose`'u zaman taşımaz (H05).
 
+**`kind = point_cloud`** (`orchados-pipeline lidar upload`, kayıt çalıştırmasının `cloud.ply`'si; yalnız personel, H05; konum bulutun orijini, belirsizlik `point_sigma_m`):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `schema` | metin | `orchados.lidar_cloud/1` |
+| `point_count` | tamsayı | Nokta sayısı |
+| `crs` | `local_enu` | Noktalar bulutun yerel doğu/kuzey/yukarı düzlemindedir |
+| `registration_id` | uuid | Bulutun kaydı (`public.lidar_registration`) |
+| `origin` | `{lat, lon, height_m}` | Yerel düzlemin orijini (`cloud.json`) |
+
+Yanındaki `cloud.json` `kind = other`, `mime_type = application/json`, konumsuz bir satırdır; `pose` `{schema: orchados.lidar_cloud/1, registration_id, role: cloud_meta}`.
+
 `trajectory` satırlarında `pose` ve konum boştur.
 
 ## Ağaç konumları (veritabanından)
@@ -739,12 +751,13 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 ```
 
 - **Çalıştırma klasörü:** `lidar register` her çalıştırmada yeni bir `run_id` (uuid) üretir ve kendi klasörüne yazar. Aynı girdi ve parametrelerle yeniden çalıştırmak yeni bir klasör açar (ön ucun kayıttan oynatması belirlenimli değildir); başka bir çalıştırmanın klasörü değişmez ve silinmez. `method`, `method_version` ve `params_hash` `registration.json`'dakilerdir.
+- **Yörünge ve panoramalar:** `lidar register` ve `lidar process` konum aşamasının yörüngesini `--trajectory <trajectory.json>` ile alır; verilmezse `--processed-root <klasör>` (vars. `<oturum>.processed`) altındaki en yeni `*/trajectory.json` (PPK'lı önce), o da yoksa `gnss/gnss.ubx`'in NAV-PVT'si. Verilen dosya okunamazsa kayıt hata verir. Hangisinin kullanıldığı `registration.json` `trajectory`'dedir. `lidar process`'te dünyanın renkleri `--panoramas` ile ya da aynı kökteki tek `v*/panoramas.json`'dan gelir. `--processed-root` varsayılan `--out`'u `<kök>/lidar/registration`'a taşır. Bulut işlemede (`orchados-process`) kamera çalıştırması `<iş>/out/v<sürüm>_<hash>/`'tadır; betik onun `trajectory.json`, `panoramas.json` ve `trees.json`'unu açıkça verir.
 - **Ölçüm aşamalarının bulutu bulması** (`lidar crown`, `skeleton`, `pruning`, `world`; budamada iki oturum için ayrı ayrı):
   1. `--cloud <klasör>` verildiyse o klasördeki `cloud.ply` ve `cloud.json`;
   2. yoksa `<oturum>/lidar/cloud.ply` (sentetik ve eski düzen);
   3. o da yoksa `<oturum>.processed/lidar/registration/` altında `verdict`'i `rejected_auto` olmayan en yeni çalıştırma (`registration.json` `created_at`).
 
-  Hiçbiri yoksa aşama hata verir. Operasyonun veritabanındaki kararı yerel klasörlere yansımaz; reddedilen bir kaydın yerine başka bir çalıştırma `--cloud` ile seçilir.
+  3. adımda aşama hangi çalıştırmayı seçtiğini yazar. Hiçbiri yoksa aşama hata verir. Operasyonun veritabanındaki kararı yerel klasörlere yansımaz; reddedilen bir kaydın yerine başka bir çalıştırma `--cloud` ile seçilir.
 
 **`lidar/cloud.ply`:** PLY, `binary_little_endian 1.0`, tek `vertex` öğesi. Zorunlu özellikler `x`, `y`, `z` (`float` ya da `double`), isteğe bağlı `intensity` (`float`, `uchar` ya da `ushort`). Liste özellikleri ve başka öğeler reddedilir. `x` doğu, `y` kuzey, `z` yukarı; birim metre; orijin `cloud.json`'daki noktadır. Yerden ve ottan dönen noktalar bulutta kalır; ayıklamayı hat yapar.
 
@@ -758,10 +771,11 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 | `registration_method`, `registration_version` | metin | Bulutu üreten kayıt yöntemi ve sürümü (değerler aşağıda) |
 | `point_sigma_m` | sayı | Nokta gürültüsü ve sürüklenmenin 1σ tahmini (m); ölçüm belirsizliklerine girer |
 | `sensor`, `calibration_id` | metin, boş olabilir | Sensör modeli ve kullanılan kalibrasyon kaydı |
+| `run_id` | uuid, boş olabilir | Bulutu yazan kayıt çalıştırmasının `run_id`'si (`registration.json`); kaydı olmayan bulutta (sentetik, eski düzen) yok |
 
 - Yerel düzlem `orchados_pipeline.geo.LocalFrame`'dir: parsel boyunda milimetre hatası. İki oturumun bulutları farklı orijinli olabilir; karşılaştırma (budama) enlem/boylam üzerinden yapılır.
 - **Ağaç başına ayırma:** Her nokta en yakın gövdeye verilir (Voronoi) ve gövdeden en çok 5 m uzaktaysa tutulur. Zemin her ağaç için ayrı bir düzlem olarak bulunur (ızgara hücrelerinin en alçak noktalarına, aykırıları atarak). Ağacın yükseklikleri bu düzleme göredir, yerden 25 cm'nin altı atılır.
-- **Saklama:** `cloud.ply` ham kayıttan türetilmiş bir dosyadır; portala çıkmaz ve yalnız personele açıktır (H05). Portal, ondan türetilen zamansız [3D dünya bulutunu](#3d-dünya-bulutu) gösterir. Ham MCAP saha verisidir, repoya girmez. `registration.json` ve `frontend/` de yalnız personele açıktır (zaman ve yörünge taşır).
+- **Saklama:** `cloud.ply` ham kayıttan türetilmiş bir dosyadır; portala çıkmaz ve yalnız personele açıktır (H05). Reddedilmemiş bir kayıt çalıştırmasının `cloud.ply` ve `cloud.json`'u `lidar upload` ile medya kovasına (içerik hash'iyle) ve `asset` satırı olarak yüklenir ([Asset `pose` alanı](#asset-pose-alanı)); işleme makinesinin iş klasörü silinse de bulut kalır. Kayıtlı bulutu depodan indirip `--reuse-registration` ile yeniden kullanmak sonraki iştir; bugün `--reuse-registration` yalnız yerel çalıştırma klasörlerine bakar. Büyük bulutlar (yüzlerce MB) tek istekle yüklenir; depolamanın dosya boyutu sınırı buna göre ayarlanmalı, parçalı (TUS) yükleme sonraki iştir. Portal, ondan türetilen zamansız [3D dünya bulutunu](#3d-dünya-bulutu) gösterir. Ham MCAP saha verisidir, repoya girmez. `registration.json` ve `frontend/` de yalnız personele açıktır (zaman ve yörünge taşır).
 
 **`registration_method`** (`<ön uç>+<birleştirme>`) ve **`registration_version`:**
 
@@ -791,7 +805,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 | `reasons` | metin[] | Neden kodları (aşağıda); boş olabilir |
 | `thresholds` | nesne | Kararda kullanılan eşikler (parametrelerden) |
 
-- **Parçalar:** Oturum, `recording.json`'daki `gaps` ve `segments`'ten parçalara bölünür: 2 sn'den uzun her LiDAR boşluğu ve her `bag.N/` başlangıcı yeni parça açar. `recording.json` yoksa parçalar yalnız MCAP'ten çıkarılır. Her parça `{index, bags, start_gps_ns, end_gps_ns, duration_s, imu_rate_hz, restamped, keyframe_count, status, skip_reason, message}` taşır. `status`: `ok`, `failed` (ön uç başarısız; `message`), `skipped`. `skip_reason`: `too_short` (20 sn'den kısa) ya da `imu_rate_low` (IMU mesaj hızı beklenenin yarısının altında; beklenen hız parametredir). `restamped`: `header.stamp` ile MCAP `log_time` arasındaki fark 50 ms'yi ya da eğimin 1'den sapması 10⁻⁴'ü aştığı için ön uca giden kopyada mesaj damgaları `log_time`'a taşındı.
+- **Parçalar:** Oturum, `recording.json`'daki `gaps` ve `segments`'ten parçalara bölünür: 2 sn'den uzun her LiDAR boşluğu ve her `bag.N/` başlangıcı yeni parça açar. `recording.json` yoksa parçalar yalnız MCAP'ten çıkarılır. Her parça `{index, bags, start_gps_ns, end_gps_ns, duration_s, imu_rate_hz, restamped, keyframe_count, status, skip_reason, message}` taşır. `status`: `ok`, `failed` (ön uç başarısız; `message`), `skipped`. `skip_reason`: `too_short` (20 sn'den kısa) ya da `imu_rate_low` (IMU mesaj hızı beklenenin yarısının altında; beklenen hız parametredir). `restamped`: `header.stamp` ile MCAP `log_time` arasındaki fark 50 ms'yi ya da eğimin 1'den sapması 10⁻⁴'ü aştığı için ön uca giden kopyada mesaj damgaları Pi saatine taşındı: parçanın bulut mesajlarına uydurulan doğruyla (`log_time` = kayma + hız × `header.stamp`), eksi `stamp_latency_s` parametresi (sensörden kayda gecikme; vars. 0). Her mesajın kendi `log_time`'ı kopyalanmaz (USB titremesi ve yığılmaları IMU damgalarına geçmesin).
 - **`metrics`:**
 
   | Alan | Anlamı |
@@ -801,6 +815,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `lio_coverage` | Ön ucun pozladığı süre ÷ kayıt süresi |
   | `trunk_spread_p95_m`, `trees_checked` | Gövde tutarlılığı: buluttaki gövde adayları (yerden 0,5–1,5 m, 0,3 m'lik hücrelerde dikey ve ince kümeler; envanter gerekmez) geçişlere ayrılır. Geçiş, LiDAR'ın gövdeye 10 m'den yakın olduğu kesintisiz süredir. En az iki geçişte görülen gövdelerde geçişlerin gövde merkezleri arasındaki en büyük uzaklığın p95'i; `trees_checked` bu gövdelerin sayısı. Hiç gövde yoksa `null` |
   | `gaps_s_total` | LiDAR boşluklarının toplam süresi (s) |
+  | `gnss_fix_fraction` | Yerleştirilen anahtar karelerden `fix` GNSS bağı olanların payı |
   | `frontend_jumps` | Birleştirmeden sonra ön ucun göreli pozundan 10 sigma'dan fazla ayrılan bağ sayısı: GNSS'in ağır bastığı ön uç sıçramaları (ör. sıra benzerliğiyle bir ağaç kayma). Bağlarda sağlam çekirdek (vars. Cauchy) olduğu için tek bir sıçrama PPK'ya yayılmaz. Karara doğrudan etkisi yok |
 
 - **Karar** (başlangıç eşikleri; hepsi parametre, pilot verisiyle sıkılaştırılır):
@@ -808,7 +823,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `verdict` | Koşul |
   | --- | --- |
   | `rejected_auto` | `lio_coverage` < 0,5; ya da PPK'lı ve `gnss_residual_p95_m` > 1,0; ya da `trunk_spread_p95_m` > 0,5; ya da hiç parça çalışmadı |
-  | `accepted_auto` | PPK'lı **ve** `gnss_residual_p95_m` ≤ 0,15 **ve** `trunk_spread_p95_m` ≤ 0,15 (`trees_checked` ≥ 10) **ve** `lio_coverage` ≥ 0,9 **ve** "en iyi `review`" diyen bir neden yok |
+  | `accepted_auto` | PPK'lı **ve** `gnss_residual_p95_m` ≤ 0,15 **ve** `trunk_spread_p95_m` ≤ 0,15 (`trees_checked` ≥ 10) **ve** `lio_coverage` ≥ 0,9 **ve** `gnss_fix_fraction` ≥ 0,5 **ve** "en iyi `review`" diyen bir neden yok |
   | `review` | Geri kalan her durum. PPK'sız bulut hiçbir zaman `accepted_auto` olmaz |
 
 - **Neden kodları (`reasons`):**
@@ -820,30 +835,33 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `gnss_residual_high` | `gnss_residual_p95_m` > 0,15 | PPK'lı ve > 1,0 ise `rejected_auto`, değilse en iyi `review` |
   | `trunk_spread_high` | `trunk_spread_p95_m` > 0,15 | > 0,5 ise `rejected_auto`, değilse en iyi `review` |
   | `few_trees_checked` | `trees_checked` < 10 | En iyi `review` |
+| `few_fixes` | PPK'lı ama yerleştirilen anahtar karelerin yarısından azında (`min_fix_fraction`, vars. 0,5) `fix` GNSS bağı var; artık denetimi az sayıda `fix` noktasına dayanır | En iyi `review` |
   | `no_ppk` | `ppk_status` `ppk` değil | En iyi `review` |
   | `clock_unlocked` | `recording.json` `clock_state_at_start` `pps` değil | En iyi `review` |
   | `no_recording_json` | `recording.json` yok (ör. güç kesintisi); parçalar MCAP'ten | En iyi `review` |
   | `imu_rate_low` | En az bir parça düşük IMU hızıyla atlandı | Bilgi; kapsamayı düşürür |
-  | `restamped` | En az bir parçanın damgaları `log_time`'a taşındı | Bilgi |
+  | `restamped` | En az bir parçanın damgaları Pi saatine taşındı | Bilgi |
 
 **Ön uç çıktısı** (`frontend/`, `schema: orchados.lio_frontend/1`): **iç sözleşme**, hattın kendi içinde ön uç (ayrı container ya da testlerde sahte ön uç) ile kayıt adımının Python kodu arasında. Başka bileşen okumaz; ön uç değiştirilebilir (Point-LIO, sonra GLIM) ve hepsi bu biçimde yazar.
 
-- `frontend.json`: `schema`, `method`, `method_version`, `config_hash`, `imu_rate_hz`, `points_total` ve parça listesi; her parçada `index`, `start_gps_ns`, `end_gps_ns`, `keyframe_count`, `status` (`ok`, `failed`) ve `message`.
+- `frontend.json`: `schema`, `method`, `method_version`, `config_hash`, `imu_rate_hz`, `points_total`, Point-LIO'da ayrıca `blind_m` ve `topics` (oynatılan bulut ve IMU konuları) ve parça listesi; her parçada `index`, `start_gps_ns`, `end_gps_ns`, `keyframe_count`, `status` (`ok`, `failed`) ve `message`.
 - `keyframes.csv`: başlık `segment,index,gps_time_ns,x,y,z,qx,qy,qz,qw,scan`. Poz, parçanın kendi odometri çerçevesinde LiDAR gövdesinin pozudur (metre, birim kuaternyon); parçalar arasında ortak çerçeve yoktur. `scan` tarama dosyasının adıdır.
 - `scans/<segment>_<index>.npz`: `xyz` (N×3 `float32`, LiDAR gövde çerçevesi, anahtar kare anına göre bozulması giderilmiş) ve `intensity` (N `float32`).
-- Anahtar kare aralığı ön ucun parametresidir (başlangıç: 0,5 m, 10° ya da 1 sn'den hangisi önce gelirse). Zamanlar GPS zamanıdır; ön uca giden damgalar Pi saatindedir ([Saat](#saat)).
+- Anahtar kare aralığı ön ucun parametresidir (başlangıç: 0,5 m, 10° ya da 1 sn'den hangisi önce gelirse); kayıt parametrelerinden (`keyframe_dist_m`, `keyframe_angle_deg`, `keyframe_dt_s`, ayrıca `blind_m` ve `frontend_rate`) ön uca geçer, `params_hash`'e girer. Zamanlar GPS zamanıdır; ön uca giden damgalar Pi saatindedir ([Saat](#saat)).
 - **Saklama:** `scans/` ara iş dosyasıdır (medya ya da ölçüm değil; iki saatlik oturumda ≈7 GB). Kayıt tamamlanınca çalıştırma klasöründen silinir; `frontend.json`, `keyframes.csv`, `poses.csv` ve `cloud.ply` kalır. `--keep-frontend-scans` (`lidar register`, `lidar process`) onları tutar.
 
-**LiDAR ölçüm raporları** (`<oturum>.processed/lidar/`): `crown.json` (`orchados.lidar_crown/1`), `skeleton.json` (`orchados.lidar_skeleton/1`), `pruning.json` (`orchados.lidar_pruning/1`). Ortak başlık: `producer` (hat, sürüm, parametre hash'i, aşama), `method`, `method_version`, `session_id`, `parcel_id`, `trees` (ağaç başına nokta sayısı, yön kapsaması, durum: `ok`, `too_few_points`, `one_sided`, `no_points`) ve `measurements`. Bir ölçüm satırı `{tree_id, slot_code, metric, value_numeric | value_category, unit, uncertainty, confidence, method, method_version}` alanlarını taşır. Sayısal değerde belirsizlik zorunludur. Budama raporunda `session_id` sonraki (budama sonrası) oturumdur.
+**LiDAR ölçüm raporları** (`<oturum>.processed/lidar/`): `crown.json` (`orchados.lidar_crown/1`), `skeleton.json` (`orchados.lidar_skeleton/1`), `pruning.json` (`orchados.lidar_pruning/1`). Ortak başlık: `producer` (hat, sürüm, parametre hash'i, aşama), `method`, `method_version`, `session_id`, `parcel_id`, `run_id` (bulutun `cloud.json`'undaki kayıt çalıştırması; budamada sonraki taramanınki; kaydı olmayan bulutta boş), `trees` (ağaç başına nokta sayısı, yön kapsaması, durum: `ok`, `too_few_points`, `one_sided`, `no_points`) ve `measurements`. Bir ölçüm satırı `{tree_id, slot_code, metric, value_numeric | value_category, unit, uncertainty, confidence, method, method_version}` alanlarını taşır. Sayısal değerde belirsizlik zorunludur. Budama raporunda `session_id` sonraki (budama sonrası) oturumdur.
 
 **`record_lidar_measurements(p_session_id, p_payload)`** (yalnız operasyon; `orchados-pipeline lidar upload`) bu satırları `public.measurement`'a `source = algorithm` olarak yazar. Ayrıntısı ve döndürdüğü özet: [lidar-olcumleri.md](lidar-olcumleri.md) §6.
 
 **Kaydın yüklenmesi** (`orchados-pipeline lidar upload <oturum>.processed/lidar --session-id <uuid> --registration <çalıştırma klasörü>`; `lidar process` kayıt klasörünü kendisi verir):
 
-1. Önce kayıt raporu yazılır: `record_lidar_registration(p_session_id, p_payload)`, yük `registration.json`. Aynı `run_id` ikinci kez gelirse yeni satır açılmaz. Dönen kimlik `registration_id`'dir.
-2. Sonra ölçümler `record_lidar_measurements` yükünde `registration_id` ile, `world_cloud` asset'i `pose.registration_id` ile yüklenir ([Asset `pose` alanı](#asset-pose-alanı)).
-3. `verdict`'i `rejected_auto` olan kaydın yalnız raporu yüklenir; ölçümleri ve dünya bulutu yüklenmez.
-4. Kaydı olmayan ölçüm ve dünya bulutu (`--registration` yok) reddedilir; `--allow-unregistered` ile `registration_id` boş yüklenir. Bu bayrak yalnız demo yükleyicisi ve sentetik veri içindir; gerçek kit verisinin her zaman bir kaydı olur.
+1. Önce kayıt raporu yazılır: `record_lidar_registration(p_session_id, p_payload)`, yük `registration.json`. Aynı `run_id` ikinci kez gelirse yeni satır açılmaz. Dönen kimlik `registration_id`'dir. Yeni satır `recording` durumundadır: hiçbir kaydın yerine geçmez, sahibe hiçbir şeyi görünmez.
+2. Sonra ölçümler `record_lidar_measurements` yükünde `registration_id` ile, `world_cloud` asset'i ve kayıtlı bulut (`point_cloud` asset'i ve `cloud.json`'u) `pose.registration_id` ile yüklenir ([Asset `pose` alanı](#asset-pose-alanı)).
+   Ölçüm raporları ve `world.json` (dünya bulutunun yan dosyası) bulutlarının `run_id`'sini taşır; yüklenen kaydın `run_id`'sinden farklı ya da boş olan reddedilir. `--allow-unregistered` ile `run_id`'li rapor ya da dünya bulutu reddedilir (kaydıyla yüklenir).
+3. `verdict`'i `rejected_auto` olan kaydın yalnız raporu yüklenir; ölçümleri, dünya bulutu ve kayıtlı bulutu yüklenmez.
+4. Son adım `activate_lidar_registration(p_id)`'dir (yalnız operasyon): kayıt kararının durumuna geçer (`accepted_auto` → `accepted`, oturumun eski kabulünün yerine geçer; `review` → `pending_review`; `rejected_auto` → `rejected`). İdempotenttir; yükleme yarıda kalırsa kayıt `recording`'de kalır, yeniden çalıştırma eksikleri yükleyip yeniden etkinleştirir. Reddedilen kayıt raporundan hemen sonra etkinleştirilir.
+5. Kaydı olmayan ölçüm ve dünya bulutu (`--registration` yok) reddedilir; `--allow-unregistered` ile `registration_id` boş yüklenir. Bu bayrak yalnız demo yükleyicisi ve sentetik veri içindir; gerçek kit verisinin her zaman bir kaydı olur.
 
 Bekleyen ya da reddedilen bir kaydın ölçümleri ve bulutu sahibe görünmez; kural ve karar fonksiyonu: [veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı).
 

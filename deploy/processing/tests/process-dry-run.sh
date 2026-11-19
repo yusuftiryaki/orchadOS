@@ -25,13 +25,18 @@ case "\$1" in
     ;;
 esac
 EOF
-# orchados-pipeline run writes the run folder with the trees it used.
+# orchados-pipeline run writes the run folder with the trees, the trajectory and the
+# panoramas it made (FAKE_NO_TRAJECTORY=1: no trajectory.json).
 cat >"$T/bin/orchados-pipeline" <<EOF
 #!/usr/bin/env bash
 echo "orchados-pipeline \$* TMPDIR=\${TMPDIR:-}" >>"$LOG"
 if [ "\$1" = run ]; then
   mkdir -p "\$4/v0.1.0_abcdef012345"
   echo '{"trees": []}' >"\$4/v0.1.0_abcdef012345/trees.json"
+  echo '{"panoramas": []}' >"\$4/v0.1.0_abcdef012345/panoramas.json"
+  if [ "\${FAKE_NO_TRAJECTORY:-0}" != 1 ]; then
+    echo '{"points": []}' >"\$4/v0.1.0_abcdef012345/trajectory.json"
+  fi
 fi
 if [ "\$1" = lidar ]; then
   [ -d "\${TMPDIR:-/nonexistent}" ] || { echo "TMPDIR \${TMPDIR:-} missing" >&2; exit 1; }
@@ -75,14 +80,22 @@ absent "^docker"
 
 # lidar/raw present: registration with Point-LIO after the pipeline run, results and
 # temporary files under the work folder; Docker and the front-end image are checked first.
+# The trajectory and the panoramas are the camera run's (under $W/out, not next to the
+# session).
+RUN="$W/out/v0.1.0_abcdef012345"
 p FAKE_LIDAR=1 || fail "LiDAR session failed"
-expect "^$LIDAR --frontend point_lio --out $W/out/lidar/registration --trees $W/out/v0.1.0_abcdef012345/trees.json --upload TMPDIR=$W/tmp\$"
+expect "^$LIDAR --frontend point_lio --out $W/out/lidar/registration --trajectory $RUN/trajectory.json --panoramas $RUN/panoramas.json --trees $RUN/trees.json --upload TMPDIR=$W/tmp\$"
 expect "^docker image inspect orchados-lio-point-lio:local"
 [ "$(grep -n 'orchados-pipeline run' "$LOG" | cut -d: -f1)" -lt "$(grep -n 'lidar process' "$LOG" | cut -d: -f1)" ] ||
   fail "lidar process ran before the pipeline"
 [ "$(grep -n '^docker' "$LOG" | head -n 1 | cut -d: -f1)" -lt "$(grep -n 'orchados-pipeline run' "$LOG" | cut -d: -f1)" ] ||
   fail "Docker was not checked before the pipeline run"
 [ ! -e "$W" ] || fail "work folder was not removed"
+
+# The camera run made no trajectory: the registration falls back to NAV-PVT itself.
+p FAKE_LIDAR=1 FAKE_NO_TRAJECTORY=1 || fail "LiDAR session without trajectory failed"
+expect "^$LIDAR --frontend point_lio --out $W/out/lidar/registration --panoramas $RUN/panoramas.json --trees"
+absent "--trajectory"
 
 # Another front-end image name.
 p FAKE_LIDAR=1 ORCHADOS_POINT_LIO_IMAGE=registry.local/lio:7 || fail "image override failed"

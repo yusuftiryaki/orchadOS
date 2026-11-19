@@ -5,8 +5,9 @@ Spec: docs/superpowers/specs/2026-11-18-lidar-kayit-adimi-design.md (§5, §5.11
 1. Segments of lidar/raw (rawlog.plan_segments); segments whose stamps disagree
    with the log times get a temporary restamped copy for the front end.
 2. Front end (frontend.get_frontend): keyframes + body-frame scans per segment.
-3. Trajectory: the newest trajectory.json of the position stage under
-   <session>.processed/ (a PPK one first), else the receiver's NAV-PVT in
+3. Trajectory: the position stage's trajectory.json given (--trajectory), else the
+   newest one under the processed root (--processed-root, default
+   <session>.processed/; a PPK one first), else the receiver's NAV-PVT in
    gnss/gnss.ubx; the cloud's origin is its first point.
 4. Fusion (fusion.fuse): keyframe poses in ENU.
 5. Cloud: every scan through its pose, self mask, 1 cm voxel dedupe, written
@@ -82,20 +83,45 @@ def default_out_root(session_dir: Path) -> Path:
 # --- trajectory -------------------------------------------------------------------
 
 
-def find_trajectory(session_dir: Path) -> tuple[Trajectory | None, str | None]:
-    """The position stage's newest trajectory.json (a PPK one first), else NAV-PVT."""
+def _shown(path: Path, session_dir: Path) -> str:
+    """path relative to the session's parent folder when it is under it."""
+    try:
+        return str(Path(path).relative_to(Path(session_dir).parent))
+    except ValueError:
+        return str(path)
+
+
+def find_trajectory(
+    session_dir: Path,
+    processed_root: Path | None = None,
+    trajectory: Path | None = None,
+) -> tuple[Trajectory | None, str | None]:
+    """The position stage's trajectory, else the receiver's NAV-PVT.
+
+    trajectory: that trajectory.json (RegistrationError if it cannot be read); else the
+    newest */trajectory.json under processed_root (default <session>.processed), a PPK
+    one first. A trajectory without points falls back to NAV-PVT."""
     session_dir = Path(session_dir)
+    root = Path(processed_root) if processed_root is not None else processed_dir(session_dir)
     found: list[tuple[bool, float, Path, Trajectory]] = []
-    for p in processed_dir(session_dir).glob("*/trajectory.json"):
+    if trajectory is not None:
         try:
-            traj = read_model(Trajectory, p)
-        except (OSError, ValueError):
-            continue
+            traj = read_model(Trajectory, Path(trajectory))
+        except (OSError, ValueError) as exc:
+            raise RegistrationError(f"trajectory {trajectory}: {exc}") from exc
         if traj.points:
-            found.append((traj.ppk_status == PpkStatus.ppk, p.stat().st_mtime, p, traj))
+            return traj, _shown(Path(trajectory), session_dir)
+    else:
+        for p in root.glob("*/trajectory.json"):
+            try:
+                traj = read_model(Trajectory, p)
+            except (OSError, ValueError):
+                continue
+            if traj.points:
+                found.append((traj.ppk_status == PpkStatus.ppk, p.stat().st_mtime, p, traj))
     if found:
         _, _, path, traj = max(found, key=lambda f: (f[0], f[1], str(f[2])))
-        return traj, str(path.relative_to(processed_dir(session_dir).parent))
+        return traj, _shown(path, session_dir)
     ubx = session_dir / "gnss" / "gnss.ubx"
     if ubx.is_file():
         points = trajectory_from_nav_pvt(ubx.read_bytes())
@@ -531,6 +557,9 @@ def decide(metrics: dict, ppk: bool, params: RegistrationParams) -> tuple[str, l
         add("no_recording_json")
     elif metrics.get("clock_state") not in (None, "pps"):
         add("clock_unlocked")
+    fixes = metrics.get("gnss_fix_fraction")
+    if ppk and (fixes is None or fixes < t.min_fix_fraction):
+        add("few_fixes")
     if metrics.get("imu_rate_low_segments"):
         add("imu_rate_low")
     if metrics.get("restamped_segments"):
@@ -585,21 +614,34 @@ def run(
     frontend: Frontend | None = None,
     *,
     keep_frontend_scans: bool = False,
+    trajectory: Path | None = None,
+    processed_root: Path | None = None,
 ) -> tuple[Path, RegistrationReport]:
     """Register the session's raw LiDAR log. Returns the run folder and its report.
     The front end's scans are removed at the end unless keep_frontend_scans.
+    trajectory / processed_root: where the position stage's trajectory is
+    (find_trajectory); processed_root also moves the default out_root to
+    <processed_root>/lidar/registration.
 
-    Raises NoLidarData when there is nothing to register."""
+    Raises NoLidarData when there is nothing to register, RegistrationError when the
+    given trajectory cannot be read."""
     session_dir = Path(session_dir)
     params = params or RegistrationParams()
-    frontend = frontend or get_frontend(params.frontend)
-    out_root = Path(out_root) if out_root is not None else default_out_root(session_dir)
+    frontend = frontend or get_frontend(params.frontend, params)
+    if out_root is None:
+        out_root = (
+            Path(processed_root) / REGISTRATION_DIR
+            if processed_root is not None
+            else default_out_root(session_dir)
+        )
+    out_root = Path(out_root)
     raw = session_dir / RAW_DIR
     recording = read_recording(raw)
     segments = plan_segments(session_dir, params)
     if not segments:
         raise NoLidarData(f"{session_dir}: no LiDAR data in {RAW_DIR}")
     session_id, parcel_id, calibration_id = _session_ids(session_dir, recording)
+    traj, traj_src = find_trajectory(session_dir, processed_root, trajectory)
     run_id = str(uuid.uuid4())
     params_hash = params.params_hash()
     work = out_root / f".work-{run_id}"
@@ -611,7 +653,9 @@ def run(
             if s.skip_reason is not None:
                 continue
             if s.needs_restamp:
-                path = write_restamped(s, work / "restamped" / f"seg{s.index}")
+                path = write_restamped(
+                    s, work / "restamped" / f"seg{s.index}", params.stamp_latency_s
+                )
                 s = replace(s, bag_dirs=[path.parent])
             runnable.append(s)
         if runnable:
@@ -625,7 +669,6 @@ def run(
             )
         shutil.rmtree(work / "restamped", ignore_errors=True)
 
-        traj, traj_src = find_trajectory(session_dir)
         ppk = traj is not None and traj.ppk_status == PpkStatus.ppk
         method = f"{fe.method}+gtsam_{'ppk' if ppk else 'navpvt'}"
         method_version = f"{__version__}+{fe.method_version[:12]}"
@@ -737,6 +780,12 @@ def run(
             "keyframes": len(fe.keyframes),
             "keyframes_placed": len(placed),
             "gnss_factors": fusion.used_gnss,
+            # Share of the placed keyframes with a fix GNSS factor (decide(): few_fixes).
+            "gnss_fix_fraction": (
+                round(sum(1 for _, q, _ in fusion.residuals if q == "fix") / len(placed), 4)
+                if placed
+                else None
+            ),
             "frontend_jumps": fusion.between_outliers,
             "points": n_points,
             "clock_state": (recording or {}).get("clock_state_at_start"),
@@ -789,6 +838,7 @@ def run(
                 point_sigma_m=round(sigma, 4),
                 sensor=params.sensor,
                 calibration_id=calibration_id,
+                run_id=run_id,
             )
             (work / CLOUD_META_FILE).write_text(
                 meta.model_dump_json(indent=2, by_alias=True) + "\n", encoding="utf-8"

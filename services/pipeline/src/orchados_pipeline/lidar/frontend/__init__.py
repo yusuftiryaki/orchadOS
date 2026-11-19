@@ -160,13 +160,24 @@ def read_frontend_output(work_dir: Path) -> FrontendResult:
     )
 
 
-def get_frontend(name: str) -> Frontend:
+def get_frontend(name: str, params=None) -> Frontend:
+    """The front end by name, set up from the registration parameters (RegistrationParams:
+    keyframe spacing, blind radius, playback rate, stamp latency; defaults without)."""
+    from ..models import RegistrationParams
+
+    p = params if params is not None else RegistrationParams()
+    keyframe = {
+        "keyframe_dist_m": p.keyframe_dist_m,
+        "keyframe_angle_deg": p.keyframe_angle_deg,
+        "keyframe_dt_s": p.keyframe_dt_s,
+        "blind_m": p.blind_m,
+    }
     if name == "fake":
         from .fake import FakeFrontend
 
-        return FakeFrontend()
+        return FakeFrontend(**keyframe)
     if name == "point_lio":
         from .point_lio import PointLioFrontend
 
-        return PointLioFrontend()
+        return PointLioFrontend(rate=p.frontend_rate, stamp_latency_s=p.stamp_latency_s, **keyframe)
     raise ValueError(f"unknown LiDAR front end {name!r} (fake, point_lio)")

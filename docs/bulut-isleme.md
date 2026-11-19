@@ -88,7 +88,7 @@ LiDAR'lı oturumlar için makinede ön uç imajı da bulunmalı. İmaj yerelde d
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ORCHADOS_EMAIL`, `ORCHADOS_PASSWORD` | Evet | ops kullanıcısı; servis anahtarı kullanılmaz |
 | `PROCESS_BOUNDARY` | Hayır | `auto` (vars.): envanter oturumu ya da kaydedicide `corner` olayı varsa sınır aşaması; `1`/`0` zorla |
 | `PROCESS_TREES_FROM_DB` | Hayır | `1` (vars.): kesitler veritabanı envanterinden |
-| `PROCESS_LIDAR` | Hayır | `auto` (vars.): oturumda `lidar/raw` varsa hat çalıştıktan sonra `orchados-pipeline lidar process <oturum> --frontend <ön uç> --upload` (kayıt, kalite kararı, taç, 3D dünya, yükleme); `1`/`0` zorla |
+| `PROCESS_LIDAR` | Hayır | `auto` (vars.): oturumda `lidar/raw` varsa hat çalıştıktan sonra `orchados-pipeline lidar process <oturum> --frontend <ön uç> --trajectory … --panoramas … --upload` (kayıt, kalite kararı, taç, 3D dünya, yükleme; yörünge ve panoramalar hattın az önce yazdığı çalıştırma klasöründen); `1`/`0` zorla |
 | `PROCESS_LIDAR_FRONTEND` | Hayır | `point_lio` (vars.): Docker soketi ve ön uç imajı gerekir (aşağıda); `fake` yalnız sentetik oturumlar |
 | `ORCHADOS_POINT_LIO_IMAGE` | Hayır | Ön uç imajı (vars. `orchados-lio-point-lio:local`) |
 | `PROCESS_AI` | Hayır | `1`: yüklemeden sonra `ai-worker run`; `ANTHROPIC_API_KEY` gerekir |

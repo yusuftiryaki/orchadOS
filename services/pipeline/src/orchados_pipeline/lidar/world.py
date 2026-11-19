@@ -959,10 +959,15 @@ def views_from_records(
     return views
 
 
-def default_panoramas(session_dir: Path) -> Path | None:
-    """The only run folder with panoramas next to the session, if there is exactly one."""
+def default_panoramas(session_dir: Path, processed_root: Path | None = None) -> Path | None:
+    """The only run folder with panoramas under processed_root (default: the session's
+    <session>.processed next to it), if there is exactly one."""
     session_dir = Path(session_dir)
-    processed = session_dir.parent / f"{session_dir.name}.processed"
+    processed = (
+        Path(processed_root)
+        if processed_root is not None
+        else session_dir.parent / f"{session_dir.name}.processed"
+    )
     runs = sorted(processed.glob("v*/panoramas.json")) if processed.is_dir() else []
     if len(runs) > 1:
         raise CloudError(
@@ -984,11 +989,16 @@ class WorldReport(BaseModel):
     # 1-sigma point noise of the registration (cloud.json), metres: the asset
     # row's position uncertainty.
     origin_sigma_m: float
+    # run_id of the cloud's registration run (cloud.json); not in world.owc's header,
+    # which the portal reads. lidar upload ties the world cloud to that run only.
+    run_id: str | None = None
     header: dict[str, Any]
     stats: dict[str, Any]
 
 
-def write_world(world: World, out_dir: Path, origin_sigma_m: float) -> WorldReport:
+def write_world(
+    world: World, out_dir: Path, origin_sigma_m: float, run_id: str | None = None
+) -> WorldReport:
     data = encode_world(world)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1003,6 +1013,7 @@ def write_world(world: World, out_dir: Path, origin_sigma_m: float) -> WorldRepo
             stage=STAGE,
         ),
         origin_sigma_m=origin_sigma_m,
+        run_id=run_id,
         header=world.header,
         stats=world.stats,
     )
@@ -1103,20 +1114,22 @@ def run(
     log: Callable[[str], None] = lambda _m: None,
     wood: WoodInputs | None = None,
     cloud_dir: Path | None = None,
+    processed_root: Path | None = None,
 ) -> WorldReport:
     """wood: the skeleton and pruning inputs (WoodInputs; default_wood picks them up).
-    cloud_dir: the cloud's folder (default: resolve_cloud's order)."""
+    cloud_dir: the cloud's folder (default: resolve_cloud's order). processed_root:
+    where default_panoramas looks when panoramas is None."""
     p = WorldParams.load(params_path)
     cloud = load_session_cloud(Path(session_dir), cloud_dir)
     trees = load_tree_positions(Path(trees_path)) if Path(trees_path).is_file() else []
-    source = Path(panoramas) if panoramas else default_panoramas(Path(session_dir))
+    source = Path(panoramas) if panoramas else default_panoramas(Path(session_dir), processed_root)
     views: list[View] = []
     if source is not None:
         recs, base = panorama_records(source)
         views = views_from_records(recs, base, cloud.meta, p)
     w = load_wood(wood, trees, cloud.meta.session_id) if wood is not None else None
     world = build_world(cloud.points, cloud.meta, trees, views, p, log, w)
-    return write_world(world, Path(out_dir), cloud.meta.point_sigma_m)
+    return write_world(world, Path(out_dir), cloud.meta.point_sigma_m, cloud.meta.run_id)
 
 
 def summary_line(report: WorldReport) -> str:

@@ -36,7 +36,7 @@ import uuid
 from collections.abc import Sequence
 from pathlib import Path
 
-from ..rawlog import RAW_DIR, Segment, mcap_files, write_restamped
+from ..rawlog import DEFAULT_TOPICS, RAW_DIR, Segment, mcap_files, segment_topics, write_restamped
 from . import FrontendError, FrontendResult, frontend_dir, read_frontend_output
 
 DEFAULT_IMAGE = "orchados-lio-point-lio:local"
@@ -78,6 +78,7 @@ class PointLioFrontend:
         keyframe_dt_s: float = 1.0,
         docker_args: Sequence[str] = (),
         timeout_s: float | None = None,
+        stamp_latency_s: float = 0.0,
     ):
         self.image = image or os.environ.get(IMAGE_ENV) or DEFAULT_IMAGE
         if not rate > 0:
@@ -95,6 +96,8 @@ class PointLioFrontend:
         }
         self.docker_args = list(docker_args)
         self.timeout_s = timeout_s
+        # Restamped copies made here (segments the caller did not restamp): rawlog.
+        self.stamp_latency_s = float(stamp_latency_s)
         self.method_version = ""  # set by run() from the image
 
     # -- image ------------------------------------------------------------------
@@ -159,12 +162,17 @@ class PointLioFrontend:
         extra: dict[Path, str] = {}
         restamp_root = input_dir / "restamped"
         out_segments = []
+        topics: dict[str, str] | None = None
         for seg in segments:
             if seg.skip_reason is not None:
                 continue
+            if topics is None:
+                # The kit's driver topics, as recorded (recording.json, else by type):
+                # the image plays and subscribes to these.
+                topics = segment_topics(seg)
             bags = [Path(b) for b in seg.bag_dirs]
             if seg.needs_restamp and all(_within(b, raw) is not None for b in bags):
-                copy = write_restamped(seg, restamp_root / f"seg{seg.index}")
+                copy = write_restamped(seg, restamp_root / f"seg{seg.index}", self.stamp_latency_s)
                 bags = [copy.parent]
             paths = []
             for bag in bags:
@@ -185,6 +193,7 @@ class PointLioFrontend:
             "rate": self.rate,
             "keyframe": self.keyframe,
             "blind_m": self.blind_m,
+            "topics": topics or dict(DEFAULT_TOPICS),
         }
         mounts = []
         if restamp_root.is_dir():
@@ -271,7 +280,7 @@ class PointLioFrontend:
                     f"point_lio front end: image {self.image} exited with {proc.returncode}; "
                     f"last output:\n{tail}"
                 )
-            self._stamp_version(out_dir, info)
+            self._stamp_version(out_dir, info, spec["topics"])
             result = read_frontend_output(work_dir)
         finally:
             # Restamped copies are large and only the image needs them.
@@ -280,7 +289,7 @@ class PointLioFrontend:
             raise FrontendError(f"point_lio front end: output method {result.method!r}")
         return result
 
-    def _stamp_version(self, out_dir: Path, info: dict) -> None:
+    def _stamp_version(self, out_dir: Path, info: dict, topics: dict | None = None) -> None:
         """frontend.json: method_version with the image id; the image's own version kept."""
         path = out_dir / "frontend.json"
         try:
@@ -292,6 +301,13 @@ class PointLioFrontend:
             raise FrontendError(
                 f"point_lio front end: image {self.image} ({body.get('method_version')}) does "
                 f"not apply blind_m; rebuild it with `docker build -t {self.image} {RECIPE_DIR}`"
+            )
+        if topics and topics != DEFAULT_TOPICS and body.get("topics") != topics:
+            # Images before recipe 3 play the default topics only.
+            raise FrontendError(
+                f"point_lio front end: image {self.image} ({body.get('method_version')}) does "
+                f"not take the topics {topics}; rebuild it with "
+                f"`docker build -t {self.image} {RECIPE_DIR}`"
             )
         own = body.get("method_version")
         body["image"] = {"name": self.image, "id": info["id"], "version": own}

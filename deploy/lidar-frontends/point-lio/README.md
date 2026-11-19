@@ -18,7 +18,7 @@ Point-LIO (`hku-mars/Point-LIO`) ve kullandığımız ROS 2 portu (`dfloreaa/poi
 | Taban imaj | `ros:humble-ros-base-jammy@sha256:d9f14e84747bea639a65e00cf871d2c68ae55385d2acf6239614de0cadb41dcc` |
 | Point-LIO ROS 2 portu | `https://github.com/dfloreaa/point_lio_ros2` @ `a8e2d0d5090af97ead8dd4fac3d37cf3dbb33ff7` (2025-08-14) |
 | L2 ayarlarının kaynağı | `https://github.com/unitreerobotics/point_lio_unilidar` @ `18ed5976d8fab2bd8a5148c26a40692bd3c0dc91`: `config/unilidar_l2.yaml`, `launch/mapping_unilidar_l2.launch` |
-| Tarif sürümü | `ORCHADOS_RECIPE_VERSION=2` (Dockerfile; 2: `blind_m`, anahtar kare taraması aradaki taramaları da taşır) |
+| Tarif sürümü | `ORCHADOS_RECIPE_VERSION=3` (Dockerfile; 2: `blind_m`, anahtar kare taraması aradaki taramaları da taşır; 3: giriş konuları `segments.json`'dan) |
 
 İmajın yazdığı `method_version` `<commit[:7]>-r<tarif>` biçimindedir (şu an `a8e2d0d-r2`). Hattın çağırıcısı bunun önüne imaj kimliğinin (`docker image inspect`, içerik hash'i) ilk 12 hanesini ekler: `885990e2c016-a8e2d0d-r2` (tasarım §5.4, §5.6). `config_hash`, ayar dosyasının SHA-256'sı ile çalışma anındaki `blind_m`'den hesaplanır. Tarif, yama, ayar ya da kaydedici sonuçları değiştirebilecek biçimde değişirse `ORCHADOS_RECIPE_VERSION` artırılır.
 
@@ -66,18 +66,20 @@ docker run --rm --network none --user "$(id -u):$(id -g)" \
   ],
   "rate": 1.0,
   "keyframe": {"dist_m": 0.5, "angle_deg": 10, "dt_s": 1.0},
-  "blind_m": 0.6
+  "blind_m": 0.6,
+  "topics": {"points": "/unilidar/cloud", "imu": "/unilidar/imu"}
 }
 ```
 
 - `mcap`: göreli yollar `/in/session`'a göredir; mutlak yollar olduğu gibi kullanılır (hattın damgaları düzeltilmiş geçici kopyaları `/in/restamped` ya da `/in/extra/<n>` bağlamasıyla verilir).
 - `blind_m`: Point-LIO'nun kör menzili, metre (yoksa 0,6).
+- `topics`: LiDAR bulutu ve IMU konuları (yoksa `/unilidar/cloud`, `/unilidar/imu`). Hat bunları kayıttan bulur (`recording.json`, yoksa mesaj türü). Giriş noktası Point-LIO'yu `-p common.lid_topic:=… -p common.imu_topic:=…` ile başlatır, `ros2 bag play --topics` ve QoS ayarlarını (`.work/qos_overrides.yaml`, `config/qos_overrides.yaml` ile aynı değerler) bu konulara göre kurar; kaydedici de bunlara abone olur. Tarif 2 imajı varsayılan konular dışında reddedilir.
 - Zaman: kayıttaki damgalar Unix (UTC) ns'dir; `gps_ns = unix_ns − 315964800·10⁹ + 18·10⁹`.
 - Her dosya ilk mesajının zamanına göre sıralanır ve `--start-offset` ile parçanın başından oynatılır. Humble'ın `ros2 bag play`'inde süre sınırı yok; kaydedici `/clock` parça sonunu 0,5 sn geçince işaret bırakır, giriş noktası oynatıcıyı durdurur. Parça dışındaki odometri ve taramalar yazılmaz.
 
 **Çıkış** `/out/`:
 
-- `frontend.json`: `schema: orchados.lio_frontend/1`, `method: point_lio`, `method_version`, `config_hash`, `blind_m`, `segments[]` (`index`, `start_gps_ns`, `end_gps_ns`, `keyframe_count`, `status` `ok`/`failed`, `message` (başarılıysa `null`), ayrıca `imu_rate_hz`, `points_total`, `keyframes_recorded`, `odometry_count`), `imu_rate_hz` (parçaların toplamından), `points_total` (parça pencerelerindeki giriş noktaları), `rate`, `keyframe`, `source`.
+- `frontend.json`: `schema: orchados.lio_frontend/1`, `method: point_lio`, `method_version`, `config_hash`, `blind_m`, `topics`, `segments[]` (`index`, `start_gps_ns`, `end_gps_ns`, `keyframe_count`, `status` `ok`/`failed`, `message` (başarılıysa `null`), ayrıca `imu_rate_hz`, `points_total`, `keyframes_recorded`, `odometry_count`), `imu_rate_hz` (parçaların toplamından), `points_total` (parça pencerelerindeki giriş noktaları), `rate`, `keyframe`, `source`.
 - `keyframes.csv`: `segment,index,gps_time_ns,x,y,z,qx,qy,qz,qw,scan`. Poz, parçanın kendi odometri çerçevesinde **LiDAR gövdesinin** pozudur: `T_WL = T_WI · T_IL`. Çerçevenin eksenleri Point-LIO'nun `camera_init`'idir (yerçekimine hizalı); başlangıç noktası parçanın ilk anahtar karesindeki LiDAR konumuna taşınır. Yalnız `ok` parçaların satırları yazılır.
 - `scans/<segment>_<index>.npz`: `xyz` (N×3 float32, LiDAR gövde çerçevesi, anahtar kare anına göre düzeltilmiş), `intensity` (N float32). Anahtar karenin kendi taraması ve bir sonraki anahtar kareye kadarki bütün taramalar (sahte ön uçtaki gibi; aradaki taramalar kaybolmaz). Başarısız parçaların taramaları silinir; taraması yazılamamış satır düşer.
 - `logs/`: parça başına Point-LIO, kaydedici ve oynatıcı günlükleri (sözleşme dışı, hata ayıklama için). `.work/`: ara dosyalar.
@@ -129,6 +131,7 @@ Bu makinede (8 çekirdek, 7,7 GB RAM, 2026-11-19) yapılanlar:
 - **Doğruluk (sentetik):** Anahtar kare konumları, ilk anahtar kareye göre gerçek LiDAR yörüngesinden ortalama 5 mm / en çok 12 mm (parça 0, 5,6 m yol) ve ortalama 14 mm / en çok 20 mm (parça 1, hareket hâlindeyken başlıyor, 7,0 m yol) sapıyor. Hareket hâlindeki anahtar karelerde duvar, zemin ve tavan noktalarının düzlemden sapması (std ~1,5 cm) duran ilk karedekiyle aynı: bozulma düzeltmesi çalışıyor (düzeltmesiz 0,6 m/sn'de 6 cm'lik yayılma beklenirdi). Düzeltme formülü ayrıca sayısal olarak denendi (1 m/sn ve 0,55 rad/sn'de 0,05 mm).
 - **Hata yolları** (hız 2,0): kayıttan sonraya düşen pencere `failed` / "no odometry from point_lio in the segment window"; olmayan MCAP `failed` / "missing MCAP …"; kaydın son 3 sn'sini kapsayan pencere `ok` (3 anahtar kare). Başarısız parçaların satırları ve taramaları çıktıda yok.
 - **Tarif 2** (`blind_m`, birikimli anahtar kare taraması) aynı makinede yeniden derlendi (önbellekle ~3 dk, imaj kimliği `885990e2c016`, 1,69 GB). Duman testi aynı sonucu verdi (14 + 14 anahtar kare; ortalama 5 / 14 mm, en çok 12 / 20 mm).
+- **Tarif 3** (giriş konuları `segments.json`'dan) yeniden derlendi (önbellekle ~3 dk). Varsayılan konularla duman testi tarif 2 ile aynı sonucu verdi (14 + 14 anahtar kare; ortalama 5 / 14 mm, en çok 12 / 20 mm); `frontend.json` `topics` taşıyor. Farklı konu adlı bir kayıtla imaj içinde uçtan uca deneme yapılmadı.
 - Point-LIO SIGINT ile temiz kapanıyor ("catch sig 2"); `entrypoint.sh` ve `smoke.sh` shellcheck'ten geçiyor.
 
 ### Uçtan uca: hat + imaj (tarif 2, sentetik hareketli tarama)

@@ -122,9 +122,18 @@ orchados-pipeline "${args[@]}"
 
 if [ "$lidar" = "1" ]; then
   largs=(lidar process "$SESSION" --frontend "$frontend" --out "$OUT/lidar/registration")
-  trees=("$OUT"/*/trees.json)
-  if [ -f "${trees[0]}" ]; then
-    largs+=(--trees "${trees[0]}")
+  # The camera run just written (the newest v<version>_<hash>/ under $OUT): its
+  # trajectory (PPK) places the cloud, its panoramas colour the world. They are not in
+  # <session>.processed, where lidar process would look by default.
+  run_dir=""
+  for d in "$OUT"/v*/; do
+    [ -d "$d" ] || continue
+    if [ -z "$run_dir" ] || [ "$d" -nt "$run_dir" ]; then run_dir="${d%/}"; fi
+  done
+  if [ -n "$run_dir" ]; then
+    for f in trajectory panoramas trees; do
+      if [ -f "$run_dir/$f.json" ]; then largs+=("--$f" "$run_dir/$f.json"); fi
+    done
   fi
   largs+=(--upload)
   # Temporary files (e.g. the front end's inputs) under the work folder: a sibling

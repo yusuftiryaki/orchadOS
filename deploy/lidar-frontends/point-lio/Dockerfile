@@ -56,7 +56,7 @@ FROM ${BASE_IMAGE}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG POINT_LIO_REPO=https://github.com/dfloreaa/point_lio_ros2.git
 ARG POINT_LIO_COMMIT=a8e2d0d5090af97ead8dd4fac3d37cf3dbb33ff7
-ENV ORCHADOS_RECIPE_VERSION=2 \
+ENV ORCHADOS_RECIPE_VERSION=3 \
     POINT_LIO_REPO=${POINT_LIO_REPO} \
     POINT_LIO_COMMIT=${POINT_LIO_COMMIT} \
     ROS_LOCALHOST_ONLY=1 \

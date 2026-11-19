@@ -255,8 +255,9 @@ def test_summary_lines():
 # --- world cloud ---------------------------------------------------------------------------
 
 
-def write_world_cloud(out: Path, session=SESSION, parcel=PARCEL) -> None:
-    """A small world.owc + world.json from a synthetic plot, written by the world stage."""
+def write_world_cloud(out: Path, session=SESSION, parcel=PARCEL, run_id=None) -> None:
+    """A small world.owc + world.json from a synthetic plot, written by the world stage
+    (run_id: the registration run of its cloud)."""
     import numpy as np
 
     from orchados_pipeline.lidar.synthetic import make_plot
@@ -266,7 +267,7 @@ def write_world_cloud(out: Path, session=SESSION, parcel=PARCEL) -> None:
         [["young"]], np.random.default_rng(2), leafy=True, session_id=session, parcel_id=parcel
     )
     world = build_world(plot.points, plot.meta, plot.positions, [], WorldParams(voxel_m=0.3))
-    write_world(world, out, plot.meta.point_sigma_m)
+    write_world(world, out, plot.meta.point_sigma_m, run_id=run_id)
 
 
 class FakeCatalog:

@@ -14,7 +14,6 @@ IN=${ORCHADOS_IN:-/in}
 OUT=${ORCHADOS_OUT:-/out}
 CONFIG=${POINT_LIO_CONFIG:-/opt/orchados/config/unilidar_l2.yaml}
 REC=/opt/orchados/keyframe_recorder.py
-QOS=/opt/orchados/config/qos_overrides.yaml
 POINT_LIO_BIN=/opt/point_lio_ws/install/lib/point_lio/pointlio_mapping
 READY_TIMEOUT_S=${READY_TIMEOUT_S:-60}
 IDLE_S=${RECORDER_IDLE_S:-5}
@@ -68,6 +67,7 @@ run_segment() {
 
   "$POINT_LIO_BIN" --ros-args --params-file "$CONFIG" -p use_sim_time:=true \
     -p "preprocess.blind:=$BLIND" \
+    -p "common.lid_topic:=$CLOUD_TOPIC" -p "common.imu_topic:=$IMU_TOPIC" \
     >"$LOGS/segment_${idx}_point_lio.log" 2>&1 &
   PL_PID=$!
   python3 "$REC" record --segments "$SEGMENTS" --index "$idx" \
@@ -102,7 +102,7 @@ run_segment() {
       [ -e "$seg/past_end" ] && break
       log "segment $idx: play $path from +${offset} s"
       ros2 bag play "$path" --storage mcap --clock --rate "$RATE" \
-        --start-offset "$offset" --delay 1 --topics /unilidar/cloud /unilidar/imu \
+        --start-offset "$offset" --delay 1 --topics "$CLOUD_TOPIC" "$IMU_TOPIC" \
         --qos-profile-overrides-path "$QOS" --disable-keyboard-controls \
         >>"$LOGS/segment_${idx}_play.log" 2>&1 &
       PLAY_PID=$!
@@ -146,6 +146,11 @@ INDICES=$(python3 "$REC" plan --segments "$SEGMENTS" --session "$IN/session" --w
 RATE=$(cat "$WORK/rate")
 # Point-LIO's blind range (m) from segments.json (default 0.6: the kit's mast).
 BLIND=$(cat "$WORK/blind")
+# Input topics from segments.json (default /unilidar/cloud, /unilidar/imu) and the
+# QoS overrides of ros2 bag play for them (as config/qos_overrides.yaml).
+CLOUD_TOPIC=$(cat "$WORK/cloud_topic")
+IMU_TOPIC=$(cat "$WORK/imu_topic")
+QOS=$WORK/qos_overrides.yaml
 for idx in $INDICES; do
   run_segment "$idx"
 done
