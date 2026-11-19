@@ -150,15 +150,6 @@ def test_fake_skips_segments_with_a_reason(session, tmp_path):
     assert res.keyframes == [] and res.segments == []
 
 
-def test_point_lio_placeholder_says_what_is_missing(session, tmp_path):
-    dest, _, segs = session
-    fe = get_frontend("point_lio")
-    if type(fe).__name__ != "PointLioPending":
-        pytest.skip("the Point-LIO runner exists")
-    with pytest.raises(NotImplementedError, match="Point-LIO"):
-        fe.run(dest, segs, tmp_path)
-
-
 def test_scan_paths_are_relative_in_csv(session, tmp_path):
     dest, _, segs = session
     FakeFrontend().run(dest, segs, tmp_path)

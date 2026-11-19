@@ -67,6 +67,7 @@ run_segment() {
   log "segment $idx: window $START_UNIX_NS..$END_UNIX_NS (Unix ns), rate $RATE"
 
   "$POINT_LIO_BIN" --ros-args --params-file "$CONFIG" -p use_sim_time:=true \
+    -p "preprocess.blind:=$BLIND" \
     >"$LOGS/segment_${idx}_point_lio.log" 2>&1 &
   PL_PID=$!
   python3 "$REC" record --segments "$SEGMENTS" --index "$idx" \
@@ -143,6 +144,8 @@ INDICES=$(python3 "$REC" plan --segments "$SEGMENTS" --session "$IN/session" --w
   exit 2
 }
 RATE=$(cat "$WORK/rate")
+# Point-LIO's blind range (m) from segments.json (default 0.6: the kit's mast).
+BLIND=$(cat "$WORK/blind")
 for idx in $INDICES; do
   run_segment "$idx"
 done
