@@ -11,11 +11,14 @@ import type { Client } from "@/lib/supabase/types";
 // runs waiting for review. The table is readable by org staff only; every
 // query runs as the signed-in user.
 
+// recording: the pipeline is still uploading the run's measurements and world
+// cloud (record_lidar_registration until activate_lidar_registration).
 export const REGISTRATION_STATUSES = [
   "pending_review",
   "accepted",
   "rejected",
   "superseded",
+  "recording",
 ] as const;
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 export type AutoVerdict = "accepted_auto" | "review" | "rejected_auto";
@@ -87,7 +90,7 @@ export function registrationOf(
   return {
     id: row.id,
     sessionId: row.session_id,
-    // The table's check constraint allows these four only.
+    // The table's check constraint allows these five only.
     status: isStatus(row.status) ? row.status : "pending_review",
     autoVerdict: row.auto_verdict as AutoVerdict,
     ppkStatus: row.ppk_status,
@@ -120,9 +123,15 @@ export interface RegistrationBand {
 
 // The band of a visit from its runs (newest first): the newest run, except
 // that a run still waiting for review comes first (the newest of them), so
-// the ops dashboard's link always lands on a run that can be decided.
+// the ops dashboard's link always lands on a run that can be decided. A run
+// still being uploaded (recording) comes last: it may be an upload that
+// failed, and the visit's activated runs say more; it is on the band only
+// when the visit has no other run.
 export function registrationBand(runs: LidarRegistration[]): RegistrationBand | null {
-  const current = runs.find((r) => r.status === "pending_review") ?? runs[0];
+  const current =
+    runs.find((r) => r.status === "pending_review") ??
+    runs.find((r) => r.status !== "recording") ??
+    runs[0];
   if (!current) return null;
   const counts = new Map<RegistrationStatus, number>();
   for (const r of runs) {
@@ -175,6 +184,7 @@ export async function loadRegistrations(
 
 export type DecideError =
   | "not_pending"
+  | "newer_accepted"
   | "note_required"
   | "forbidden"
   | "not_found"
@@ -187,7 +197,8 @@ export type DecideResult =
 
 const MAX_NOTE = 2000;
 
-// decide_lidar_registration errors: not_pending (55000), invalid_input
+// decide_lidar_registration errors: not_pending (55000), newer_accepted
+// (P0001; accepting a run older than the visit's accepted one), invalid_input
 // (22023; the note on a reject), forbidden and demo_read_only (42501),
 // not_found (P0002).
 export function decideErrorOf(error: {
@@ -196,6 +207,7 @@ export function decideErrorOf(error: {
   details?: string | null;
 }): DecideError {
   if (error.message === "not_pending" || error.code === "55000") return "not_pending";
+  if (error.message === "newer_accepted") return "newer_accepted";
   if (error.message === "demo_read_only") return "demo_read_only";
   if (error.message === "not_found" || error.code === "P0002") return "not_found";
   if (error.message === "forbidden" || error.code === "42501") return "forbidden";
@@ -242,11 +254,15 @@ export interface PendingRegistration {
   visitTime: string;
   createdAt: string;
   reasons: string[];
+  // The visit has a 3D world cloud: the row links to the staff world. The
+  // decision is taken in the row either way.
+  hasWorld: boolean;
 }
 
 const PENDING_LIMIT = 100;
 
-// Runs waiting for review in the user's orgs, the longest waiting first.
+// Runs waiting for review in the user's orgs, the longest waiting first
+// (recording runs are still being uploaded and are not listed).
 export async function listPendingRegistrations(supabase: Client): Promise<PendingRegistration[]> {
   const { data, error } = await supabase
     .from("lidar_registration")
@@ -258,7 +274,18 @@ export async function listPendingRegistrations(supabase: Client): Promise<Pendin
     .order("id")
     .limit(PENDING_LIMIT);
   if (error) throw error;
-  return (data ?? []).map((row) => ({
+  const rows = data ?? [];
+  const withWorld = new Set<string>();
+  if (rows.length > 0) {
+    const clouds = await supabase
+      .from("asset")
+      .select("session_id")
+      .eq("kind", "world_cloud")
+      .in("session_id", [...new Set(rows.map((r) => r.session_id))]);
+    if (clouds.error) throw clouds.error;
+    for (const c of clouds.data ?? []) if (c.session_id) withWorld.add(c.session_id);
+  }
+  return rows.map((row) => ({
     id: row.id,
     parcelId: row.parcel_id,
     parcelName: row.parcel?.name ?? "",
@@ -267,6 +294,7 @@ export async function listPendingRegistrations(supabase: Client): Promise<Pendin
     visitTime: row.session ? sessionTime(row.session) : row.created_at,
     createdAt: row.created_at,
     reasons: row.reasons ?? [],
+    hasWorld: withWorld.has(row.session_id),
   }));
 }
 

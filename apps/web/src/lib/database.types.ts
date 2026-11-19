@@ -4854,6 +4854,35 @@ export type Database = {
     };
     Functions: {
       account_phone_change_allowed: { Args: { p_user_id: string }; Returns: boolean };
+      activate_lidar_registration: {
+        Args: { p_id: string };
+        Returns: {
+          auto_verdict: string;
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          decision_note: string | null;
+          id: string;
+          method: string;
+          method_version: string;
+          metrics: NonNullable<Json>;
+          org_id: string;
+          params_hash: string;
+          parcel_id: string;
+          ppk_status: string;
+          reasons: string[];
+          recorded_by: string | null;
+          run_id: string;
+          session_id: string;
+          status: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "lidar_registration";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       add_field_survey_boundary: {
         Args: {
           p_ring: Json;

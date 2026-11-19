@@ -82,6 +82,18 @@ describe("registration band", () => {
     expect(html).not.toContain("registration-accept");
   });
 
+  it("recording: the upload is under way, no buttons even for ops", () => {
+    const html = render({ status: "recording", autoVerdict: "accepted_auto" }, { ops: true });
+    expect(html).toContain('data-status="recording"');
+    expect(html).toContain("LiDAR kaydı yükleniyor");
+    expect(html).toContain("Hat bu kaydın ölçümlerini ve bulutunu yüklüyor");
+    // Not "Otomatik kabul": the verdict takes effect on activation.
+    expect(html).not.toContain("Otomatik kabul");
+    expect(html).toContain("Kayıt ");
+    expect(html).not.toContain("registration-accept");
+    expect(html).not.toContain("registration-reject");
+  });
+
   it("accepted: who decided, or the automatic acceptance", () => {
     const byOps = render({
       status: "accepted",

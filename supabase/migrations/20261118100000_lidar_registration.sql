@@ -10,18 +10,28 @@
 -- 1. public.lidar_registration: one row per register run (run_id), with the
 --    report's metrics, verdict and reasons and the decision. Rows are never
 --    deleted; only the decision columns change, through the functions below:
---    pending_review -> accepted | rejected (once, by ops), accepted ->
---    superseded (a later accepted run of the same session). At most one
---    accepted row per session.
--- 2. record_lidar_registration(): ops (the pipeline) records a run; the same
---    run again returns the same row. Initial status from the verdict:
---    accepted_auto -> accepted, review -> pending_review, rejected_auto ->
---    rejected. An accepted run supersedes the session's previous accepted one.
+--    recording -> the status the verdict gives (on activation), pending_review
+--    -> accepted | rejected (once, by ops), accepted -> superseded (a later
+--    accepted run of the same session). At most one accepted row per session.
+--    Accepting a run also closes the session's runs in review that are older
+--    than it (pending_review -> superseded, no decision); a run activated
+--    after a newer run was accepted goes straight to superseded, and ops
+--    cannot accept a run in review older than the accepted one
+--    (newer_accepted).
+-- 2. record_lidar_registration(): ops (the pipeline) records a run as
+--    `recording`: readers do not see it, it supersedes nothing and it is not
+--    in review yet. The same run again returns the same row.
+-- 2b. activate_lidar_registration(): once the run's measurements and world
+--    cloud are uploaded, the pipeline activates it: accepted_auto -> accepted,
+--    review -> pending_review, rejected_auto -> rejected. Only now does an
+--    accepted run supersede the session's previous accepted one, so a failed
+--    upload leaves the visit's current values visible. Idempotent.
 -- 3. decide_lidar_registration(): ops accepts or rejects a pending run; a note
 --    is required to reject; accepting supersedes the previous accepted run.
 -- 4. measurement.registration_id: the registration a LiDAR measurement came
 --    from (same session, enforced by the foreign key); record_lidar_measurements
---    takes it as payload.registration_id, refuses a rejected registration and
+--    takes it as payload.registration_id (a recording run included, uploads
+--    come before activation), refuses a rejected registration and
 --    counts "already exists" per registration, so a new run adds its rows next
 --    to the old ones.
 -- 5. asset.pose.registration_id: the same for the world cloud (validated and
@@ -57,7 +67,9 @@ create table public.lidar_registration (
   metrics jsonb not null default '{}' check (jsonb_typeof(metrics) = 'object'),
   auto_verdict text not null check (auto_verdict in ('accepted_auto', 'review', 'rejected_auto')),
   reasons text[] not null default '{}',
-  status text not null check (status in ('accepted', 'rejected', 'pending_review', 'superseded')),
+  -- recording: uploads of the run under way (record_lidar_registration until
+  -- activate_lidar_registration); seen by staff only, never by readers.
+  status text not null check (status in ('recording', 'accepted', 'rejected', 'pending_review', 'superseded')),
   -- Ops' decision of a pending run; empty for an automatic verdict. A
   -- superseded row keeps the decision it had.
   decided_by uuid references auth.users (id) on delete set null,
@@ -73,8 +85,11 @@ create table public.lidar_registration (
   -- it left pending_review it always does (decided_by may later be emptied
   -- when the account is deleted).
   check (auto_verdict = 'review' or (decided_at is null and decided_by is null and decision_note is null)),
-  check (status <> 'pending_review' or (decided_at is null and decided_by is null and decision_note is null)),
-  check (auto_verdict <> 'review' or status = 'pending_review' or decided_at is not null),
+  check (status not in ('recording', 'pending_review')
+         or (decided_at is null and decided_by is null and decision_note is null)),
+  -- (A review run closed by a newer accepted run is superseded undecided.)
+  check (auto_verdict <> 'review' or status in ('recording', 'pending_review', 'superseded')
+         or decided_at is not null),
   check (status <> 'rejected' or auto_verdict = 'rejected_auto' or length(btrim(coalesce(decision_note, ''))) > 0)
 );
 comment on table public.lidar_registration is
@@ -95,8 +110,10 @@ grant all on public.lidar_registration to service_role;
 create policy lidar_registration_select on public.lidar_registration for select to authenticated
   using (org_id in (select authz.user_org_ids()));
 
--- Only the decision changes, and only along pending_review -> accepted |
--- rejected and accepted -> superseded.
+-- Only the decision changes, and only along recording -> the status of its
+-- verdict or superseded (activate_lidar_registration), pending_review ->
+-- accepted | rejected (decide_lidar_registration) or superseded (a newer run
+-- was accepted; no decision) and accepted -> superseded.
 create function private.lidar_registration_guard()
 returns trigger
 language plpgsql
@@ -110,7 +127,21 @@ begin
      is distinct from (to_jsonb(old) - '{status,decided_by,decided_at,decision_note}'::text[]) then
     raise exception 'only the decision of a lidar_registration changes' using errcode = '42501';
   end if;
+  if old.status = 'recording'
+     and (new.status = 'superseded'
+          or new.status = (case old.auto_verdict
+                             when 'accepted_auto' then 'accepted'
+                             when 'review' then 'pending_review'
+                             when 'rejected_auto' then 'rejected'
+                           end))
+     and new.decided_by is null and new.decided_at is null and new.decision_note is null then
+    return new;
+  end if;
   if old.status = 'pending_review' and new.status in ('accepted', 'rejected') then
+    return new;
+  end if;
+  if old.status = 'pending_review' and new.status = 'superseded'
+     and new.decided_by is null and new.decided_at is null and new.decision_note is null then
     return new;
   end if;
   if old.status = 'accepted' and new.status = 'superseded'
@@ -131,6 +162,22 @@ create trigger lidar_registration_no_truncate
 before truncate on public.lidar_registration
 for each statement execute function private.forbid_mutation();
 
+-- Makes room for p_run as the session's accepted run (the caller then sets
+-- its status, holding the session lock): the current accepted run is
+-- superseded, and so are the session's runs in review that are older than
+-- p_run (they would otherwise wait for a decision that can only be refused).
+-- Runs in review newer than p_run stay open.
+create function private.lidar_registration_accept(p_run public.lidar_registration)
+returns void
+language sql
+set search_path = ''
+as $$
+  update public.lidar_registration set status = 'superseded'
+  where session_id = p_run.session_id and id <> p_run.id
+    and (status = 'accepted' or (status = 'pending_review' and created_at < p_run.created_at));
+$$;
+revoke all on function private.lidar_registration_accept(public.lidar_registration) from public;
+
 -- ---------------------------------------------------------------------------
 -- 2. record_lidar_registration
 -- ---------------------------------------------------------------------------
@@ -141,9 +188,11 @@ for each statement execute function private.forbid_mutation();
 --    "verdict": "accepted_auto" | "review" | "rejected_auto", "reasons": [text, ...],
 --    "session_id": uuid (optional; must be p_session_id),
 --    "parcel_id": uuid (optional; must be the session's parcel)}
--- Re-running is safe: a run_id already recorded for this session with the same
--- method, version, parameters and verdict returns that row's id and writes
--- nothing (its decision is kept). Returns the registration id.
+-- The run is recorded as `recording`; activate_lidar_registration() gives it
+-- the status of its verdict after the uploads. Re-running is safe: a run_id
+-- already recorded for this session with the same method, version,
+-- parameters and verdict returns that row's id and writes nothing (its status
+-- and decision are kept). Returns the registration id.
 -- Errors: not_found (P0002), forbidden (42501: not ops of the session's org),
 -- demo_read_only (42501), invalid_input (22023, detail names the field).
 create function public.record_lidar_registration(p_session_id uuid, p_payload jsonb)
@@ -157,7 +206,6 @@ declare
   r public.lidar_registration;
   v_run uuid;
   v_verdict text;
-  v_status text;
   v_reasons text[];
   v_metrics jsonb;
 begin
@@ -190,12 +238,7 @@ begin
     raise exception 'invalid_input' using errcode = '22023', detail = 'parcel_id is not the session''s parcel';
   end if;
   v_verdict := p_payload ->> 'verdict';
-  v_status := case v_verdict
-    when 'accepted_auto' then 'accepted'
-    when 'review' then 'pending_review'
-    when 'rejected_auto' then 'rejected'
-  end;
-  if v_status is null then
+  if v_verdict is null or v_verdict not in ('accepted_auto', 'review', 'rejected_auto') then
     raise exception 'invalid_input' using errcode = '22023', detail = 'verdict';
   end if;
   if coalesce(jsonb_typeof(p_payload -> 'reasons'), 'null') not in ('array', 'null')
@@ -225,11 +268,6 @@ begin
     return r.id;
   end if;
 
-  if v_status = 'accepted' then
-    update public.lidar_registration set status = 'superseded'
-    where session_id = s.id and status = 'accepted';
-  end if;
-
   begin
     insert into public.lidar_registration (
       run_id, org_id, parcel_id, session_id, method, method_version, params_hash, ppk_status,
@@ -238,7 +276,7 @@ begin
     values (
       v_run, s.org_id, s.parcel_id, s.id, p_payload ->> 'method', p_payload ->> 'method_version',
       p_payload ->> 'params_hash', p_payload ->> 'ppk_status', v_metrics, v_verdict, v_reasons,
-      v_status, (select auth.uid())
+      'recording', (select auth.uid())
     )
     returning * into r;
   exception
@@ -249,20 +287,86 @@ begin
 end;
 $$;
 comment on function public.record_lidar_registration(uuid, jsonb) is
-  'Ops (the pipeline): records a LiDAR registration run of a session (registration.json); idempotent on run_id.';
+  'Ops (the pipeline): records a LiDAR registration run of a session (registration.json) as recording; idempotent on run_id.';
 
 revoke all on function public.record_lidar_registration(uuid, jsonb) from public, anon;
 grant execute on function public.record_lidar_registration(uuid, jsonb) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 2b. activate_lidar_registration
+-- ---------------------------------------------------------------------------
+
+-- The pipeline (`lidar upload`) calls this after the run's measurements and
+-- world cloud are uploaded: recording -> accepted (accepted_auto; supersedes
+-- the session's accepted run and closes its older runs in review),
+-- pending_review (review) or rejected (rejected_auto). An accepted_auto or
+-- review run older than the session's accepted run (activated late) becomes
+-- superseded instead: the newer accepted run stays current. A run that is no
+-- longer recording is returned unchanged, so re-running the upload is safe.
+-- Returns the row.
+-- Errors: not_found (P0002), forbidden (42501: not ops of the run's org),
+-- demo_read_only (42501).
+create function public.activate_lidar_registration(p_id uuid)
+returns public.lidar_registration
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  r public.lidar_registration;
+  v_status text;
+begin
+  perform private.assert_not_demo();
+  select * into r from public.lidar_registration where id = p_id;
+  if not found or r.org_id not in (select authz.user_org_ids()) then
+    raise exception 'not_found' using errcode = 'P0002';
+  end if;
+  if r.org_id not in (select authz.user_org_ids('{ops}')) then
+    raise exception 'forbidden' using errcode = '42501';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('lidar_registration:' || r.session_id::text, 0));
+  select * into r from public.lidar_registration where id = p_id for update;
+  if r.status <> 'recording' then
+    return r;
+  end if;
+
+  v_status := case r.auto_verdict
+    when 'accepted_auto' then 'accepted'
+    when 'review' then 'pending_review'
+    when 'rejected_auto' then 'rejected'
+  end;
+  if v_status in ('accepted', 'pending_review') and exists (
+    select 1 from public.lidar_registration n
+    where n.session_id = r.session_id and n.status = 'accepted' and n.created_at > r.created_at
+  ) then
+    v_status := 'superseded';
+  elsif v_status = 'accepted' then
+    perform private.lidar_registration_accept(r);
+  end if;
+  update public.lidar_registration set status = v_status where id = r.id
+  returning * into r;
+  return r;
+end;
+$$;
+comment on function public.activate_lidar_registration(uuid) is
+  'Ops (the pipeline): after the uploads, gives a recording LiDAR registration run the status of its verdict (superseded when a newer run is accepted); accepting supersedes the previous accepted run and closes older runs in review; idempotent.';
+
+revoke all on function public.activate_lidar_registration(uuid) from public, anon;
+grant execute on function public.activate_lidar_registration(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 3. decide_lidar_registration
 -- ---------------------------------------------------------------------------
 
 -- Ops accepts or rejects a pending_review run, once. A note is required to
--- reject. Accepting supersedes the session's previous accepted run; its
--- measurements and world cloud become visible to parcel readers at once.
+-- reject. Accepting supersedes the session's previous accepted run and
+-- closes its runs in review older than this one; its measurements and world
+-- cloud become visible to parcel readers at once. A run older than the
+-- session's accepted run cannot be accepted (it can be rejected).
 -- Errors: not_found (P0002), forbidden (42501: not ops of the run's org),
 -- demo_read_only (42501), not_pending (55000: already decided),
+-- newer_accepted (P0001: accepting a run older than the accepted one),
 -- invalid_input (22023: note missing on reject).
 create function public.decide_lidar_registration(p_id uuid, p_accept boolean, p_note text)
 returns public.lidar_registration
@@ -295,8 +399,14 @@ begin
   end if;
 
   if p_accept then
-    update public.lidar_registration set status = 'superseded'
-    where session_id = r.session_id and status = 'accepted';
+    if exists (
+      select 1 from public.lidar_registration n
+      where n.session_id = r.session_id and n.status = 'accepted' and n.created_at > r.created_at
+    ) then
+      raise exception 'newer_accepted' using errcode = 'P0001',
+        detail = 'a newer registration run of the visit is accepted';
+    end if;
+    perform private.lidar_registration_accept(r);
   end if;
   update public.lidar_registration
   set status = case when p_accept then 'accepted' else 'rejected' end,
@@ -309,7 +419,7 @@ begin
 end;
 $$;
 comment on function public.decide_lidar_registration(uuid, boolean, text) is
-  'Ops: accepts or rejects a pending LiDAR registration once (note required to reject); accepting supersedes the previous accepted run.';
+  'Ops: accepts or rejects a pending LiDAR registration once (note required to reject); accepting supersedes the previous accepted run and closes older runs in review; refuses to accept a run older than the accepted one.';
 
 revoke all on function public.decide_lidar_registration(uuid, boolean, text) from public, anon;
 grant execute on function public.decide_lidar_registration(uuid, boolean, text) to authenticated;
@@ -328,7 +438,8 @@ comment on column public.measurement.registration_id is
 create index measurement_registration_id_idx on public.measurement (registration_id)
   where registration_id is not null;
 
--- A rejected registration takes no measurements (direct inserts included).
+-- A rejected registration takes no measurements (direct inserts included); a
+-- recording one does (uploads come before activation).
 create function private.measurement_registration_check()
 returns trigger
 language plpgsql
@@ -353,7 +464,8 @@ for each row execute function private.measurement_registration_check();
 
 -- p_payload as in 20261107300000_lidar_measurements, plus
 --   "registration_id": uuid (optional): the lidar_registration run the cloud
---   came from; a registration of this session that is not rejected.
+--   came from; a registration of this session that is not rejected (a
+--   recording run included: the pipeline uploads before it activates the run).
 -- "Already exists" now also compares registration_id: the rows of a new run
 -- are added next to those of an older run.
 -- New error: registration_rejected (22023).
@@ -539,7 +651,8 @@ comment on function public.record_lidar_measurements(uuid, jsonb) is
 -- ---------------------------------------------------------------------------
 
 -- The value must be a registration of the asset's session that is not
--- rejected; it is stored in canonical form so the gate can compare text.
+-- rejected (recording included); it is stored in canonical form so the gate
+-- can compare text.
 create function private.asset_registration_check()
 returns trigger
 language plpgsql

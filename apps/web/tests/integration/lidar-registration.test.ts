@@ -37,8 +37,10 @@ describe("LiDAR registration review", () => {
   let ops: Client;
   let owner: Client;
 
-  // A registration run of the visit, recorded the way `lidar upload` does.
-  async function record(verdict: string, reasons: string[]) {
+  // A registration run of the visit, recorded the way `lidar upload` does:
+  // record_lidar_registration (status recording), then, after the uploads,
+  // activate_lidar_registration (unless `activate` is false).
+  async function record(verdict: string, reasons: string[], activate = true) {
     const { data, error } = await ops.rpc("record_lidar_registration", {
       p_session_id: run.session,
       p_payload: {
@@ -53,6 +55,10 @@ describe("LiDAR registration review", () => {
       },
     });
     if (error) throw error;
+    if (activate) {
+      const activated = await ops.rpc("activate_lidar_registration", { p_id: data });
+      if (activated.error) throw activated.error;
+    }
     return data;
   }
 
@@ -132,6 +138,8 @@ describe("LiDAR registration review", () => {
       sessionId: run.session,
       visitKind: "periodic_scan",
       reasons: ["trunk_spread_high", "clock_unlocked"],
+      // The visit has a world cloud: the row links to the staff world.
+      hasWorld: true,
     });
     expect(Date.parse(row!.visitTime)).toBe(Date.parse(run.time));
     // Parcel readers get nothing of it.
@@ -221,5 +229,73 @@ describe("LiDAR registration review", () => {
       { id: pending, status: "accepted" },
       { id: second, status: "rejected" },
     ]);
+  });
+
+  it("a run still being uploaded is not listed for review nor put on the band", async () => {
+    const uploading = await record("review", ["clock_unlocked"], false);
+    expect((await listPendingRegistrations(ops)).some((r) => r.id === uploading)).toBe(false);
+    // The band stays on the visit's newest activated run.
+    expect((await visitOf(ops))!.registration).toMatchObject({
+      current: { status: "rejected" },
+      earlier: [
+        { status: "accepted", count: 1 },
+        { status: "recording", count: 1 },
+      ],
+    });
+    // Once its uploads are done the pipeline activates it: in review.
+    const { data, error } = await ops.rpc("activate_lidar_registration", { p_id: uploading });
+    expect(error).toBeNull();
+    expect(data).toMatchObject({ id: uploading, status: "pending_review" });
+    expect((await listPendingRegistrations(ops)).map((r) => r.id)).toContain(uploading);
+    expect((await visitOf(ops))!.registration!.current).toMatchObject({
+      id: uploading,
+      status: "pending_review",
+    });
+  });
+
+  it("a newer accepted run closes older runs in review; an older run cannot be accepted", async () => {
+    const inReview = (await listPendingRegistrations(ops)).filter(
+      (r) => r.sessionId === run.session,
+    );
+    expect(inReview).toHaveLength(1);
+    const newest = await record("accepted_auto", []);
+    const { data } = await admin
+      .from("lidar_registration")
+      .select("id, status")
+      .in("id", [inReview[0].id, newest]);
+    expect(Object.fromEntries((data ?? []).map((r) => [r.id, r.status]))).toEqual({
+      [inReview[0].id]: "superseded",
+      [newest]: "accepted",
+    });
+    expect((await listPendingRegistrations(ops)).some((r) => r.sessionId === run.session)).toBe(
+      false,
+    );
+
+    // A run in review older than the accepted one (a race): accepting it is
+    // refused, rejecting it is not.
+    const old = randomUUID();
+    const { error } = await admin.from("lidar_registration").insert({
+      id: old,
+      run_id: randomUUID(),
+      org_id: T.org,
+      parcel_id: T.parcel,
+      session_id: run.session,
+      method: "point_lio+gtsam_ppk",
+      method_version: "web-test",
+      params_hash: "0123456789abcdef",
+      ppk_status: "ppk",
+      auto_verdict: "review",
+      status: "pending_review",
+      created_at: "2000-01-01T00:00:00Z",
+    });
+    expect(error).toBeNull();
+    expect(await decideRegistration(ops, { id: old, accept: true, note: "" })).toEqual({
+      ok: false,
+      error: "newer_accepted",
+    });
+    expect(await decideRegistration(ops, { id: old, accept: false, note: "eski" })).toMatchObject({
+      ok: true,
+      registration: { status: "rejected" },
+    });
   });
 });
