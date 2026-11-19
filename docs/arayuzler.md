@@ -372,6 +372,18 @@ Ağaca bağlı kesitleri okuyan ekranlar `tree_id` boş satırları atlar (porta
 
 Dünya bulutunun `pose`'u zaman taşımaz (H05).
 
+**`kind = point_cloud`** (`orchados-pipeline lidar upload`, kayıt çalıştırmasının `cloud.ply`'si; yalnız personel, H05; konum bulutun orijini, belirsizlik `point_sigma_m`):
+
+| Alan | Tür | Anlamı |
+| --- | --- | --- |
+| `schema` | metin | `orchados.lidar_cloud/1` |
+| `point_count` | tamsayı | Nokta sayısı |
+| `crs` | `local_enu` | Noktalar bulutun yerel doğu/kuzey/yukarı düzlemindedir |
+| `registration_id` | uuid | Bulutun kaydı (`public.lidar_registration`) |
+| `origin` | `{lat, lon, height_m}` | Yerel düzlemin orijini (`cloud.json`) |
+
+Yanındaki `cloud.json` `kind = other`, `mime_type = application/json`, konumsuz bir satırdır; `pose` `{schema: orchados.lidar_cloud/1, registration_id, role: cloud_meta}`.
+
 `trajectory` satırlarında `pose` ve konum boştur.
 
 ## Ağaç konumları (veritabanından)
@@ -763,7 +775,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 
 - Yerel düzlem `orchados_pipeline.geo.LocalFrame`'dir: parsel boyunda milimetre hatası. İki oturumun bulutları farklı orijinli olabilir; karşılaştırma (budama) enlem/boylam üzerinden yapılır.
 - **Ağaç başına ayırma:** Her nokta en yakın gövdeye verilir (Voronoi) ve gövdeden en çok 5 m uzaktaysa tutulur. Zemin her ağaç için ayrı bir düzlem olarak bulunur (ızgara hücrelerinin en alçak noktalarına, aykırıları atarak). Ağacın yükseklikleri bu düzleme göredir, yerden 25 cm'nin altı atılır.
-- **Saklama:** `cloud.ply` ham kayıttan türetilmiş bir dosyadır; portala çıkmaz ve yalnız personele açıktır (H05). Portal, ondan türetilen zamansız [3D dünya bulutunu](#3d-dünya-bulutu) gösterir. Ham MCAP saha verisidir, repoya girmez. `registration.json` ve `frontend/` de yalnız personele açıktır (zaman ve yörünge taşır).
+- **Saklama:** `cloud.ply` ham kayıttan türetilmiş bir dosyadır; portala çıkmaz ve yalnız personele açıktır (H05). Reddedilmemiş bir kayıt çalıştırmasının `cloud.ply` ve `cloud.json`'u `lidar upload` ile medya kovasına (içerik hash'iyle) ve `asset` satırı olarak yüklenir ([Asset `pose` alanı](#asset-pose-alanı)); işleme makinesinin iş klasörü silinse de bulut kalır. Kayıtlı bulutu depodan indirip `--reuse-registration` ile yeniden kullanmak sonraki iştir; bugün `--reuse-registration` yalnız yerel çalıştırma klasörlerine bakar. Büyük bulutlar (yüzlerce MB) tek istekle yüklenir; depolamanın dosya boyutu sınırı buna göre ayarlanmalı, parçalı (TUS) yükleme sonraki iştir. Portal, ondan türetilen zamansız [3D dünya bulutunu](#3d-dünya-bulutu) gösterir. Ham MCAP saha verisidir, repoya girmez. `registration.json` ve `frontend/` de yalnız personele açıktır (zaman ve yörünge taşır).
 
 **`registration_method`** (`<ön uç>+<birleştirme>`) ve **`registration_version`:**
 
@@ -843,9 +855,9 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 **Kaydın yüklenmesi** (`orchados-pipeline lidar upload <oturum>.processed/lidar --session-id <uuid> --registration <çalıştırma klasörü>`; `lidar process` kayıt klasörünü kendisi verir):
 
 1. Önce kayıt raporu yazılır: `record_lidar_registration(p_session_id, p_payload)`, yük `registration.json`. Aynı `run_id` ikinci kez gelirse yeni satır açılmaz. Dönen kimlik `registration_id`'dir.
-2. Sonra ölçümler `record_lidar_measurements` yükünde `registration_id` ile, `world_cloud` asset'i `pose.registration_id` ile yüklenir ([Asset `pose` alanı](#asset-pose-alanı)).
+2. Sonra ölçümler `record_lidar_measurements` yükünde `registration_id` ile, `world_cloud` asset'i ve kayıtlı bulut (`point_cloud` asset'i ve `cloud.json`'u) `pose.registration_id` ile yüklenir ([Asset `pose` alanı](#asset-pose-alanı)).
    Ölçüm raporları ve `world.json` (dünya bulutunun yan dosyası) bulutlarının `run_id`'sini taşır; yüklenen kaydın `run_id`'sinden farklı ya da boş olan reddedilir. `--allow-unregistered` ile `run_id`'li rapor ya da dünya bulutu reddedilir (kaydıyla yüklenir).
-3. `verdict`'i `rejected_auto` olan kaydın yalnız raporu yüklenir; ölçümleri ve dünya bulutu yüklenmez.
+3. `verdict`'i `rejected_auto` olan kaydın yalnız raporu yüklenir; ölçümleri, dünya bulutu ve kayıtlı bulutu yüklenmez.
 4. Kaydı olmayan ölçüm ve dünya bulutu (`--registration` yok) reddedilir; `--allow-unregistered` ile `registration_id` boş yüklenir. Bu bayrak yalnız demo yükleyicisi ve sentetik veri içindir; gerçek kit verisinin her zaman bir kaydı olur.
 
 Bekleyen ya da reddedilen bir kaydın ölçümleri ve bulutu sahibe görünmez; kural ve karar fonksiyonu: [veri-modeli.md](veri-modeli.md#lidar-kaydı-ve-kapısı).

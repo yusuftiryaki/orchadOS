@@ -16,11 +16,14 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pytest
 from test_lidar_upload import PARCEL, START_NS, T1, crown, skeleton, write_world_cloud
 
 from orchados_pipeline.gpstime import gps_ns_to_iso
+from orchados_pipeline.hashing import sha256_file
 from orchados_pipeline.lidar import upload as lidar_upload
+from orchados_pipeline.lidar.cloud import write_ply
 from orchados_pipeline.lidar.models import CloudMeta, RegistrationReport
 from orchados_pipeline.lidar.upload import (
     REGISTRATION_PLACEHOLDER,
@@ -75,6 +78,9 @@ def write_run(
         registration_version=rep.method_version, run_id=run_id,
     )  # fmt: skip
     (run / "cloud.json").write_text(meta.model_dump_json(by_alias=True))
+    write_ply(
+        run / "cloud.ply", np.arange(30, dtype=float).reshape(10, 3) + int(run_id[:8], 16) % 97
+    )
     (run / "process.json").write_text(json.dumps({"steps": {}}))
     if results:
         (run / "crown.json").write_text(json.dumps({**crown(session), "run_id": run_id}))
@@ -142,7 +148,12 @@ class FakeClient:
         if table == "session":
             return [self.session] if params["id"] == f"eq.{self.session['id']}" else []
         if table == "asset":
-            return [a for a in self.assets if f"eq.{a['session_id']}" == params["session_id"]]
+            return [
+                a
+                for a in self.assets
+                if f"eq.{a['session_id']}" == params["session_id"]
+                and params.get("kind", f"eq.{a['kind']}") == f"eq.{a['kind']}"
+            ]
         if table == "lidar_registration":
             row = self.reg_by_id(params["id"].removeprefix("eq."))
             return [{"status": row["status"]}] if row else []
@@ -168,6 +179,9 @@ class FakeClient:
     # What the upload did, in order.
     def rpcs(self):
         return [c[1] for c in self.calls if c[0] == "rpc"]
+
+    def of_kind(self, kind):
+        return [a for a in self.assets if a["kind"] == kind]
 
 
 @pytest.fixture
@@ -224,8 +238,35 @@ def test_registration_first_then_measurements_and_world_with_its_id(tmp_path, fa
     i_meas = fake.calls.index(meas_call)
     i_world = fake.calls.index(("insert", "asset"))
     assert i_world > i_meas
-    (asset,) = fake.assets
-    assert asset["kind"] == "world_cloud" and asset["pose"]["registration_id"] == reg_id
+    assert [a["kind"] for a in fake.assets] == ["world_cloud", "point_cloud", "other"]
+    asset = fake.assets[0]
+    assert asset["pose"]["registration_id"] == reg_id
+    # The registered cloud is kept: cloud.ply as a staff-only point_cloud asset, then its
+    # cloud.json, both content addressed in the media bucket.
+    ply, meta = fake.assets[1], fake.assets[2]
+    assert ply["content_hash"] == sha256_file(run / "cloud.ply")
+    assert ply["pose"] == {
+        "schema": "orchados.lidar_cloud/1",
+        "point_count": 10,
+        "crs": "local_enu",
+        "registration_id": reg_id,
+        "origin": {"lat": 37.0662, "lon": 37.3833, "height_m": 850.0},
+    }
+    assert ply["position"] == "SRID=4326;POINT(37.3833 37.0662)"
+    assert ply["position_uncertainty_m"] == 0.03 and ply["mime_type"] == "application/x-ply"
+    assert (ply["pipeline"], ply["pipeline_version"], ply["params_hash"]) == (
+        "orchados-pipeline", "0.1.0", "reg-hash",
+    )  # fmt: skip
+    assert "gps_time_ns" not in json.dumps(ply["pose"])
+    assert meta["content_hash"] == sha256_file(run / "cloud.json")
+    assert meta["mime_type"] == "application/json" and meta["position"] is None
+    assert meta["pose"] == {"schema": "orchados.lidar_cloud/1", "registration_id": reg_id,
+                            "role": "cloud_meta"}  # fmt: skip
+    assert (
+        fake.objects[ply["uri"].removeprefix("storage://media/")]
+        == (run / "cloud.ply").read_bytes()
+    )
+    assert meta["uri"].removeprefix("storage://media/") in fake.objects
     out = capsys.readouterr().out
     assert f"LiDAR registration {reg_id}: run {RUN_ID[:8]}, review, pending_review" in out
     assert "8 created, 0 already recorded" in out and "world cloud: recorded" in out
@@ -237,8 +278,9 @@ def test_upload_registration_idempotent(tmp_path, fake, capsys):
     capsys.readouterr()
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
     out = capsys.readouterr().out
-    assert len(fake.registrations) == 1 and len(fake.measurements) == 8 and len(fake.assets) == 1
+    assert len(fake.registrations) == 1 and len(fake.measurements) == 8 and len(fake.assets) == 3
     assert "0 created, 8 already recorded" in out and "world cloud: already recorded" in out
+    assert "registered cloud: already recorded" in out
     ids = {c[2]["p_payload"]["registration_id"] for c in fake.calls if c[:2] == ("rpc", RPC)}
     assert ids == {fake.registrations[RUN_ID]["id"]}
 
@@ -249,8 +291,9 @@ def test_upload_registration_idempotent(tmp_path, fake, capsys):
     assert lidar_upload.run(run2, SESSION, env=ENV) == 0
     assert "8 created, 0 already recorded" in capsys.readouterr().out
     assert len(fake.registrations) == 2 and len(fake.measurements) == 16
-    assert len(fake.assets) == 2 and len(fake.objects) == 1
-    assert {a["pose"]["registration_id"] for a in fake.assets} == {
+    worlds = fake.of_kind("world_cloud")
+    assert len(worlds) == 2 and len(fake.of_kind("point_cloud")) == 2
+    assert {a["pose"]["registration_id"] for a in worlds} == {
         r["id"] for r in fake.registrations.values()
     }
 
@@ -309,7 +352,7 @@ def test_allow_unregistered_uploads_without_registration_id(tmp_path, fake):
     assert fake.rpcs() == [RPC]
     (call,) = [c for c in fake.calls if c[0] == "rpc"]
     assert "registration_id" not in call[2]["p_payload"]
-    (asset,) = fake.assets
+    (asset,) = fake.assets  # no registration run, no registered cloud to keep
     assert "registration_id" not in asset["pose"]
 
 
@@ -320,9 +363,11 @@ def test_registration_flag_with_a_separate_output_folder(tmp_path, fake):
     (out / "crown.json").write_text(json.dumps({**crown(), "run_id": RUN_ID}))
     assert lidar_upload.run(out, SESSION, env=ENV, registration=run) == 0
     assert fake.rpcs() == [REGISTRATION_RPC, RPC]
-    payload = fake.calls[-1][2]["p_payload"]
+    payload = [c for c in fake.calls if c[:2] == ("rpc", RPC)][-1][2]["p_payload"]
     assert payload["registration_id"] == fake.registrations[RUN_ID]["id"]
     assert payload["measured_at"] == gps_ns_to_iso(REG_START_NS)
+    # The registered cloud comes from the run folder, not the output folder.
+    assert [a["kind"] for a in fake.assets] == ["point_cloud", "other"]
 
 
 def test_registration_checks(tmp_path):
@@ -382,6 +427,18 @@ def test_unregistered_upload_refuses_results_of_a_registration_run(tmp_path, mon
         plan_upload(out, SESSION, allow_unregistered=True)
 
 
+def test_registered_cloud_must_be_the_runs(tmp_path, monkeypatch):
+    no_sign_in(monkeypatch)
+    run = write_run(tmp_path)
+    meta = json.loads((run / "cloud.json").read_text())
+    (run / "cloud.json").write_text(json.dumps({**meta, "run_id": "6a1d2c3e-0000"}))
+    with pytest.raises(LidarUploadError, match="cloud.json was made by registration run"):
+        plan_upload(run, SESSION)
+    (run / "cloud.json").unlink()  # a run folder without a cloud: nothing to keep
+    plan = plan_upload(run, SESSION)
+    assert plan.cloud is None
+
+
 def test_ppk_status_none_is_recorded_as_no_ppk(tmp_path, fake):
     run = write_run(tmp_path, verdict="rejected_auto", results=False, ppk="none")
     assert lidar_upload.run(run, SESSION, env=ENV) == 0
@@ -393,11 +450,13 @@ def test_dry_run_prints_all_three_payloads(tmp_path, monkeypatch, capsys):
     run = write_run(tmp_path)
     assert lidar_upload.run(run, SESSION, dry_run=True, env={}) == 0
     text = capsys.readouterr().out
-    reg, meas, world = json_blocks(text)
+    reg, meas, world, ply, meta = json_blocks(text)
     assert reg["rpc"] == REGISTRATION_RPC and reg["p_payload"]["run_id"] == RUN_ID
     assert meas["rpc"] == RPC and meas["p_payload"]["registration_id"] == REGISTRATION_PLACEHOLDER
     assert len(meas["p_payload"]["items"]) == 9
     assert world["world_cloud_asset"]["pose"]["registration_id"] == REGISTRATION_PLACEHOLDER
+    assert ply["point_cloud_asset"]["pose"]["registration_id"] == REGISTRATION_PLACEHOLDER
+    assert meta["cloud_meta_asset"]["mime_type"] == "application/json"
     assert "nothing written" in text and "nothing uploaded" in text
 
 
@@ -459,8 +518,10 @@ def test_process_upload_records_the_run(small_ppk, tmp_path, monkeypatch, capsys
     assert meas and all(p["registration_id"] == reg["id"] for p in meas)
     cloud = json.loads(next((session.parent / "s.processed").rglob("cloud.json")).read_text())
     assert meas[0]["measured_at"] == gps_ns_to_iso(cloud["gps_time_start_ns"])
-    (asset,) = client.assets
+    (asset,) = client.of_kind("world_cloud")
     assert asset["pose"]["registration_id"] == reg["id"]
+    (ply,) = client.of_kind("point_cloud")
+    assert ply["pose"]["registration_id"] == reg["id"] and ply["pose"]["point_count"] > 0
 
 
 # --- local Supabase ------------------------------------------------------------------------
@@ -526,6 +587,10 @@ def test_registration_against_local_supabase(supabase_env, test_sessions, tmp_pa
         "asset", {"session_id": f"eq.{session_id}", "kind": "eq.world_cloud", "select": "pose"}
     )
     assert asset["pose"]["registration_id"] == reg["id"]
+    (ply,) = ops.select(
+        "asset", {"session_id": f"eq.{session_id}", "kind": "eq.point_cloud", "select": "pose"}
+    )
+    assert ply["pose"]["registration_id"] == reg["id"] and ply["pose"]["point_count"] == 10
     # Pending: the owner sees neither the measurements nor the world cloud.
     assert owner.select("measurement", {"session_id": f"eq.{session_id}", "select": "id"}) == []
     assert owner.select("asset", {"session_id": f"eq.{session_id}", "select": "id"}) == []

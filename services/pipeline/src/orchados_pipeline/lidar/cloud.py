@@ -85,6 +85,20 @@ def read_ply(path: Path) -> tuple[np.ndarray, np.ndarray | None]:
     return pts, inten
 
 
+def ply_point_count(path: Path) -> int:
+    """The vertex count of a PLY file's header (the body is not read)."""
+    with open(path, "rb") as f:
+        if f.readline().strip() != b"ply":
+            raise CloudError(f"{path}: not a PLY file")
+        for line in f:
+            words = line.decode("ascii", "replace").split()
+            if words[:2] == ["element", "vertex"]:
+                return int(words[2])
+            if words[:1] == ["end_header"]:
+                break
+    raise CloudError(f"{path}: no vertex element")
+
+
 def write_ply(path: Path, points: np.ndarray, intensity: np.ndarray | None = None) -> Path:
     """Write float64 x, y, z (+ float32 intensity). Deterministic bytes for equal input."""
     pts = np.asarray(points, dtype=np.float64).reshape(-1, 3)

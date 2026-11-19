@@ -21,6 +21,12 @@ ops user of the environment (Credentials.ENV, as for ``orchados-pipeline upload`
   (--allow-unregistered) none may name a run (check_run_ids).
 - --dry-run prints every payload (registration, measurements, world cloud row)
   and writes nothing.
+- The registered cloud of a registration run that was not rejected is kept:
+  cloud.ply as a staff-only asset of kind point_cloud (position = the cloud
+  origin, pose = {schema, point_count, crs: local_enu, registration_id, origin},
+  no time) and its cloud.json as an asset of kind other (application/json,
+  pose = {schema, registration_id, role: cloud_meta}), both content addressed in
+  the media bucket. Re-running finds them and writes nothing.
 - world.owc (lidar world, docs/arayuzler.md "3D dünya bulutu"), when the folder
   has one with its world.json, is uploaded to the media bucket (content
   addressed, as upload does) and recorded as an asset of kind world_cloud:
@@ -262,8 +268,141 @@ def upload_world(
     return True
 
 
+# --- registered cloud (staff only) -------------------------------------------------------
+
+CLOUD_SCHEMA = "orchados.lidar_cloud/1"
+PLY_MEDIA_TYPE = "application/x-ply"
+
+
+def load_cloud(folder: Path, report) -> tuple[Any, int] | None:
+    """(CloudMeta, point count) of a registration run folder's cloud, None without one.
+    The cloud must be the run's (cloud.json run_id and session)."""
+    from .cloud import CloudError, ply_point_count
+    from .models import CloudMeta
+
+    folder = Path(folder)
+    ply, meta_path = folder / "cloud.ply", folder / "cloud.json"
+    if not (ply.is_file() and meta_path.is_file()):
+        return None
+    try:
+        meta = CloudMeta.model_validate(json.loads(meta_path.read_text(encoding="utf-8")))
+        count = ply_point_count(ply)
+    except (OSError, ValueError, CloudError) as exc:
+        raise LidarUploadError(f"{folder.name}: registered cloud: {exc}") from exc
+    if meta.run_id != report.run_id:
+        raise LidarUploadError(
+            f"cloud.json was made by registration run {str(meta.run_id)[:8]}, the folder's "
+            f"registration.json is run {report.run_id[:8]}"
+        )
+    if meta.session_id != report.session_id or meta.parcel_id != report.parcel_id:
+        raise LidarUploadError("cloud.json is of another session or parcel than its registration")
+    return meta, count
+
+
+def cloud_asset_rows(
+    folder: Path,
+    meta,
+    point_count: int,
+    report,
+    org_id: str,
+    parcel_id: str,
+    session_id: str,
+    registration_id: str,
+) -> list[tuple[Path, dict[str, Any]]]:
+    """(file, public.asset row) of cloud.ply (point_cloud) and its cloud.json (other)."""
+    folder = Path(folder)
+    common = {
+        "org_id": org_id,
+        "parcel_id": parcel_id,
+        "session_id": session_id,
+        "tree_id": None,
+        "quality_score": None,
+        "pipeline": report.producer.pipeline,
+        "pipeline_version": report.producer.version,
+        "params_hash": report.params_hash,
+    }
+    out = []
+    for name, kind, mime in (
+        ("cloud.ply", "point_cloud", PLY_MEDIA_TYPE),
+        ("cloud.json", "other", "application/json"),
+    ):
+        path = folder / name
+        sha = sha256_file(path)
+        row = {
+            **common,
+            "kind": kind,
+            "uri": media_uri(media_key(org_id, parcel_id, sha)),
+            "content_hash": sha,
+            "byte_size": path.stat().st_size,
+            "mime_type": mime,
+        }
+        if kind == "point_cloud":
+            row["position"] = f"SRID=4326;POINT({meta.origin_lon!r} {meta.origin_lat!r})"
+            row["position_uncertainty_m"] = meta.point_sigma_m
+            row["pose"] = {
+                "schema": CLOUD_SCHEMA,
+                "point_count": point_count,
+                "crs": "local_enu",
+                "registration_id": registration_id,
+                "origin": {
+                    "lat": meta.origin_lat,
+                    "lon": meta.origin_lon,
+                    "height_m": meta.origin_height_m,
+                },
+            }
+        else:
+            row["position"] = None
+            row["position_uncertainty_m"] = None
+            row["pose"] = {
+                "schema": CLOUD_SCHEMA,
+                "registration_id": registration_id,
+                "role": "cloud_meta",
+            }
+        out.append((path, row))
+    return out
+
+
+def upload_cloud(
+    plan: UploadPlan,
+    catalog,
+    store: MediaStore,
+    registration_id: str,
+    log: Callable[[str], None] = print,
+) -> bool:
+    """cloud.ply and cloud.json of the registration run: objects, then rows. True if a
+    row was created; rows already recorded (same content in the session) are left."""
+    meta, count = plan.cloud
+    session = catalog.session(plan.session_id)
+    rows = cloud_asset_rows(
+        plan.registration_dir, meta, count, plan.registration, session.org_id,
+        session.parcel_id, session.id, registration_id,
+    )  # fmt: skip
+    created = False
+    for path, row in rows:
+        key = row["uri"].removeprefix("storage://media/")
+        if key not in store.keys(key.rsplit("/", 1)[0]):
+            store.put(key, path, row["mime_type"])
+        if row["content_hash"] in catalog.asset_hashes(session.id, row["kind"]):
+            continue
+        catalog.insert_asset(row)
+        created = True
+    size = rows[0][1]["byte_size"]
+    log(
+        f"registered cloud: {'recorded' if created else 'already recorded'} "
+        f"({count} points, {size} bytes)"
+    )
+    return created
+
+
 class WorldCatalog(SupabaseCatalog):
-    """upload.SupabaseCatalog plus the world clouds of a session."""
+    """upload.SupabaseCatalog plus the world clouds and LiDAR assets of a session."""
+
+    def asset_hashes(self, session_id: str, kind: str) -> set[str]:
+        rows = self.client.select(
+            "asset",
+            {"session_id": f"eq.{session_id}", "kind": f"eq.{kind}", "select": "content_hash"},
+        )
+        return {r["content_hash"] for r in rows}
 
     def world_clouds(self, session_id: str) -> set[tuple[str, str, str | None]]:
         """(content_hash, pipeline_version, pose.registration_id) of its world_cloud rows."""
@@ -450,6 +589,9 @@ class UploadPlan:
     registration_dir: Path | None = None
     reports: list[tuple[Path, ReportFile]] = field(default_factory=list)
     world: Any = None  # WorldReport
+    # (CloudMeta, point count) of the registration run's cloud.ply, kept as a
+    # point_cloud asset; None: no cloud (or no registration, or rejected).
+    cloud: tuple[Any, int] | None = None
     # record_lidar_measurements payload; registration_id is REGISTRATION_PLACEHOLDER
     # until the registration is recorded. None: no measurements (rejected registration).
     payload: dict[str, Any] | None = None
@@ -490,6 +632,8 @@ def plan_upload(
             names += [n for n in (WORLD_META_FILE, WORLD_FILE) if (out_dir / n).is_file()]
             plan.withheld = names
             return plan
+    if plan.registration is not None:
+        plan.cloud = load_cloud(plan.registration_dir, plan.registration)
     plan.world = load_world(out_dir)
     plan.reports = load_reports(out_dir, required=plan.world is None and registration is None)
     if plan.registration is None and not allow_unregistered and (plan.reports or plan.world):
@@ -571,6 +715,15 @@ def dry_run_lines(plan: UploadPlan) -> list[str]:
         row = world_asset_row(plan.world, "<org_id>", "<parcel_id>", sid, reg)
         lines.append(json.dumps({"world_cloud_asset": row}, indent=2))
         lines.append(f"dry run: world cloud {plan.world.byte_size} bytes, nothing uploaded")
+    if plan.cloud is not None:
+        meta, count = plan.cloud
+        ply, js = cloud_asset_rows(
+            plan.registration_dir, meta, count, plan.registration, "<org_id>", "<parcel_id>",
+            sid, REGISTRATION_PLACEHOLDER,
+        )  # fmt: skip
+        lines.append(json.dumps({"point_cloud_asset": ply[1]}, indent=2))
+        lines.append(json.dumps({"cloud_meta_asset": js[1]}, indent=2))
+        lines.append(f"dry run: registered cloud {ply[1]['byte_size']} bytes, nothing uploaded")
     return lines
 
 
@@ -614,12 +767,15 @@ def upload(
         if registration_id is not None:
             payload["registration_id"] = registration_id
         result = client.rpc(RPC, {"p_session_id": sid, "p_payload": payload})
-    if plan.world is not None:
+    if plan.world is not None or plan.cloud is not None:
         from ..media import SupabaseMediaStore
 
         catalog = catalog if catalog is not None else WorldCatalog(client)
         store = store if store is not None else SupabaseMediaStore(client)
+    if plan.world is not None:
         upload_world(plan.out_dir, plan.world, sid, catalog, store, log, registration_id)
+    if plan.cloud is not None:
+        upload_cloud(plan, catalog, store, registration_id, log)
     if result is not None:
         for line in summary_lines(result):
             log(line)
