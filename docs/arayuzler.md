@@ -844,7 +844,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
 
 **Ön uç çıktısı** (`frontend/`, `schema: orchados.lio_frontend/1`): **iç sözleşme**, hattın kendi içinde ön uç (ayrı container ya da testlerde sahte ön uç) ile kayıt adımının Python kodu arasında. Başka bileşen okumaz; ön uç değiştirilebilir (Point-LIO, sonra GLIM) ve hepsi bu biçimde yazar.
 
-- `frontend.json`: `schema`, `method`, `method_version`, `config_hash`, `imu_rate_hz`, `points_total` ve parça listesi; her parçada `index`, `start_gps_ns`, `end_gps_ns`, `keyframe_count`, `status` (`ok`, `failed`) ve `message`.
+- `frontend.json`: `schema`, `method`, `method_version`, `config_hash`, `imu_rate_hz`, `points_total`, Point-LIO'da ayrıca `blind_m` ve `topics` (oynatılan bulut ve IMU konuları) ve parça listesi; her parçada `index`, `start_gps_ns`, `end_gps_ns`, `keyframe_count`, `status` (`ok`, `failed`) ve `message`.
 - `keyframes.csv`: başlık `segment,index,gps_time_ns,x,y,z,qx,qy,qz,qw,scan`. Poz, parçanın kendi odometri çerçevesinde LiDAR gövdesinin pozudur (metre, birim kuaternyon); parçalar arasında ortak çerçeve yoktur. `scan` tarama dosyasının adıdır.
 - `scans/<segment>_<index>.npz`: `xyz` (N×3 `float32`, LiDAR gövde çerçevesi, anahtar kare anına göre bozulması giderilmiş) ve `intensity` (N `float32`).
 - Anahtar kare aralığı ön ucun parametresidir (başlangıç: 0,5 m, 10° ya da 1 sn'den hangisi önce gelirse); kayıt parametrelerinden (`keyframe_dist_m`, `keyframe_angle_deg`, `keyframe_dt_s`, ayrıca `blind_m` ve `frontend_rate`) ön uca geçer, `params_hash`'e girer. Zamanlar GPS zamanıdır; ön uca giden damgalar Pi saatindedir ([Saat](#saat)).

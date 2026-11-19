@@ -155,6 +155,22 @@ def _resolve_topics(reader, wanted: dict[str, str]) -> dict[str, str]:
     return out
 
 
+def segment_topics(segment: Segment) -> dict[str, str]:
+    """{'points', 'imu'} topic names of the segment's log: recording.json's (else the
+    defaults) when present in its first readable MCAP, else found by message type."""
+    for bag in segment.bag_dirs:
+        wanted = _wanted_topics(bag)
+        for path in mcap_files(bag):
+            if path.stat().st_size == 0:
+                continue
+            try:
+                with open(path, "rb") as f:
+                    return _resolve_topics(make_reader(f), wanted)
+            except (McapError, OSError, ValueError, EOFError):
+                continue
+    return dict(DEFAULT_TOPICS)
+
+
 def _iter_raw(
     bag_dirs_: list[Path],
     kinds: tuple[str, ...],

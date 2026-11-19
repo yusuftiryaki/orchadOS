@@ -33,6 +33,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import sys
 import time
 from collections import OrderedDict
@@ -47,8 +48,12 @@ GPS_MINUS_UNIX_NS = -315_964_800 * 10**9 + 18 * 10**9
 
 ODOM_TOPIC = "/aft_mapped_to_init"
 BODY_TOPIC = "/cloud_registered_body"
+# Default input topics (the L2 driver's); segments.json "topics" overrides them.
 IMU_TOPIC = "/unilidar/imu"
 CLOUD_TOPIC = "/unilidar/cloud"
+TOPIC_RE = re.compile(r"/[A-Za-z0-9_][A-Za-z0-9_/]*")
+# ros2 bag play: offer both inputs as reliable (see config/qos_overrides.yaml).
+QOS_DEPTH = {"points": 100, "imu": 2000}
 
 KF_HEADER = ["segment", "index", "gps_time_ns", "x", "y", "z", "qx", "qy", "qz", "qw", "scan"]
 
@@ -182,6 +187,31 @@ def config_hash(config: Path, blind: float) -> str:
     return hashlib.sha256(body.encode()).hexdigest()
 
 
+def topics(spec: dict) -> tuple[str, str]:
+    """(cloud topic, IMU topic) of segments.json ("topics": {"points", "imu"})."""
+    given = spec.get("topics") or {}
+    cloud = str(given.get("points") or CLOUD_TOPIC)
+    imu = str(given.get("imu") or IMU_TOPIC)
+    for name in (cloud, imu):
+        if not TOPIC_RE.fullmatch(name):
+            raise SystemExit(f"segments.json: bad topic name {name!r}")
+    return cloud, imu
+
+
+def qos_overrides(cloud: str, imu: str) -> str:
+    """ros2 bag play QoS overrides for the two input topics."""
+    out = []
+    for topic, kind in ((cloud, "points"), (imu, "imu")):
+        out += [
+            f"{topic}:",
+            "  history: keep_last",
+            f"  depth: {QOS_DEPTH[kind]}",
+            "  reliability: reliable",
+            "  durability: volatile",
+        ]
+    return "\n".join(out) + "\n"
+
+
 # --------------------------------------------------------------------------- plan
 
 
@@ -209,6 +239,10 @@ def cmd_plan(args: argparse.Namespace) -> int:
         raise SystemExit(f"segments.json: rate must be > 0, got {rate}")
     (work / "rate").write_text(f"{rate}\n")
     (work / "blind").write_text(f"{blind_m(spec)}\n")
+    cloud, imu = topics(spec)
+    (work / "cloud_topic").write_text(f"{cloud}\n")
+    (work / "imu_topic").write_text(f"{imu}\n")
+    (work / "qos_overrides.yaml").write_text(qos_overrides(cloud, imu))
     indices = []
     for seg in spec["segments"]:
         idx = int(seg["index"])
@@ -307,8 +341,9 @@ class Recorder:
         sub(Odometry, ODOM_TOPIC, self.on_odom, qos(1000, True))
         sub(PointCloud2, BODY_TOPIC, self.on_body, qos(50, True))
         # Played inputs and clock: only counted, best effort is enough.
-        sub(Imu, IMU_TOPIC, self.on_imu, qos(1000, False))
-        sub(PointCloud2, CLOUD_TOPIC, self.on_cloud, qos(20, False))
+        cloud_topic, imu_topic = topics(json.loads(Path(args.segments).read_text()))
+        sub(Imu, imu_topic, self.on_imu, qos(1000, False))
+        sub(PointCloud2, cloud_topic, self.on_cloud, qos(20, False))
         sub(Clock, "/clock", self.on_clock, qos(100, False))
 
         self.odoms: OrderedDict[int, tuple] = OrderedDict()
@@ -640,6 +675,7 @@ def cmd_finalize(args: argparse.Namespace) -> int:
         "method_version": f"{commit[:7]}-r{recipe}",
         "config_hash": config_hash(config, blind_m(spec)),
         "blind_m": blind_m(spec),
+        "topics": dict(zip(("points", "imu"), topics(spec), strict=True)),
         "segments": segments,
         "imu_rate_hz": (imu_n / imu_span) if imu_span > 0 else None,
         "points_total": points_total,

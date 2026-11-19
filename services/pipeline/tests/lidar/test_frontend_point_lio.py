@@ -76,6 +76,8 @@ body = {"schema": "orchados.lio_frontend/1", "method": "point_lio",
         "keyframe": spec["keyframe"]}
 if not os.environ.get("FAKE_DOCKER_OLD"):
     body["blind_m"] = spec.get("blind_m", 0.6)
+if not os.environ.get("FAKE_DOCKER_R2"):
+    body["topics"] = spec.get("topics")
 (out / "frontend.json").write_text(json.dumps(body))
 (out / "keyframes.csv").write_text(
     "segment,index,gps_time_ns,x,y,z,qx,qy,qz,qw,scan\n" + "".join(r + "\n" for r in rows))
@@ -91,7 +93,7 @@ def fake_docker(tmp_path, monkeypatch):
     log = tmp_path / "docker-calls.jsonl"
     monkeypatch.setenv("FAKE_DOCKER_LOG", str(log))
     monkeypatch.setenv("FAKE_DOCKER_ID", IMAGE_ID)
-    for var in ("FAKE_DOCKER_NO_IMAGE", "FAKE_DOCKER_EXIT", "FAKE_DOCKER_OLD"):
+    for var in ("FAKE_DOCKER_NO_IMAGE", "FAKE_DOCKER_EXIT", "FAKE_DOCKER_OLD", "FAKE_DOCKER_R2"):
         monkeypatch.delenv(var, raising=False)
 
     def calls() -> list[list[str]]:
@@ -307,3 +309,104 @@ def test_registration_params_reach_the_front_end(two_bags, tmp_path, monkeypatch
     spec, _ = get_frontend("point_lio", RegistrationParams()).prepare(dest, segs, tmp_path / "d")
     assert spec["keyframe"] == {"dist_m": 0.5, "angle_deg": 10.0, "dt_s": 1.0}
     assert spec["blind_m"] == 0.6 and spec["rate"] == 1.0
+
+
+def _rename_topics(src: Path, names: dict[str, str]) -> None:
+    from mcap.reader import make_reader
+    from mcap.writer import Writer
+
+    out = src.with_suffix(".tmp")
+    with open(src, "rb") as f, open(out, "wb") as g:
+        reader = make_reader(f)
+        w = Writer(g)
+        w.start(profile="ros2")
+        summary = reader.get_summary()
+        ids = {i: w.register_schema(s.name, s.encoding, s.data) for i, s in summary.schemas.items()}
+        chans = {
+            cid: w.register_channel(
+                names.get(c.topic, c.topic), c.message_encoding, ids[c.schema_id]
+            )
+            for cid, c in summary.channels.items()
+        }
+        for _s, ch, msg in reader.iter_messages():
+            w.add_message(chans[ch.id], msg.log_time, msg.data, msg.publish_time)
+        w.finish()
+    out.replace(src)
+
+
+def _renamed_session(two_bags, root: Path):
+    """A copy of the two-bag session whose driver topics are /kit/l2/points and /kit/l2/imu."""
+    import shutil
+
+    other = root / "other"
+    shutil.copytree(two_bags[0], other)
+    for mcap in (other / "lidar/raw").rglob("*.mcap"):
+        _rename_topics(mcap, {"/unilidar/cloud": "/kit/l2/points", "/unilidar/imu": "/kit/l2/imu"})
+    return other, plan_segments(other, RegistrationParams())
+
+
+def test_topics_go_into_segments_json(two_bags, tmp_path):
+    """The image plays and subscribes to the topics the pipeline found in the log
+    (recording.json, else by message type), not hard-coded ones."""
+    dest, segs = two_bags
+    spec, _ = PointLioFrontend().prepare(dest, segs, tmp_path / "a")
+    assert spec["topics"] == {"points": "/unilidar/cloud", "imu": "/unilidar/imu"}
+    other, segs2 = _renamed_session(two_bags, tmp_path)
+    spec, _ = PointLioFrontend().prepare(other, segs2, tmp_path / "b")
+    assert spec["topics"] == {"points": "/kit/l2/points", "imu": "/kit/l2/imu"}
+
+
+def test_image_without_topics_refuses_other_topics(two_bags, tmp_path, fake_docker, monkeypatch):
+    """A recipe 2 image plays /unilidar/* only: with other topics it would see nothing."""
+    exe, _calls = fake_docker
+    dest, segs = two_bags
+    monkeypatch.setenv("FAKE_DOCKER_R2", "1")
+    # Default topics: fine with the old image.
+    PointLioFrontend(docker=exe).run(dest, segs, tmp_path / "ok")
+    other, segs2 = _renamed_session(two_bags, tmp_path)
+    with pytest.raises(FrontendError, match="does not take the topics"):
+        PointLioFrontend(docker=exe).run(other, segs2, tmp_path / "old")
+
+
+RECIPE = Path(__file__).resolve().parents[4] / "deploy/lidar-frontends/point-lio"
+
+
+def _recorder():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "keyframe_recorder", RECIPE / "keyframe_recorder.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_recorder_plan_writes_the_topics(tmp_path):
+    """keyframe_recorder.py plan: the topics for entrypoint.sh (Point-LIO's lid_topic and
+    imu_topic, ros2 bag play --topics, QoS overrides); defaults as before."""
+    rec = _recorder()
+    seg = {"index": 0, "mcap": ["missing.mcap"], "start_gps_ns": 10**18, "end_gps_ns": 10**18 + 1}
+    segments = tmp_path / "segments.json"
+    segments.write_text(json.dumps({"segments": [seg]}))
+    work = tmp_path / "w"
+    assert rec.main(["plan", "--segments", str(segments), "--session", str(tmp_path),
+                     "--work", str(work)]) == 0  # fmt: skip
+    assert (work / "cloud_topic").read_text() == "/unilidar/cloud\n"
+    assert (work / "imu_topic").read_text() == "/unilidar/imu\n"
+    # Same overrides as the image's static file (its comment aside).
+    static = (RECIPE / "config/qos_overrides.yaml").read_text().splitlines()
+    body = [line for line in static if line and not line.startswith("#")]
+    assert (work / "qos_overrides.yaml").read_text().splitlines() == body
+
+    topics = {"points": "/kit/l2/points", "imu": "/kit/l2/imu"}
+    segments.write_text(json.dumps({"segments": [seg], "topics": topics}))
+    rec.main(["plan", "--segments", str(segments), "--session", str(tmp_path), "--work", str(work)])
+    assert (work / "cloud_topic").read_text() == "/kit/l2/points\n"
+    assert (work / "imu_topic").read_text() == "/kit/l2/imu\n"
+    qos = (work / "qos_overrides.yaml").read_text()
+    assert "/kit/l2/points:\n  history: keep_last\n  depth: 100\n" in qos
+    assert "/kit/l2/imu:\n  history: keep_last\n  depth: 2000\n" in qos
+    assert rec.topics({"topics": topics}) == ("/kit/l2/points", "/kit/l2/imu")
+    with pytest.raises(SystemExit, match="topic"):
+        rec.topics({"topics": {"points": "/a b; rm -rf /", "imu": "/x"}})
