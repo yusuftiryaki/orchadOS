@@ -159,6 +159,7 @@ Bu makinede (8 çekirdek, 7,7 GB RAM, 2026-11-19) yapılanlar:
 | Kapsama | 0,758 | 0,768 |
 | Süre | 115 sn | 20 sn |
 
+- A, birleştirmenin Cauchy çekirdeği, kaldıraç kolu varsayılanı (0,0,0,9) ve taramaların koşudan sonra silinmesiyle yeniden çalıştırıldı (yeni üretilen oturum): `point_lio` `accepted_auto`, GNSS p95 0,0184 m, gövde yayılımı 0,0103 m (10 ağaç), kapsama 0,992, 4,78 M nokta, 129 sn; `fake` `accepted_auto`, 0,0253 m, 0,0063 m, 0,997, 33 sn. Sonuç değişmedi.
 - **Ön ucun kendi doğruluğu** (birleştirmeden önce, her parçanın anahtar kareleri gerçek yörüngeye tek katı dönüşümle oturtulunca): A'da 135 m'de ortalama 5,4 cm, p95 8,8 cm, en çok 9,5 cm; ardışık kare adımlarında ortalama 4,4 mm; eğim hatası 0,02°. B'de parça 0 (67 m) ortalama 4,1 / en çok 8,0 cm, hareket hâlinde başlayan parça 1 (36 m) ortalama 3,4 / en çok 5,0 cm.
 - **Birleştirmeden sonra** ENU pozları gerçek yörüngeden (sabit çerçeve farkı çıkarılınca) ortalama 0,6–0,7 cm, p95 1,1–1,2 cm, en çok 4,9–5,7 cm sapıyor (sahte ön uçta 0,5 / 0,9 / 1,3 cm).
 - **Kit maskesi:** Taramalarda LiDAR'a 0,6 m'den yakın nokta ve 3 m içinde yukarı doğru 15°'lik konide nokta yok. Tarif 1'in `blind: 0.5`'iyle 2.240 direk noktası kalıyordu.

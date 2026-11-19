@@ -14,6 +14,13 @@ session, absolute container paths otherwise. A segment that needs restamping (§
 and still points into the session gets a restamped copy under <work>/point_lio/;
 one already restamped by the caller (bag folders outside the session) is used as is.
 
+Every mounted path is the session, a file or folder under the work folder (inputs,
+restamped copies, output) or a bag folder given by the caller. With the processing
+container calling Docker through the host's socket, those must exist at the same path
+on the host: orchados-process keeps the session, the output and TMPDIR on the work disk
+mounted at the same path inside and out, so no path is translated here. The image runs
+as the calling user (--user uid:gid) so its output stays deletable by that user.
+
 method_version is the image's first 12 hex digits of its content id followed by the
 image's own version (Point-LIO commit and recipe), e.g. 620f44875c70-a8e2d0d-r2:
 the registration's version keeps its first 12 characters (§5.6).
@@ -40,6 +47,13 @@ SESSION_MOUNT = "/in/session"
 RESTAMP_MOUNT = "/in/restamped"
 EXTRA_MOUNT = "/in/extra"
 LOG_TAIL_LINES = 30
+
+
+def _host(path: Path) -> Path:
+    """Absolute path for a `docker run -v`, symlinks kept: the processing container
+    mounts its work disk at the same path as the host (deploy/processing), so the
+    path as given is the host's; resolving symlinks could leave that disk."""
+    return Path(os.path.abspath(path))
 
 
 def _within(path: Path, root: Path) -> Path | None:
@@ -186,7 +200,7 @@ class PointLioFrontend:
         rel = _within(f, restamp_root)
         if rel is not None:
             return f"{RESTAMP_MOUNT}/{rel.as_posix()}"
-        parent = f.resolve().parent
+        parent = _host(f).parent
         if parent not in extra:
             extra[parent] = f"{EXTRA_MOUNT}/{len(extra)}"
         return f"{extra[parent]}/{f.name}"
@@ -205,11 +219,11 @@ class PointLioFrontend:
             cmd += ["--user", f"{os.getuid()}:{os.getgid()}"]
         if name:
             cmd += ["--name", name]
-        cmd += ["-v", f"{Path(session_dir).resolve()}:{SESSION_MOUNT}:ro"]
-        cmd += ["-v", f"{Path(segments_json).resolve()}:/in/segments.json:ro"]
+        cmd += ["-v", f"{_host(session_dir)}:{SESSION_MOUNT}:ro"]
+        cmd += ["-v", f"{_host(segments_json)}:/in/segments.json:ro"]
         for host, inside in mounts:
-            cmd += ["-v", f"{Path(host).resolve()}:{inside}:ro"]
-        cmd += ["-v", f"{Path(out_dir).resolve()}:/out"]
+            cmd += ["-v", f"{_host(host)}:{inside}:ro"]
+        cmd += ["-v", f"{_host(out_dir)}:/out"]
         cmd += self.docker_args
         cmd.append(self.image)
         return cmd

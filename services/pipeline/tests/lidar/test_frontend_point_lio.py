@@ -156,13 +156,13 @@ def test_command_line(tmp_path):
         "--name",
         "orchados-point-lio-1",
         "-v",
-        f"{session.resolve()}:/in/session:ro",
+        f"{session}:/in/session:ro",
         "-v",
-        f"{(tmp_path / 'w/point_lio/segments.json').resolve()}:/in/segments.json:ro",
+        f"{(tmp_path / 'w/point_lio/segments.json')}:/in/segments.json:ro",
         "-v",
-        f"{(tmp_path / 'w/point_lio/restamped').resolve()}:/in/restamped:ro",
+        f"{(tmp_path / 'w/point_lio/restamped')}:/in/restamped:ro",
         "-v",
-        f"{(tmp_path / 'w/frontend').resolve()}:/out",
+        f"{(tmp_path / 'w/frontend')}:/out",
         "--cpus",
         "4",
         "img:1",
@@ -198,7 +198,7 @@ def test_paths_in_session_and_already_restamped(two_bags, tmp_path):
         ["lidar/raw/bag/bag_0.mcap"],
         ["/in/extra/0/seg1_0.mcap"],
     ]
-    assert mounts == [(copy.parent.resolve(), "/in/extra/0")]
+    assert mounts == [(copy.parent, "/in/extra/0")]
     assert not (tmp_path / "w/point_lio/restamped").exists()
 
 
@@ -235,8 +235,8 @@ def test_run_reads_back_and_failed_segments_propagate(two_bags, tmp_path, fake_d
     assert body["method_version"] == "620f44875c70-a8e2d0d-r2"
     run_call = calls()[-1]
     assert run_call[0] == "run" and run_call[-1] == "img:2"
-    assert f"{dest.resolve()}:/in/session:ro" in run_call
-    assert f"{(work / 'frontend').resolve()}:/out" in run_call
+    assert f"{dest}:/in/session:ro" in run_call
+    assert f"{(work / 'frontend')}:/out" in run_call
     # The restamped copies are gone after the run; segments.json and the log stay.
     assert not (work / "point_lio/restamped").exists()
     assert (work / "point_lio/segments.json").is_file()
