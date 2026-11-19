@@ -37,8 +37,10 @@ describe("LiDAR registration review", () => {
   let ops: Client;
   let owner: Client;
 
-  // A registration run of the visit, recorded the way `lidar upload` does.
-  async function record(verdict: string, reasons: string[]) {
+  // A registration run of the visit, recorded the way `lidar upload` does:
+  // record_lidar_registration (status recording), then, after the uploads,
+  // activate_lidar_registration (unless `activate` is false).
+  async function record(verdict: string, reasons: string[], activate = true) {
     const { data, error } = await ops.rpc("record_lidar_registration", {
       p_session_id: run.session,
       p_payload: {
@@ -53,6 +55,10 @@ describe("LiDAR registration review", () => {
       },
     });
     if (error) throw error;
+    if (activate) {
+      const activated = await ops.rpc("activate_lidar_registration", { p_id: data });
+      if (activated.error) throw activated.error;
+    }
     return data;
   }
 
@@ -221,5 +227,27 @@ describe("LiDAR registration review", () => {
       { id: pending, status: "accepted" },
       { id: second, status: "rejected" },
     ]);
+  });
+
+  it("a run still being uploaded is not listed for review nor put on the band", async () => {
+    const uploading = await record("review", ["clock_unlocked"], false);
+    expect((await listPendingRegistrations(ops)).some((r) => r.id === uploading)).toBe(false);
+    // The band stays on the visit's newest activated run.
+    expect((await visitOf(ops))!.registration).toMatchObject({
+      current: { status: "rejected" },
+      earlier: [
+        { status: "accepted", count: 1 },
+        { status: "recording", count: 1 },
+      ],
+    });
+    // Once its uploads are done the pipeline activates it: in review.
+    const { data, error } = await ops.rpc("activate_lidar_registration", { p_id: uploading });
+    expect(error).toBeNull();
+    expect(data).toMatchObject({ id: uploading, status: "pending_review" });
+    expect((await listPendingRegistrations(ops)).map((r) => r.id)).toContain(uploading);
+    expect((await visitOf(ops))!.registration!.current).toMatchObject({
+      id: uploading,
+      status: "pending_review",
+    });
   });
 });

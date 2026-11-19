@@ -130,6 +130,33 @@ describe("registration band", () => {
     expect(band.earlier).toEqual([{ status: "accepted", count: 1 }]);
   });
 
+  it("puts a run still being uploaded last: shown only when it is the visit's only run", () => {
+    const band = registrationBand([
+      run("up", "recording", "2026-11-18T13:00:00Z"),
+      run("acc", "accepted", "2026-11-18T12:00:00Z"),
+    ])!;
+    expect(band.current.id).toBe("acc");
+    expect(band.earlier).toEqual([{ status: "recording", count: 1 }]);
+    expect(
+      registrationBand([run("up", "recording", "2026-11-18T13:00:00Z")])!.current,
+    ).toMatchObject({ id: "up", status: "recording" });
+    expect(
+      registrationOf({
+        id: ID,
+        session_id: "s",
+        status: "recording",
+        auto_verdict: "review",
+        ppk_status: "ppk",
+        metrics: {},
+        reasons: [],
+        decided_by: null,
+        decided_at: null,
+        decision_note: null,
+        created_at: "2026-11-18T13:00:00Z",
+      }).status,
+    ).toBe("recording");
+  });
+
   it("is null without runs; a single run has no earlier ones", () => {
     expect(registrationBand([])).toBeNull();
     expect(registrationBand([run("a", "pending_review", "2026-11-18T10:00:00Z")])).toMatchObject({

@@ -30,6 +30,7 @@ const TONE = {
   accepted: styles.success,
   rejected: styles.danger,
   superseded: styles.neutral,
+  recording: styles.neutral,
 } as const;
 
 export function RegistrationBand({
@@ -94,6 +95,7 @@ export function RegistrationBand({
       {reg.status === "pending_review" && (
         <p className={styles.lead}>{decide ? r.pendingLead : r.pendingLeadReadOnly}</p>
       )}
+      {reg.status === "recording" && <p className={styles.lead}>{r.recordingLead}</p>}
       <dl className={styles.metrics} data-testid="registration-metrics">
         <div>
           <dt>{r.metrics.gnss}</dt>
@@ -231,6 +233,7 @@ function metres(value: number | null): string {
 // Who decided and when; the pipeline's own verdict for runs that were never
 // in review.
 export function decisionText(reg: LidarRegistration): string {
+  if (reg.status === "recording") return r.recorded(formatDate(reg.createdAt));
   if (reg.decidedAt) return r.decided(reg.decidedByLabel ?? r.someone, formatDate(reg.decidedAt));
   if (reg.autoVerdict === "accepted_auto") return r.autoAccepted(formatDate(reg.createdAt));
   if (reg.autoVerdict === "rejected_auto") return r.autoRejected(formatDate(reg.createdAt));

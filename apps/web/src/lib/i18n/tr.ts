@@ -1775,17 +1775,21 @@ export const tr = {
       accepted: "LiDAR kaydı kabul edildi",
       rejected: "LiDAR kaydı reddedildi",
       superseded: "LiDAR kaydının yerine yenisi geldi",
+      recording: "LiDAR kaydı yükleniyor",
     },
     status: {
       pending_review: "İncelemede",
       accepted: "Kabul edildi",
       rejected: "Reddedildi",
       superseded: "Yerine yenisi geldi",
+      recording: "Yükleniyor",
     },
     pendingLead:
       "Ölçümler ve bulut, kayıt kabul edilene kadar sahibe kapalı. Bulutu inceleyip kararı verin.",
     pendingLeadReadOnly:
       "Ölçümler ve bulut, kayıt kabul edilene kadar sahibe kapalı. Kararı operasyon verir.",
+    recordingLead:
+      "Hat bu kaydın ölçümlerini ve bulutunu yüklüyor; yükleme bitince kayıt otomatik kararıyla açılır. Uzun süre böyle kalırsa yükleme yarıda kalmıştır: hattı yeniden çalıştırın.",
     metrics: {
       gnss: "GNSS sapması (p95)",
       trunk: "Gövde tutarlılığı (p95)",

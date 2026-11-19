@@ -11,11 +11,14 @@ import type { Client } from "@/lib/supabase/types";
 // runs waiting for review. The table is readable by org staff only; every
 // query runs as the signed-in user.
 
+// recording: the pipeline is still uploading the run's measurements and world
+// cloud (record_lidar_registration until activate_lidar_registration).
 export const REGISTRATION_STATUSES = [
   "pending_review",
   "accepted",
   "rejected",
   "superseded",
+  "recording",
 ] as const;
 export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number];
 export type AutoVerdict = "accepted_auto" | "review" | "rejected_auto";
@@ -87,7 +90,7 @@ export function registrationOf(
   return {
     id: row.id,
     sessionId: row.session_id,
-    // The table's check constraint allows these four only.
+    // The table's check constraint allows these five only.
     status: isStatus(row.status) ? row.status : "pending_review",
     autoVerdict: row.auto_verdict as AutoVerdict,
     ppkStatus: row.ppk_status,
@@ -120,9 +123,15 @@ export interface RegistrationBand {
 
 // The band of a visit from its runs (newest first): the newest run, except
 // that a run still waiting for review comes first (the newest of them), so
-// the ops dashboard's link always lands on a run that can be decided.
+// the ops dashboard's link always lands on a run that can be decided. A run
+// still being uploaded (recording) comes last: it may be an upload that
+// failed, and the visit's activated runs say more; it is on the band only
+// when the visit has no other run.
 export function registrationBand(runs: LidarRegistration[]): RegistrationBand | null {
-  const current = runs.find((r) => r.status === "pending_review") ?? runs[0];
+  const current =
+    runs.find((r) => r.status === "pending_review") ??
+    runs.find((r) => r.status !== "recording") ??
+    runs[0];
   if (!current) return null;
   const counts = new Map<RegistrationStatus, number>();
   for (const r of runs) {

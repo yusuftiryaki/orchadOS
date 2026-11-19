@@ -1,6 +1,7 @@
 -- LiDAR registration and its reader gate (20261118100000_lidar_registration;
 -- spec docs/superpowers/specs/2026-11-18-lidar-kayit-adimi-design.md §5.8, §5.11):
--- ops records register runs and decides pending ones once; parcel readers
+-- ops records register runs (status recording), uploads their measurements and
+-- world cloud, then activates them; ops decides pending ones once; parcel readers
 -- (owner, shareholder, viewer, demo visitor) see LiDAR measurements and the
 -- world cloud of a run only while it is the session's accepted run; org roles
 -- see all; rows without a run keep today's visibility.
@@ -8,7 +9,7 @@
 -- field_staff a0..03, expert a0..04, ops a0..05. One transaction.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(67);
+select plan(88);
 
 select testing.reset_to_seed();
 
@@ -38,6 +39,9 @@ create function pg_temp.record(p_n int, p_verdict text) returns uuid language sq
 as $$ select public.record_lidar_registration('80000000-0000-4000-8000-000000000010', pg_temp.payload(p_n, p_verdict)) $$;
 create function pg_temp.reg(p_n int) returns uuid language sql
 as $$ select id from pg_temp.regs where n = p_n $$;
+-- Activates run p_n (after its uploads); returns its new status.
+create function pg_temp.activate(p_n int) returns text language sql
+as $$ select status from public.activate_lidar_registration(pg_temp.reg(p_n)) $$;
 create function pg_temp.status(p_n int) returns text language sql
 as $$ select status from pg_temp.reg_status where n = p_n $$;
 -- One crown measurement of run p_n on S1-1 (tree_height p_value) and crown_diameter.
@@ -167,10 +171,12 @@ select results_eq(
   $$ select r.run_id, r.status, r.auto_verdict, r.ppk_status, r.method, r.metrics ->> 'trees_checked',
             r.decided_by, r.decided_at, r.recorded_by, r.org_id, r.parcel_id
      from public.lidar_registration r where r.id = pg_temp.reg(1) $$,
-  $$ values (pg_temp.run(1), 'pending_review', 'review', 'ppk', 'fake+gtsam_ppk', '14', null::uuid,
+  $$ values (pg_temp.run(1), 'recording', 'review', 'ppk', 'fake+gtsam_ppk', '14', null::uuid,
              null::timestamptz, 'a0000000-0000-4000-8000-000000000005'::uuid,
              'b0000000-0000-4000-8000-000000000001'::uuid, 'c0000000-0000-4000-8000-000000000001'::uuid) $$,
-  'ops records a review run as pending_review');
+  'ops records a run as recording: not yet in review until it is activated');
+select is_empty($$ select id from public.lidar_registration where status = 'pending_review' $$,
+  'ops: a recording run is not waiting for review');
 select is(pg_temp.record(1, 'review'), pg_temp.reg(1), 'the same run again returns the same row');
 select is((select count(*)::int from public.lidar_registration where run_id = pg_temp.run(1)), 1, 'and adds none');
 select throws_ok($$ select pg_temp.record(1, 'accepted_auto') $$, '22023', 'invalid_input',
@@ -189,7 +195,7 @@ select throws_ok(
 
 -- Measurements and the world cloud of the pending run.
 select is(pg_temp.measure(1), '{"created": 2, "existing": 0, "skipped": []}'::jsonb,
-  'measurements of a pending run are recorded');
+  'measurements of a recording run are recorded (uploads come before activation)');
 select is(pg_temp.measure(1), '{"created": 0, "existing": 2, "skipped": []}'::jsonb, 'idempotent per run');
 select throws_ok(
   $$ select public.record_lidar_measurements('80000000-0000-4000-8000-000000000011', jsonb_build_object(
@@ -200,13 +206,40 @@ select throws_ok(
        'registration_id', 'nope', 'items', '[]'::jsonb)) $$,
   '22023', 'invalid_input', 'a registration_id that is not a uuid is refused');
 select lives_ok($$ select pg_temp.cloud('01', '80000000-0000-4000-8000-000000000010', upper(pg_temp.reg(1)::text)) $$,
-  'ops uploads the world cloud of the pending run');
+  'ops uploads the world cloud of the recording run');
 select is((select pose ->> 'registration_id' from public.asset where id = '80000000-0000-4000-8000-000000000201'),
   pg_temp.reg(1)::text, 'its pose.registration_id is stored in canonical form');
 select throws_ok($$ select pg_temp.cloud('02', '80000000-0000-4000-8000-000000000011', pg_temp.reg(1)::text) $$,
   '22023', 'invalid_input', 'a world cloud cannot name a run of another session');
 select throws_ok($$ select pg_temp.cloud('02', '80000000-0000-4000-8000-000000000010', 'x') $$,
   '22023', 'invalid_input', 'nor a registration_id that is not a uuid');
+
+-- Gate while recording ----------------------------------------------------------------------
+
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+select is(pg_temp.heights(), '{}'::float8[], 'owner: no measurement of the recording run');
+select is(pg_temp.clouds(), array['00'], 'owner: no world cloud of the recording run');
+select ok(not pg_temp.signable('01'), 'owner: the recording run''s world cloud file is not signed');
+
+-- Activating ---------------------------------------------------------------------------------
+
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000004');
+select throws_ok($$ select pg_temp.activate(1) $$, '42501', 'forbidden', 'the expert does not activate runs');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+select throws_ok($$ select pg_temp.activate(1) $$, 'P0002', 'not_found', 'the owner does not either');
+select pg_temp.as_demo('a0000000-0000-4000-8000-000000000005');
+select throws_ok($$ select pg_temp.activate(1) $$, '42501', 'demo_read_only',
+  'nor a request with the demo claim');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select throws_ok($$ select public.activate_lidar_registration('80000000-0000-4000-8000-0000000009ff') $$,
+  'P0002', 'not_found', 'an unknown run is not found');
+select results_eq(
+  $$ select status, decided_at from public.activate_lidar_registration(pg_temp.reg(1)) $$,
+  $$ values ('pending_review', null::timestamptz) $$,
+  'activating a review run puts it in review');
+select is(pg_temp.activate(1), 'pending_review', 'activating it again changes nothing');
+select is((select count(*)::int from public.lidar_registration where status = 'pending_review'), 1,
+  'ops: the activated run is waiting for review');
 
 -- Gate while pending ------------------------------------------------------------------------
 
@@ -281,13 +314,25 @@ select is(pg_temp.clouds(), array['00', '01'], 'viewer: visible too');
 
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 insert into pg_temp.regs select 2, pg_temp.record(2, 'accepted_auto');
+select results_eq($$ select pg_temp.status(1), pg_temp.status(2) $$, $$ values ('accepted', 'recording') $$,
+  'an auto-accepted run being recorded supersedes nothing yet');
+select is(pg_temp.measure(2, 3.4), '{"created": 2, "existing": 0, "skipped": []}'::jsonb,
+  'the same items of a new run are added next to the old ones');
+-- The upload of the world cloud fails: the run is never activated.
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
+select is(pg_temp.heights(), array[3.2::float8],
+  'owner: a run recorded but never activated (failed upload) leaves the accepted run''s values visible');
+select is(pg_temp.clouds(), array['00', '01'], 'owner: and its world cloud');
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+select is(pg_temp.activate(2), 'accepted', 'activating an auto-accepted run accepts it');
 select results_eq($$ select pg_temp.status(1), pg_temp.status(2) $$, $$ values ('superseded', 'accepted') $$,
-  'an auto-accepted run supersedes the session''s accepted run');
+  'and supersedes the session''s accepted run');
 select is((select (decided_by, decided_at, decision_note) is null
            from public.lidar_registration where id = pg_temp.reg(2)), true,
   'an automatic verdict carries no decision');
-select is(pg_temp.measure(2, 3.4), '{"created": 2, "existing": 0, "skipped": []}'::jsonb,
-  'the same items of a new run are added next to the old ones');
+select is(pg_temp.activate(2), 'accepted', 'activating it again changes nothing');
+select results_eq($$ select pg_temp.status(1), pg_temp.status(2) $$, $$ values ('superseded', 'accepted') $$,
+  'and leaves the earlier run superseded');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select is(pg_temp.heights(), array[3.4::float8], 'owner: only the current accepted run''s measurement');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000004');
@@ -295,6 +340,7 @@ select is(pg_temp.heights(), array[3.2::float8, 3.4::float8], 'expert: both runs
 
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
 insert into pg_temp.regs select 3, pg_temp.record(3, 'review');
+select is(pg_temp.activate(3), 'pending_review', 'another review run is activated');
 select lives_ok($$ select public.decide_lidar_registration(pg_temp.reg(3), true, null) $$,
   'ops accepts another pending run');
 select results_eq($$ select pg_temp.status(1), pg_temp.status(2), pg_temp.status(3) $$,
@@ -307,6 +353,7 @@ select is((select decided_at from public.lidar_registration where id = pg_temp.r
 insert into pg_temp.regs select 4, pg_temp.record(4, 'review');
 select is(pg_temp.measure(4, 3.6), '{"created": 2, "existing": 0, "skipped": []}'::jsonb,
   'measurements uploaded before the decision');
+select is(pg_temp.activate(4), 'pending_review', 'the run is activated into review');
 select results_eq(
   $$ select status, decision_note from public.decide_lidar_registration(pg_temp.reg(4), false, 'double trunks in row 3') $$,
   $$ values ('rejected', 'double trunks in row 3') $$, 'ops rejects with a note');
@@ -315,10 +362,14 @@ select throws_ok($$ select pg_temp.measure(4) $$, '22023', 'registration_rejecte
 select throws_ok($$ select pg_temp.cloud('04', '80000000-0000-4000-8000-000000000010', pg_temp.reg(4)::text) $$,
   '22023', 'registration_rejected', 'nor a world cloud');
 insert into pg_temp.regs select 5, pg_temp.record(5, 'rejected_auto');
+select is(pg_temp.activate(5), 'rejected', 'activating an auto-rejected run rejects it');
 select results_eq($$ select pg_temp.status(3), pg_temp.status(5) $$, $$ values ('accepted', 'rejected') $$,
-  'an auto-rejected run starts rejected and leaves the accepted run alone');
+  'and leaves the accepted run alone');
 select pg_temp.as_user('a0000000-0000-4000-8000-000000000001');
 select is(pg_temp.heights(), '{}'::float8[], 'owner: the rejected run stays hidden (the accepted one has none)');
+
+select pg_temp.as_user('a0000000-0000-4000-8000-000000000005');
+insert into pg_temp.regs select 15, pg_temp.record(15, 'review');
 
 -- Rows are never deleted; terminal states stay -------------------------------------------------
 
@@ -329,6 +380,8 @@ select throws_ok($$ update public.lidar_registration set status = 'accepted' whe
   '42501', null, 'a superseded run does not come back');
 select throws_ok($$ update public.lidar_registration set metrics = '{}' where id = pg_temp.reg(3) $$,
   '42501', null, 'only the decision changes');
+select throws_ok($$ update public.lidar_registration set status = 'accepted' where id = pg_temp.reg(15) $$,
+  '42501', null, 'a recording run leaves only for the status its verdict gives');
 
 -- The demo visitor sees the demo run once it is accepted (the hiding above was the gate).
 update public.lidar_registration set status = 'accepted', decided_at = now()
