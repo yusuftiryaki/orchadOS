@@ -134,4 +134,4 @@
 
 **Files:** `deploy/processing/orchados-process` (+ its tests), `docs/bulut-isleme.md`, `CLAUDE.md` (İşleme hattı table: `lidar register`, `lidar process`, `lidar synth --moving`), `docs/plan.md`.
 
-- [ ] `orchados-process`: after the pipeline run, when `lidar/raw` exists, `orchados-pipeline lidar process <session> --frontend ${PROCESS_LIDAR_FRONTEND:-point_lio} --upload`; `PROCESS_LIDAR=auto|0|1`. Tests of the script updated. Commit `processing: run the LiDAR registration`.
+- [x] `orchados-process`: after the pipeline run, when `lidar/raw` exists, `orchados-pipeline lidar process <session> --frontend ${PROCESS_LIDAR_FRONTEND:-point_lio} --upload`; `PROCESS_LIDAR=auto|0|1`. Tests of the script updated. Commit `processing: run the LiDAR registration`.
