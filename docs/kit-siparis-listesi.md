@@ -20,7 +20,7 @@ Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); topl
 | 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | 27.270 TL | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
 | 7.4 | Kayıt SSD'si | Lexar SL300 512 GB (USB 3.2 Gen 2) | 1 | 3.999 TL | 15'ten fazla ziyaretin LiDAR kaydını alır |
 
-**Elde var:** Raspberry Pi 4 Model B (soğutucu) ve sistem kartı (microSD); Pi için DC-DC düşürücü. Bu kit için alınmadı; yukarıdaki toplamda yok. Kitte Pi 5 yok; kayıt Pi 4'te yapılır (sahip, 19 Kasım 2026).
+**Elde var:** Raspberry Pi 4 Model B (soğutucu) ve sistem kartı (microSD); iki ayarlı DC-DC düşürücü (LiDAR için 12 V, Pi için 5,1 V). Bu kit için alınmadı; yukarıdaki toplamda yok. Kitte Pi 5 yok; kayıt Pi 4'te yapılır (sahip, 19 Kasım 2026).
 
 **Karar (16 Kasım 2026, sahip): MVP kiti tek ziyareti taşır.** Tek kamera kartı ve tek SSD alındı; kart her ziyaretten sonra ofiste aktarılıp boşaltılır. Listede iki kart ve iki SSD öneren satırlar pilot sonrasına kaldı. Aynı gün iki bahçe taranacaksa ikinci bir kart gerekir.
 
@@ -130,8 +130,8 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 | 7.2 | **Raspberry Pi 4 Model B** | 1 | Soğutucu. Saat pili (RTC) yok: saat açılışta GNSS ile kurulur. Bellek açılışta `free -h` ile okunur; ROS 2 ile kayıt için en az 2 GB, tercihen 4 GB | **Elde var** | — |
 | 7.3 | Pi sistem kartı (microSD) | 1 | 32–128 GB, "high endurance" ya da endüstriyel | **Elde var** | — |
 | 7.4 | **Kayıt SSD'si** (USB 3) | 1 | Lexar SL300 512 GB | **Alındı** | 3.999 TL |
-| 7.5 | DC-DC düşürücü, 18 V → 12 V | 1 | Çıkış 12 V, en az 1,5 A; LiDAR için. Fiş DC 3,5 × 1,35 mm | Alınacak | 3–8 $ |
-| 7.6 | DC-DC düşürücü, 18 V → 5 V, en az 3 A | 1 | Pi için. Pi 4'ün USB portları toplam 1,2 A verir; SSD ve alıcı bunu paylaşır. Girişin 18 V aküyü kaldırdığı ve yük altında çıkışın 5,0–5,2 V kaldığı masada multimetreyle doğrulanır | **Elde var** | — |
+| 7.5 | DC-DC düşürücü, akü → 12 V | 1 | Ayarlı; çıkış 12 V'a ayarlanır, en az 1,5 A; LiDAR için. Fiş DC 3,5 × 1,35 mm | **Elde var** | — |
+| 7.6 | DC-DC düşürücü, akü → 5 V, en az 3 A | 1 | Ayarlı; çıkış 5,1 V'a ayarlanır. Pi için. Pi 4'ün USB portları toplam 1,2 A verir; SSD ve alıcı bunu paylaşır. Girişin 18 V aküyü kaldırdığı ve yük altında çıkışın 5,0–5,2 V kaldığı masada multimetreyle doğrulanır | **Elde var** | — |
 | 7.7 | Ethernet kablosu | 1 | Kısa (0,3–0,5 m), Cat5e; LiDAR'ın RJ45 ucu ile Pi arasına | Alınacak | 2–5 $ |
 | 7.8 | USB-C veri kablosu | 1 | Kısa; RTK alıcısından Pi'a ham GNSS | Alınacak | 3–6 $ |
 | 7.9 | PPS teli ve seviye koruması | 1 set | Alıcının zaman darbesi (PPS) çıkışından Pi'ın GPIO18'ine (pin 12) tel; 3,3 V ise seri 100–330 Ω direnç, 5 V ise gerilim bölücü. Seviye multimetreyle ölçülür | Alınacak | 1–3 $ |
@@ -146,7 +146,7 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 
 ## Toplam
 
-**Alınanlar:** beş parça, **77.805 TL** (KDV dahil; [Durum](#durum-alınanlar-16-kasım-2026)). Raspberry Pi 4, sistem kartı ve Pi'ın DC-DC düşürücüsü elde var, toplama girmez.
+**Alınanlar:** beş parça, **77.805 TL** (KDV dahil; [Durum](#durum-alınanlar-16-kasım-2026)). Raspberry Pi 4, sistem kartı ve iki DC-DC düşürücü elde var, toplama girmez.
 
 **Kalanlar** (yaklaşık uluslararası fiyatlar, doğrulanmadı):
 

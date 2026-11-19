@@ -211,7 +211,7 @@ Toplam yaklaşık 55 gün (İP9 hariç).
 
 Bunlar takvimi bekletebilecek, başkasına bağlı işler. İlk iki hafta içinde başlatılmalı:
 
-- [ ] Kit parçalarının siparişi. Ana parçalar yurt içinden alındı (16 Kasım 2026): 360° kamera, LiDAR, RTK alıcı ve anteni, kamera kartı, SSD. Raspberry Pi 4, sistem kartı ve Pi'ın DC-DC düşürücüsü elde var. Kalanlar: güç (akü, şarj aleti, adaptör, USB-C PD), mekanik, Pi'ın bağlantıları (DC-DC düşürücüler, Ethernet ve USB-C kabloları, PPS teli, kutu, sigorta). İkinci alıcı ve jalon alınmıyor. Liste: `docs/kit-siparis-listesi.md`
+- [ ] Kit parçalarının siparişi. Ana parçalar yurt içinden alındı (16 Kasım 2026): 360° kamera, LiDAR, RTK alıcı ve anteni, kamera kartı, SSD. Raspberry Pi 4, sistem kartı ve iki ayarlı DC-DC düşürücü elde var. Kalanlar: güç (akü, şarj aleti, adaptör, USB-C PD), mekanik, Pi'ın bağlantıları (DC-DC düşürücüler, Ethernet ve USB-C kabloları, PPS teli, kutu, sigorta). İkinci alıcı ve jalon alınmıyor. Liste: `docs/kit-siparis-listesi.md`
 - [x] 360° kamera üreticisinin SDK başvurusu (SDK geldi, PR #34)
 - [ ] TUSAGA-Aktif (CORS-TR) abonelik başvurusu. Karar verildi (16 Kasım 2026, sahip): baz verisi TUSAGA-Aktif'ten, kendi baz istasyonu kurulmaz. PPK denemesi (İP3) hesabın açılmasını bekler
 - [ ] Uzman (ziraat mühendisi) ile ön görüşme
