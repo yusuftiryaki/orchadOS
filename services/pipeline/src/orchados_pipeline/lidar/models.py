@@ -142,6 +142,11 @@ class RegistrationParams(Model):
     keyframe_dist_m: float = 0.5
     keyframe_angle_deg: float = 10.0
     keyframe_dt_s: float = 1.0
+    # Raw points closer than this to the LiDAR are dropped by the front end before
+    # deskewing (Point-LIO's preprocess.blind; the kit's mast).
+    blind_m: float = 0.6
+    # Playback rate of the raw log through the front end (Point-LIO; 1 = real time).
+    frontend_rate: float = 1.0
     # Pose graph (§5.5). Between factors: sigma grows with the distance between keyframes.
     between_sigma_m_per_m: float = 0.01
     between_sigma_deg_per_m: float = 0.1

@@ -78,6 +78,7 @@ class PointLioFrontend:
         keyframe_dt_s: float = 1.0,
         docker_args: Sequence[str] = (),
         timeout_s: float | None = None,
+        stamp_latency_s: float = 0.0,
     ):
         self.image = image or os.environ.get(IMAGE_ENV) or DEFAULT_IMAGE
         if not rate > 0:
@@ -95,6 +96,8 @@ class PointLioFrontend:
         }
         self.docker_args = list(docker_args)
         self.timeout_s = timeout_s
+        # Restamped copies made here (segments the caller did not restamp): rawlog.
+        self.stamp_latency_s = float(stamp_latency_s)
         self.method_version = ""  # set by run() from the image
 
     # -- image ------------------------------------------------------------------
@@ -164,7 +167,7 @@ class PointLioFrontend:
                 continue
             bags = [Path(b) for b in seg.bag_dirs]
             if seg.needs_restamp and all(_within(b, raw) is not None for b in bags):
-                copy = write_restamped(seg, restamp_root / f"seg{seg.index}")
+                copy = write_restamped(seg, restamp_root / f"seg{seg.index}", self.stamp_latency_s)
                 bags = [copy.parent]
             paths = []
             for bag in bags:

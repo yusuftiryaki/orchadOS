@@ -624,7 +624,7 @@ def run(
     given trajectory cannot be read."""
     session_dir = Path(session_dir)
     params = params or RegistrationParams()
-    frontend = frontend or get_frontend(params.frontend)
+    frontend = frontend or get_frontend(params.frontend, params)
     if out_root is None:
         out_root = (
             Path(processed_root) / REGISTRATION_DIR

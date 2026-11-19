@@ -287,3 +287,23 @@ def test_cli_without_docker_says_so(two_bags, tmp_path, monkeypatch, capsys):
     assert "Docker is needed" in capsys.readouterr().err
     # The failed run leaves no folder behind.
     assert not any(out.iterdir())
+
+
+def test_registration_params_reach_the_front_end(two_bags, tmp_path, monkeypatch):
+    """The keyframe spacing, blind radius, playback rate and stamp latency are hashed into
+    the run's params; they must also be what the front end uses (segments.json)."""
+    monkeypatch.delenv("ORCHADOS_POINT_LIO_IMAGE", raising=False)
+    params = RegistrationParams(
+        keyframe_dist_m=1.5, keyframe_angle_deg=20.0, keyframe_dt_s=2.0, blind_m=0.8,
+        frontend_rate=3.0, stamp_latency_s=0.004,
+    )  # fmt: skip
+    fe = get_frontend("point_lio", params)
+    dest, segs = two_bags
+    spec, _ = fe.prepare(dest, segs, tmp_path)
+    assert spec["keyframe"] == {"dist_m": 1.5, "angle_deg": 20.0, "dt_s": 2.0}
+    assert spec["blind_m"] == 0.8 and spec["rate"] == 3.0
+    assert fe.stamp_latency_s == 0.004
+    # Defaults stay what they were.
+    spec, _ = get_frontend("point_lio", RegistrationParams()).prepare(dest, segs, tmp_path / "d")
+    assert spec["keyframe"] == {"dist_m": 0.5, "angle_deg": 10.0, "dt_s": 1.0}
+    assert spec["blind_m"] == 0.6 and spec["rate"] == 1.0

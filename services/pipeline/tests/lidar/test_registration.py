@@ -362,3 +362,17 @@ def test_resolve_cloud_order(tmp_path):
     )
     write_session_cloud(session, np.zeros((3, 3)), meta)
     assert resolve_cloud(session) == session / "lidar"
+
+
+def test_keyframe_params_reach_the_front_end(small_ppk, tmp_path):
+    """The front end comes from the parameters (get_frontend(name, params)): a coarser
+    keyframe spacing gives fewer keyframes."""
+    session = link_session(small_ppk[0], tmp_path / "s")
+    fine = RegistrationParams(frontend="fake")
+    coarse = RegistrationParams(
+        frontend="fake", keyframe_dist_m=3.0, keyframe_angle_deg=90.0, keyframe_dt_s=5.0
+    )
+    _, r1 = run(session, params=fine)
+    _, r2 = run(session, params=coarse)
+    assert 0 < r2.metrics["keyframes"] < r1.metrics["keyframes"] / 3
+    assert r1.frontend["config_hash"] != r2.frontend["config_hash"]

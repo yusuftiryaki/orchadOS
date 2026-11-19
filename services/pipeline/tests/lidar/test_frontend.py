@@ -161,3 +161,15 @@ def test_scan_paths_are_relative_in_csv(session, tmp_path):
 def test_keyframe_dataclass_shapes():
     k = Keyframe(0, 0, 0, np.zeros(3), np.array([0, 0, 0, 1.0]), Path("x.npz"))
     assert k.t.shape == (3,) and k.q.shape == (4,)
+
+
+def test_get_frontend_takes_the_registration_params():
+    from orchados_pipeline.lidar.models import RegistrationParams
+
+    params = RegistrationParams(
+        keyframe_dist_m=2.0, keyframe_angle_deg=30.0, keyframe_dt_s=0.5, blind_m=0.9
+    )
+    fe = get_frontend("fake", params)
+    assert fe.kf_dist == 2.0 and fe.kf_angle == pytest.approx(math.radians(30.0))
+    assert fe.kf_dt_ns == 500_000_000 and fe.blind == 0.9
+    assert fe.config_hash != get_frontend("fake").config_hash
