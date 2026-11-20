@@ -73,16 +73,18 @@ def test_chrony_feed_sends_the_receiver_time(tmp_path):
     server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     server.bind(str(path))
     try:
-        unix_ns = 1_792_314_902_000_000_000
+        # Not on a full second: those solutions are not sent (they arrive late).
+        unix_ns = 1_792_314_902_200_000_000
         (msg,) = Framer().feed(synthetic_nav_pvt(unix_ns))
         feed = ChronySockFeed(path)
         feed.send(parse_nav_pvt(msg.payload), unix_ns + 40_000_000)  # received 40 ms later
+        server.settimeout(1.0)
         sample = server.recv(64)
         assert len(sample) == 40
         import struct
 
         sec, usec, offset, *_ = struct.unpack("<qqdiiii", sample)
-        assert (sec, usec) == (1_792_314_902, 40_000)
+        assert (sec, usec) == (1_792_314_902, 240_000)
         assert abs(offset + 0.040) < 1e-9
     finally:
         server.close()
