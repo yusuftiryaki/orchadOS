@@ -9,7 +9,7 @@ LiDAR'lı tarama kitinde kayıt bilgisayarı Raspberry Pi 4 Model B'dir (elde Pi
 
 Sözleşme (durum mesajının kit uzantısı, olaylar, `session.json` eklentileri, `lidar/raw/recording.json`): [docs/arayuzler.md](../../docs/arayuzler.md#kit-kaydedicisi-raspberry-pi). Tasarım: [docs/superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](../../docs/superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md).
 
-> **Donanımda denenmedi.** Kayıt çekirdeği sahte saat ve sahte kaynaklarla test edildi. Kurulum betiği, BLE sunucusu, L2 sürücüsü, PPS ve chrony henüz gerçek bir Pi'da çalıştırılmadı (plan, Task 17). Alıcı tarafı gerçek Radiolink F9P ile denendi (20 Kasım 2026, geliştirme bilgisayarında `gnss-check`): ayar ACK alıyor, mesajlar istenen hızda geliyor. Aşağıda "donanımda doğrulanır" diye işaretli değerler o denemede kesinleşir.
+> **Donanımda denenmedi.** Kayıt çekirdeği sahte saat ve sahte kaynaklarla test edildi. Kurulum betiği, BLE sunucusu, L2 sürücüsü, PPS ve chrony henüz gerçek bir Pi'da çalıştırılmadı (plan, Task 17). Alıcı tarafı gerçek Radiolink F9P ile denendi (20 Kasım 2026, geliştirme bilgisayarında `gnss-check`): ayar ACK alıyor, mesajlar istenen hızda geliyor, USB gecikmesi ~55 ms. Aşağıda "donanımda doğrulanır" diye işaretli değerler o denemede kesinleşir.
 
 ## Komutlar (geliştirme makinesi)
 
@@ -43,7 +43,7 @@ Sırasıyla: alıcının kendi çıktısı (3 sn), MON-VER (modül ve yazılım)
 | Sonuç | Ne zaman |
 | --- | --- |
 | **FAIL** (çıkış 1) | MON-VER'e cevap yok ya da modül ZED-F9P değil; ayar ACK almadı; NAV-PVT ya da RAWX beklenen hızın %90'ının altında; SFRBX yok; 3D fix yok; ikinci bantta (L2/E5b) faz veren uydu yok |
-| **WARN** | İki bantta faz veren uydu en çok `--min-dual`'ın (10) altında: gökyüzü kısmen kapalı ya da anten zayıf. İlk 3D fix 120 sn'den geç |
+| **WARN** | İki bantta faz veren uydu en çok `--min-dual`'ın (10) altında: gökyüzü kısmen kapalı ya da anten zayıf. İlk 3D fix 120 sn'den geç. Sistem saati bir NTP sunucusundayken ölçülen USB gecikmesi chrony'nin `offset`'inden (55 ms) 5 ms'den fazla farklı ([Saat](#saat)) |
 | **PASS** (çıkış 0) | Geri kalan her durumda |
 
 Port bulunamazsa çıkış 2. `--json` raporu JSON olarak basar; `--out` ham UBX akışını dosyaya yazar (RINEX'e çevirip PPK denemesi için).
@@ -58,7 +58,7 @@ Port bulunamazsa çıkış 2. `--json` raporu JSON olarak basar; `--out` ham UBX
 | `setup/unilidar.service`, `setup/unilidar.env` | `/etc/systemd/system/`, `/etc/orchados/unilidar.env` | L2'nin ROS 2 sürücüsü; komutu `unilidar.env`'de |
 | `setup/patches/unilidar_sdk2-*.patch` | `/opt/orchados/ros2_ws/src/unilidar_sdk2`'e uygulanır | L2 sürücüsünün IMU hatalarına iki yama (aşağıda, "L2 sürücüsü") |
 | `setup/orchados-ros-exec` | `/usr/local/bin/` | Bir komutu ROS 2 Jazzy ortamında çalıştırır (iki servis de bunu kullanır) |
-| `setup/chrony-orchados.conf` | `/etc/chrony/conf.d/orchados.conf` | Saat: PPS, saniyesi alıcıdan |
+| `setup/chrony-orchados.conf` | `/etc/chrony/conf.d/orchados.conf` | Saat: alıcının USB zamanı; PPS teli takılıysa PPS |
 | `setup/config.txt.append` | `/boot/firmware/config.txt` sonuna | PPS overlay'i (GPIO18) |
 | `setup/fstab.append` | `/etc/fstab` | SSD'yi etiketle bağlar (`nofail`) |
 | `setup/99-orchados-ssd.rules`, `setup/orchados-ssd-mount.service` | `/etc/udev/rules.d/`, `/etc/systemd/system/` | Açılıştan sonra takılan SSD'yi de bağlar |
@@ -117,8 +117,8 @@ Seçenek: `--skip-lidar-driver` L2 sürücüsünün derlenmesini atlar (ör. L2'
 systemctl status orchados-recorder unilidar chrony bluetooth
 journalctl -u orchados-recorder -f          # servis günlüğü
 journalctl -u unilidar -f                   # L2 sürücüsü
-sudo ppstest /dev/pps0                       # PPS kenarları (saniyede bir satır)
-chronyc sources -v                           # GNSS ve PPS kaynakları; PPS'in başında '*'
+sudo ppstest /dev/pps0                       # PPS kenarları (yalnız tel takılıysa; saniyede bir satır)
+chronyc sources -v                           # GNSS ve PPS kaynakları; seçilenin başında '*' (tel yoksa GNSS)
 chronyc tracking                             # saat hatası
 findmnt /mnt/orchados-ssd                    # SSD bağlı mı
 ```
@@ -157,12 +157,20 @@ sudo mount /mnt/orchados-ssd
 - **Isı.** Soğutucu takılı olmalı. Kapalı kutuda yavaşlama `vcgencmd get_throttled` ile okunur; `throttled=0x0` dışındaki her değer kayıttan sonra incelenir.
 - **Besleme.** 5 V, en az 3 A. Gerilim yük altında 5,0 V'un altına inerse Pi yavaşlar ve `get_throttled` bunu gösterir.
 
-## PPS teli
+## Saat
 
-- F9P'nin TIMEPULSE çıkışı Pi'ın **GPIO18'ine (fiziksel pin 12)** bağlanır; toprak ortak (ör. pin 14).
+Kitin saati alıcıdan gelir; PPS teli şart değildir (sahip, 20 Kasım 2026; [tasarım](../../docs/superpowers/specs/2026-11-20-usb-saat-design.md)). Seri portun tek sahibi kayıt servisidir; gpsd kullanılmaz. chrony'de iki kaynak var:
+
+- **`GNSS`:** servisin her NAV-PVT için `/run/chrony.gnss.sock`'a gönderdiği zaman. Tam saniye çözümleri gönderilmez (RXM-RAWX yüzünden ~7 ms geç gelirler). NAV-PVT, çözümden ~55 ms sonra varır; chrony bunu `offset 0.055` ile düşer (`thresholds.py` `CHRONY_USB_OFFSET_MS`; `test_setup_files.py` ikisinin eşitliğini denetler). PPS teli yokken asıl kaynak budur; chrony'nin hata sınırı 5 ms'nin altındaysa saat **`usb`** sayılır ve ön kontrolden geçer.
+- **`PPS`** (isteğe bağlı tel): `lock GNSS`, `prefer`. Tel takılıysa chrony bunu seçer, saat **`pps`** olur.
+
+**Gecikmenin ölçümü.** Değer geliştirme bilgisayarında ölçüldü (51–63 ms, ortanca 55). Pi'da bir kez doğrulanır: Pi internete bağlı ve chrony bir NTP sunucusunda iken servis durdurulur, `gnss-check` çalıştırılır (anten açık gökyüzünde). Rapordaki `USB latency` ortancası 55 ms'den 5 ms'den fazla saparsa uyarı verir; o zaman `chrony-orchados.conf`'taki `offset` ile `CHRONY_USB_OFFSET_MS` birlikte güncellenir.
+
+### PPS teli (isteğe bağlı)
+
+- Radiolink F9P'de PPS hiçbir fişte yok; kartın yeşil GPS LED'ini sürüyor ([docs/kit-siparis-listesi.md](../../docs/kit-siparis-listesi.md)). Tel ancak kutu açılıp LED'in seri direncinin modül tarafından lehimlenerek alınır.
+- Tel Pi'ın **GPIO18'ine (fiziksel pin 12)** bağlanır; toprak ortak (ör. pin 14).
 - Seviye **3,3 V** olmalı; Pi'ın GPIO'su 5 V'a dayanmaz. Tele seri bir direnç (ör. 330 Ω–1 kΩ) konur.
-- Radiolink modülünde TIMEPULSE'un konnektörde olup olmadığı ve seviyesi parça gelince ölçülür ([docs/kit-siparis-listesi.md](../../docs/kit-siparis-listesi.md), Doğrulanacaklar). Tel bağlanana kadar ön kontrolün saat maddesi onayla atlanarak çalışılır.
-- Saat düzeni: chrony'de iki kaynak var. `GNSS`, servisin her NAV-PVT için `/run/chrony.gnss.sock`'a gönderdiği kaba zamandır (USB gecikmesi, onlarca ms); tek başına seçilmez (`noselect`), yalnız PPS kenarının hangi saniyeye ait olduğunu söyler. `PPS` asıl kaynaktır (`lock GNSS`). Seri portun tek sahibi kayıt servisidir; gpsd kullanılmaz.
 
 ## L2 sürücüsü
 

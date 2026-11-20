@@ -1,6 +1,6 @@
 # Kitin saati PPS'siz: alıcının USB zamanı (kısa tasarım)
 
-Tarih: 20 Kasım 2026. Durum: taslak, sahibin onayını bekliyor.
+Tarih: 20 Kasım 2026. Durum: onaylandı (sahip, 20 Kasım 2026).
 
 ## Neden
 

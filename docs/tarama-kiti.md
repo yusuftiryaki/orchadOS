@@ -23,7 +23,7 @@ flowchart LR
     BAT --> PD["USB-C PD"]
     ANT["GNSS anteni"] --> F9P["RTK alıcısı<br/>Radiolink RTK F9P"]
     F9P -- "USB: ham GNSS (UBX)" --> PI["Raspberry Pi 4<br/>ROS 2 Jazzy"]
-    F9P -- "PPS sinyali (GPIO)" --> PI
+    F9P -. "PPS (GPIO, isteğe bağlı)" .-> PI
     LID["LiDAR + dahili IMU<br/>Unitree 4D LiDAR L2"] -- "Ethernet (UDP): nokta + IMU" --> PI
     DC12 --> LID
     DC5 --> PI
@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- | --- |
 | LiDAR: Unitree 4D LiDAR L2 | 3D geometri; dahili IMU ile SLAM | Ayrı bir IMU gerekmez (6 eksen, 500 Hz). Görüş alanı tabanının üstündeki yarım küre: 360° × 90°, negatif açı kipinde 96°. Ayrıntı [aşağıda](#lidar-unitree-4d-lidar-l2) |
 | 360° kamera: Insta360 X4 Air | Panorama, görsel değerlendirme, nokta bulutunu renklendirme | 8K 30 fps, kayıt başına tek `.insv` dosyası. Kendi hafıza kartına kaydeder; içindeki jiroskop verisi zaman eşlemede de kullanılır |
-| RTK GNSS: Radiolink RTK F9P | Mutlak konum, GPS zamanı (PPS), PPK için ham gözlemler | Sahada internet gerekmez; konum sonradan PPK ile düzeltilir. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026). PPS kartın yeşil GPS LED'ini sürüyor; tel oradan alınacak |
+| RTK GNSS: Radiolink RTK F9P | Mutlak konum, GPS zamanı (USB; PPS isteğe bağlı), PPK için ham gözlemler | Sahada internet gerekmez; konum sonradan PPK ile düzeltilir. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026). PPS fişe çıkmıyor (yeşil GPS LED'ini sürüyor); kitin saati alıcının USB zamanından gelir |
 | Raspberry Pi 4 Model B | LiDAR ve ham GNSS kaydı, zaman kaynağı; telefona kayıt durumu | Kayıt yapar, ağır işleme yapmaz. Elde var; Pi 5 yerine (sahip, 19 Kasım 2026). Kayıt yazılımı: `services/kit-recorder/` ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)) |
 | Çıkarılabilir SSD (USB 3): Lexar SL300 512 GB | LiDAR, IMU ve GNSS kaydı (MCAP) | MVP'de tek SSD; ziyaretten sonra ofiste boşaltılır |
 | Batarya | Tüm kiti besler | Değiştirilebilir alet aküleri: ucuz, sağlam, sahada hızlı değişir |
@@ -148,7 +148,7 @@ Anten kameranın ~10 cm üstünde, direğin tepesinde kalır; altta kalsaydı ka
 
 Tüm sensörlerin zamanı GPS zamanına bağlanır:
 
-1. **Pi'ın saati:** RTK alıcısının PPS sinyali Pi'ın GPIO18'ine bağlanır. Kayıt servisi alıcının zamanını chrony'ye verir, chrony PPS ile kilitlenir; Pi'ın sistem saati böylece GPS zamanına bağlanır. gpsd kullanılmaz, çünkü alıcının seri portunun tek sahibi kayıt servisidir. Ayrıntı: [arayuzler.md](arayuzler.md#saat).
+1. **Pi'ın saati:** Kayıt servisi alıcının USB'den gelen zamanını chrony'ye verir; chrony mesajın ~55 ms'lik varış gecikmesini düşer ve Pi'ın sistem saatini birkaç ms içinde GPS zamanına bağlar. Radiolink F9P'de PPS hiçbir fişe çıkmadığı için kit PPS'siz çalışır (sahip, 20 Kasım 2026; [tasarım](superpowers/specs/2026-11-20-usb-saat-design.md)). ±5 ms'lik bir hata yürüyüşte 5 mm, ATV'de 1,5 cm kayma demek. PPS teli sonradan takılırsa (Pi'ın GPIO18'i) chrony onu kendiliğinden tercih eder ve hata 1 ms'nin altına iner. gpsd kullanılmaz, çünkü alıcının seri portunun tek sahibi kayıt servisidir. Ayrıntı: [arayuzler.md](arayuzler.md#saat).
 2. **LiDAR:** L2'nin kılavuzunda PTP ya da PPS girişi yok; LiDAR saatini dışarıdan alamaz. Nokta ve IMU paketleri Pi'a vardıkları anda Pi'ın GPS'e kilitli saatiyle damgalanır. SDK nokta ve IMU mesajlarında LiDAR'ın kendi zaman alanını da veriyor; nokta ile IMU arasındaki eşlemenin buna dayanması ve Pi'a varış gecikmesinden etkilenmemesi beklenir (doğrulanacak). Geriye Ethernet ve işletim sistemi gecikmesi kalır (birkaç milisaniye beklenir, ölçülmedi). 2 ms'lik bir hata yürüme ve robot hızında (~1 m/s) 2 mm, ATV hızında (~3 m/s) 6 mm konum hatası demek. Sabit kısmı kalibrasyonda ölçülüp düzeltilir.
 3. **360° kamera:** Dışarıdan tetiklenemez, kendi saatiyle kaydeder. İki adımda eşlenir:
     - **Kaba eşleme:** Taramanın başında ve sonunda, telefon Pi'ın saatini QR kod olarak gösterir ve bu QR kameraya okutulur. İki işaret arasındaki saat kayması doğrusal olarak düzeltilir.
@@ -161,7 +161,7 @@ Tüm sensörlerin zamanı GPS zamanına bağlanır:
 2. **Ön kontrol ekranı:**
     - LiDAR veri akışı ve negatif açı kipi
     - GNSS alıcısı (ham veri geliyor mu), uydu sayısı ve konum durumu
-    - Saat (PPS'e kilitli mi)
+    - Saat (alıcının zamanına kilitli mi: USB zamanı ya da PPS)
     - SSD (takılı, yazılabilir, boş alan)
     - Kameranın kayıtta olduğu (personel onaylar)
 
@@ -274,9 +274,9 @@ Personel telefonu ve TUSAGA-Aktif (CORS-TR) aboneliği bu toplama dahil değil. 
 - [ ] Toz ve çiseleme: IP54 montaj açısına göre değişiyor; gerekirse ek koruma.
 
 **RTK alıcısı (Radiolink RTK F9P):**
-- [ ] PPS (TIMEPULSE) çıkışına erişim. Teknik özelliklerde zaman darbesi var, ama hangi konnektörde olduğu yazmıyor; belgelenen UART1 fişinde yok (5 V, RX, TX, SCL, SDA, GND). **Bulundu (20 Kasım 2026):** yeşil "GPS" LED'i TIMEPULSE ile yanıyor (darbe 4 sn / 2 sn'ye alınınca LED de öyle yanıp söndü). Kalan: telin LED'in seri direncinin modül tarafından alınması ve Pi'da `ppstest`.
+- [ ] PPS (TIMEPULSE) çıkışına erişim. Teknik özelliklerde zaman darbesi var, ama hangi konnektörde olduğu yazmıyor; belgelenen UART1 fişinde yok (5 V, RX, TX, SCL, SDA, GND). **Bulundu (20 Kasım 2026):** yeşil "GPS" LED'i TIMEPULSE ile yanıyor (darbe 4 sn / 2 sn'ye alınınca LED de öyle yanıp söndü). Tel artık şart değil: kitin saati alıcının USB zamanından gelir (sahip, 20 Kasım 2026). Tel istenirse LED'in seri direncinin modül tarafından alınır.
 - [x] Ham gözlem (UBX-RXM-RAWX, SFRBX) çıkışı USB'den açılıp kaydedilebiliyor mu? Evet: kayıt yazılımının ayarıyla, u-center gerekmeden (20 Kasım 2026, `orchados-recorder gnss-check`).
-- [ ] PPS çıkışının mantık seviyesi (3,3 V bekleniyor; Pi'ın GPIO'su 3,3 V'tur, 5 V ise gerilim bölücü gerekir).
+- [ ] PPS çıkışının mantık seviyesi (3,3 V bekleniyor; Pi'ın GPIO'su 3,3 V'tur, 5 V ise gerilim bölücü gerekir). Yalnız tel takılırsa.
 - [ ] ANT-M7 anteninin çift bantta (L1/L2) yeterli sinyal vermesi. Masada dört sistemin ikinci bant sinyalleri görüldü (23–46 dB-Hz), ama iki bantta faz veren uydu en çok 7'ydi; antenin yeri gökyüzünün bir kısmını kapatıyordu. Tam açık gökyüzünde `gnss-check` ile tekrarlanacak (beklenen 10+).
 
 **Kamera (Insta360 X4 Air):**
@@ -286,7 +286,7 @@ Personel telefonu ve TUSAGA-Aktif (CORS-TR) aboneliği bu toplama dahil değil. 
 
 **Kayıt:**
 - [ ] Pi 4, LiDAR + GNSS kaydını SSD'ye iki saat boyunca veri kaybetmeden yazabiliyor mu? USB portlarının toplam 1,2 A'sı SSD ve alıcıya yetiyor mu? Kapalı kutuda ısınıp yavaşlıyor mu?
-- [ ] PPS Pi'a geliyor mu, chrony PPS'e kilitleniyor mu?
+- [ ] chrony alıcının USB zamanına kilitleniyor mu (`chronyc sources -v`'de `GNSS` seçili, hata sınırı 5 ms'nin altında)? Pi internetliyken `gnss-check`'in ölçtüğü USB gecikmesi 55 ms'ye yakın mı?
 - [ ] Telefon Pi'ı Bluetooth ile buluyor mu; ön kontrol ve uyarılar çalışıyor mu? Kablo çekip geri takınca kayıt sürüyor mu?
 - [ ] 0,6 m LiDAR yüksekliği gerçek ağaçlarda gövdeyi dibe yakın ve tacın üstünü görüyor mu; ot ve alçak dallar görüşü ne kadar kapatıyor? Gerekirse aynı sırada 0,9 m ile karşılaştırılır.
 - [ ] Fıstık ağaçlarında ilk dallanma yüksekliği tipik olarak nerede? Gövde ölçüm yüksekliği buna göre belirlenecek.

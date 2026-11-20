@@ -16,7 +16,7 @@ Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); topl
 
 | # | Parça | Alınan | Adet | Ödenen | Not |
 | --- | --- | --- | --- | --- | --- |
-| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753,04 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026). PPS, kartın yeşil GPS LED'ini sürüyor; telin alınacağı nokta ve seviye ölçülecek |
+| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753,04 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026). PPS fişe çıkmıyor (yeşil GPS LED'ini sürüyor); kitin saati USB zamanından gelir |
 | 1.4 | 360° kamera | Insta360 X4 Air, Standard Bundle | 1 | 18.599 TL | 8K 30 fps, çift 1/1,8" sensör, kayıt başına tek `.insv` dosyası |
 | 1.5 | Kamera microSD kartı | SanDisk High Endurance 256 GB (V30, UHS-I) | 1 | 3.184 TL | Tek ziyareti alır (aşağıdaki karar) |
 | 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | 27.270 TL | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
@@ -29,7 +29,7 @@ Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); topl
 **Kalanlar, kısaca:**
 - TUSAGA-Aktif abonelik başvurusu (karar 2). Parça değil, ama PPK denemesi buna bağlı.
 - Güç (bölüm 3): iki akü, şarj aleti, iki akü adaptörü, kamera için USB-C PD modülü.
-- Pi'ın bağlantıları (bölüm 7): iki DC-DC düşürücü, Ethernet ve USB-C kabloları, PPS teli, su geçirmez kutu, sigorta ve anahtar, konnektörler.
+- Pi'ın bağlantıları (bölüm 7): iki DC-DC düşürücü, Ethernet ve USB-C kabloları, su geçirmez kutu, sigorta ve anahtar, konnektörler.
 - Mekanik (bölüm 4): direk, taşıyıcıya montaj, kamera ve anten bağlantıları; ayrıca LiDAR plakası (7.10) ve kalibrasyon hedefi (7.11).
 - Telefon tutucu, şerit metre, lens temizleme kiti (bölüm 5).
 - Gerekirse kamera yedek bataryası (1.6).
@@ -62,7 +62,7 @@ Yaklaşık tutar [Toplam](#toplam)'da. Gelen parçalarda ilk gün yapılacak den
 **Radiolink RTK F9P hakkında bilinenler** (üreticinin sayfası ve kılavuzu; masada doğrulananlar ayrıca belirtildi):
 - Modül u-blox F9P. **Masada doğrulandı (20 Kasım 2026):** ZED-F9P, yazılım HPG 1.32; USB'de `u-blox GNSS receiver` (1546:01a9) olarak görünür. GPS L1C/A ve L2C, GLONASS, Galileo, BeiDou, QZSS. Protokoller NMEA, UBX ve RTCM 3.
 - Besleme 4,5–6 V. Bağlantılar: USB-C, UART1 (I2C ile aynı fişte: 5 V, RX, TX, SCL, SDA, GND), UART2.
-- Zaman darbesi (PPS) teknik özelliklerde var, ama hangi konnektörde olduğu belgelenmemiş. **Masada bulundu (20 Kasım 2026):** kartın önündeki yeşil "GPS" LED'i TIMEPULSE ile yanıyor. Darbe RAM'de 4 sn periyot, 2 sn uzunluğa alınınca LED de 2 sn yanıp 2 sn söndü (fabrika ayarı: saniyede bir, 100 ms; geri alındı). Kırmızı LED besleme, mavi LED RTK. PPS teli LED'in sürüldüğü hattan, LED'in seri direncinin modül tarafından alınır; LED ile direncin arasından alınmaz, orada gerilim LED'in eşiğine kırpılır. Seviye multimetreyle ölçülür; darbe ölçüm süresince yine 4 sn / 2 sn'ye alınırsa multimetre de okur. Pi'ın saati PPS'e dayanıyor; bu hattan alınamazsa modülün TIMEPULSE ayağından tel çıkarmak gerekir. O sağlanana kadar personel ön kontrolün saat maddesini açık bir onayla atlayarak tarar ([arayuzler.md](arayuzler.md#ön-kontrol-ve-atlama)).
+- Zaman darbesi (PPS) teknik özelliklerde var, ama hangi konnektörde olduğu belgelenmemiş. **Masada bulundu (20 Kasım 2026):** kartın önündeki yeşil "GPS" LED'i TIMEPULSE ile yanıyor. Darbe RAM'de 4 sn periyot, 2 sn uzunluğa alınınca LED de 2 sn yanıp 2 sn söndü (fabrika ayarı: saniyede bir, 100 ms; geri alındı). Kırmızı LED besleme, mavi LED RTK. PPS teli LED'in sürüldüğü hattan, LED'in seri direncinin modül tarafından alınır; LED ile direncin arasından alınmaz, orada gerilim LED'in eşiğine kırpılır. Seviye multimetreyle ölçülür; darbe ölçüm süresince yine 4 sn / 2 sn'ye alınırsa multimetre de okur. **Karar (sahip, 20 Kasım 2026): tel çekilmez;** kutu açılmaz, lehim yapılmaz. Kitin saati alıcının USB zamanından gelir (gecikmesi düşülmüş, birkaç ms; [tasarım](superpowers/specs/2026-11-20-usb-saat-design.md)). Tel sonradan istenirse bu hattan alınır; chrony onu kendiliğinden tercih eder.
 - Dahili pusula (IST8310) I2C hattındadır; bizim kullanımımızda gerekmez.
 - Alıcı drone uçuş kontrolcüleri için ayarlı gelir; USB'den yalnız NMEA gönderir. PPK için ham gözlem mesajları (UBX-RXM-RAWX, SFRBX) gerekir; Pi'daki kayıt yazılımı bunları açılışta USB'den kendisi açar (RAM'e; alıcının kayıtlı ayarı değişmez). u-center gerekmez. Masada doğrulandı: alıcı ayarı ACK ile kabul ediyor, NMEA kesiliyor, NAV-PVT 5 Hz ve RAWX 1 Hz eksiksiz geliyor.
 
@@ -117,7 +117,7 @@ Kit, `yusuftiryaki/maraba` robotuna bir soketle takılabilir. Sözleşme robot r
 | --- | --- | --- | --- | --- |
 | 6.1 | **Kimlik çipi DS2431+** | 2 | TO-92 kılıf, fişin içine sığar. Bacaklar: veri → `KIT_ID` (pin 3), GND → pin 1. **Kit tarafına pull-up direnci konmaz**, pull-up robotta. Biri yedek | 2–4 $ / adet |
 | 6.2 | Kendi beslemeli USB hub | 1 | F9P ve kamera robota bunun üzerinden bağlanır. Tek şart: upstream VBUS'a geri besleme yapmamalı. Sokette VBUS (pin 7) bağlanmaz, kit kendi aküsüyle çalışır | 15–30 $ |
-| 6.3 | PPS seri direnci | 1 paket | F9P TIMEPULSE (3,3 V) hattına, F9P'ye yakın. 100, 220 ve 330 Ω; kesin değer robotla ilk denemede ölçülerek seçilecek. 7.9'daki dirençlerle birlikte alınabilir | 1–2 $ |
+| 6.3 | PPS seri direnci | 1 paket | Yalnız PPS teli çekilirse (çekilmiyor, karar 20 Kasım 2026). F9P TIMEPULSE (3,3 V) hattına, F9P'ye yakın. 100, 220 ve 330 Ω; kesin değer robotla ilk denemede ölçülerek seçilecek. 7.9'daki dirençlerle birlikte alınabilir | 1–2 $ |
 | 6.4 | Fiş kablosu | 1 | En fazla 1 m; USB çifti bükümlü. `KIT_PRESENT`: fişin içinde pin 2 ile pin 1 (GND) arası tel köprü, ayrı parça yok | 5–10 $ |
 
 **Konnektör bu listede yok.** M16, 12 pinli, IP67, vidalı kilitli dairesel konnektörün iki yarısı (robotta dişi soket, kitte erkek fiş) aynı üreticiden ve aynı seriden, mümkünse aynı siparişte alınacak; farklı markaların M16 parçaları pin düzeni ve kodlamada her zaman uyuşmuyor. Seçimi robot tarafı yapıp `kit-soketi.md`'ye yazacak. GX16 10 pinde kaldığı için yetmez.
@@ -138,7 +138,7 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 | 7.6 | DC-DC düşürücü, akü → 5 V, en az 3 A | 1 | Ayarlı; çıkış 5,1 V'a ayarlanır. Pi için. Pi 4'ün USB portları toplam 1,2 A verir; SSD ve alıcı bunu paylaşır. Girişin 18 V aküyü kaldırdığı ve yük altında çıkışın 5,0–5,2 V kaldığı masada multimetreyle doğrulanır | **Elde var** | — |
 | 7.7 | Ethernet kablosu | 1 | Kısa (0,3–0,5 m), Cat5e; LiDAR'ın RJ45 ucu ile Pi arasına | Alınacak | 2–5 $ |
 | 7.8 | USB-C veri kablosu | 1 | Kısa; RTK alıcısından Pi'a ham GNSS | Alınacak | 3–6 $ |
-| 7.9 | PPS teli ve seviye koruması | 1 set | Alıcının zaman darbesi (PPS) çıkışından Pi'ın GPIO18'ine (pin 12) tel; 3,3 V ise seri 100–330 Ω direnç, 5 V ise gerilim bölücü. Seviye multimetreyle ölçülür | Alınacak | 1–3 $ |
+| 7.9 | PPS teli ve seviye koruması | 1 set | Alıcının zaman darbesi (PPS) çıkışından Pi'ın GPIO18'ine (pin 12) tel; 3,3 V ise seri 100–330 Ω direnç, 5 V ise gerilim bölücü. Seviye multimetreyle ölçülür | **Alınmaz** (karar 20 Kasım 2026): tel çekilmiyor, saat alıcının USB zamanından. İleride tel istenirse | 1–3 $ |
 | 7.10 | LiDAR bağlantı plakası | 1 | 4 × M3 delik (derinlik 6 mm); direğe yerden 0,6 m'de kelepçeli, titreşim sönümlü. LiDAR'ın dört yanında hava boşluğu kalmalı. Ota ve alçak dallara karşı ince telli bir koruyucu kafes düşünülür | Yapılacak | 10–20 $ |
 | 7.11 | Kalibrasyon hedefi | 1 | Kamera–LiDAR kalibrasyonu için baskılı hedef | Yapılacak | 30–60 $ |
 | 7.12 | Su geçirmez elektronik kutusu | 1 | IP65, kablo rakorlu; Pi, iki DC-DC düşürücü ve SSD sığmalı. Pi'ın soğutucusu için hava payı | Alınacak | 10–20 $ |
@@ -159,7 +159,7 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 | 3. Güç (2 akü, şarj aleti, 2 adaptör, USB-C PD) | 170–310 $ |
 | 4. Mekanik (4.1–4.8; el arabası elde varsa hariç) | 180–400 $ |
 | 5. Telefon ve diğer | 30–60 $ (telefon hariç) |
-| 7. LiDAR'lı kitin kalanları (7.5–7.15: DC-DC'ler, kablolar, PPS teli, kutu, sigorta, konnektörler, LiDAR plakası, kalibrasyon hedefi) | 90–180 $ |
+| 7. LiDAR'lı kitin kalanları (7.5–7.15: DC-DC'ler, kablolar, kutu, sigorta, konnektörler, LiDAR plakası, kalibrasyon hedefi) | 90–180 $ |
 | **Kalanların toplamı (telefon hariç)** | **~470–950 $** |
 | 1.6 Kamera yedek bataryası (yalnız kamera aküden beslenemezse) | 60–100 $ |
 | 6. Robot soketi (robotla taranacaksa; konnektör hariç) | 25–50 $ |
@@ -176,12 +176,12 @@ TL ile dolar tutarları kalanların güncel fiyatları alınmadan toplanmaz. Tü
 2. **Şimdi:**
     - TUSAGA-Aktif abonelik başvurusu.
     - Akü markası (karar 3) ve güç (bölüm 3).
-    - Pi'ın bağlantıları (bölüm 7): DC-DC düşürücüler, Ethernet ve USB-C kabloları, PPS teli, kutu, sigorta ve konnektörler.
+    - Pi'ın bağlantıları (bölüm 7): DC-DC düşürücüler, Ethernet ve USB-C kabloları, kutu, sigorta ve konnektörler.
     - Mekanik (bölüm 4) ve telefon tutucu (5.2).
 3. **Masada, güç ve mekanik gelmeden** (sıra ve ayrıntı `services/kit-recorder/README.md`'de):
     - Pi'a Ubuntu Server 24.04 ve kayıt yazılımını kur; telefonun Pi'ı Bluetooth ile bulduğunu ve ön kontrolü dene.
     - L2 sürücüsünün Pi 4'te ROS 2 Jazzy ile çalışmasını dene. Kayıt yazılımının en büyük teknik riski bu.
-    - Alıcıyı USB'den bağla, PPS telini çek; ham kayıt, PPS ve saat kilidi. Alıcının kendisi önce `orchados-recorder gnss-check` ile denenir (Pi'da da, geliştirme bilgisayarında da çalışır; 20 Kasım'da bilgisayarda geçti).
+    - Alıcıyı USB'den bağla; ham kayıt ve saat kilidi (USB zamanı, `chronyc sources -v`). Alıcının kendisi önce `orchados-recorder gnss-check` ile denenir (Pi'da da, geliştirme bilgisayarında da çalışır; 20 Kasım'da bilgisayarda geçti).
     - Açık gökyüzünde ilk fix; iki saatlik masa kaydı.
 4. **TUSAGA hesabı açılınca:** yarım saatlik ham kayıt ve PPK denemesi (İP3).
 5. **Mekanik:**
@@ -199,10 +199,10 @@ Parça parça ayrıntılı liste [tarama-kiti.md](tarama-kiti.md#doğrulanacakla
     - Çift bant: GPS L2C, Galileo E5b, GLONASS L2 ve BeiDou B2I sinyalleri var (23–46 dB-Hz). ANT-M7 ve kablo çift bantta çalışıyor.
 - [ ] **Radiolink RTK F9P, kalanlar:**
     - Tam açık gökyüzünde (dam ya da açık alan) `gnss-check` tekrarı. Masadaki denemede iki bantta faz veren uydu en çok 7'ydi (beklenen 10+); antenin yeri gökyüzünün bir kısmını kapatıyordu. Açıkta da düşük kalırsa anten incelenir.
-    - PPS telinin alınacağı nokta (yeşil GPS LED'inin seri direncinin modül tarafı) ve seviyesi (3,3 V bekleniyor). Darbenin LED'e gittiği bulundu.
+    - Pi'da USB gecikmesinin `gnss-check` ile doğrulanması (Pi internetliyken; beklenen ~55 ms). PPS teli çekilmiyor (karar 20 Kasım 2026).
     - Anten kablosunun boyu direğe yetiyor mu (1.3).
     - Ham kaydın RINEX'e çevrilmesi ve PPK denemesi (TUSAGA hesabıyla).
-- [ ] **Raspberry Pi 4:** kayıt yazılımının kurulumu; telefonun Pi'ı bulması, ön kontrol ve uyarılar; PPS ile chrony'nin kilitlenmesi; iki saatlik kayıtta veri kaybı olmaması, SSD ve alıcıya USB akımının (toplam 1,2 A) yetmesi ve kapalı kutuda ısınıp yavaşlamaması (`vcgencmd get_throttled`); kablo çekip takınca kaydın sürmesi
+- [ ] **Raspberry Pi 4:** kayıt yazılımının kurulumu; telefonun Pi'ı bulması, ön kontrol ve uyarılar; chrony'nin alıcının USB zamanına kilitlenmesi; iki saatlik kayıtta veri kaybı olmaması, SSD ve alıcıya USB akımının (toplam 1,2 A) yetmesi ve kapalı kutuda ısınıp yavaşlamaması (`vcgencmd get_throttled`); kablo çekip takınca kaydın sürmesi
 - [ ] **Insta360 X4 Air:** kayıt sırasında USB-C'den beslenerek iki saat kesintisiz 8K kayıt ve ısınma; SanDisk 256 GB kartla kart hızı uyarısı çıkmaması; gerçek `.insv` dosyasının işleme hattından geçmesi ve jiroskop verisi
 - [ ] **Unitree L2:** masada adaptörüyle ilk nokta bulutu; negatif açı kipinin açılması; sürücünün Raspberry Pi 4'te çalışması
 - [ ] Taşıyıcının titreşiminin panorama netliğine ve LiDAR yörüngesine etkisi; gerekirse ek sönümleme ya da daha düşük hız

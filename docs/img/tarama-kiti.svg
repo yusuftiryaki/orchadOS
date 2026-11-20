@@ -209,9 +209,9 @@
   <path d="M1545 276 V358" fill="none" stroke="#6B6B6B" stroke-width="3.5" marker-end="url(#arrow-grey)"/>
   <text x="1553" y="322" font-size="14" fill="#555">koaksiyel</text>
 
-  <!-- PPS (purple) -->
-  <path d="M1580 416 V540 H1402" fill="none" stroke="#7D3C98" stroke-width="3.5" marker-end="url(#arrow-purple)"/>
-  <text x="1490" y="532" font-size="14" font-weight="700" fill="#7D3C98" text-anchor="middle">PPS → GPIO18</text>
+  <!-- PPS (purple, dashed: optional; the clock runs on the receiver's USB time) -->
+  <path d="M1580 416 V540 H1402" fill="none" stroke="#7D3C98" stroke-width="3.5" stroke-dasharray="9 6" marker-end="url(#arrow-purple)"/>
+  <text x="1490" y="532" font-size="14" font-weight="700" fill="#7D3C98" text-anchor="middle">PPS (isteğe bağlı)</text>
 
   <!-- wireless and visual -->
   <path d="M1315 592 V638" fill="none" stroke="#5D6F64" stroke-width="3" stroke-dasharray="7 5" marker-start="url(#arrow-grey)" marker-end="url(#arrow-grey)"/>
@@ -245,7 +245,7 @@
     <text x="1244" y="505" font-size="16" font-weight="700" fill="#1B3A2F">Raspberry Pi 4</text>
     <text x="1244" y="527">ROS 2 Jazzy</text>
     <text x="1244" y="546">kayıt servisi</text>
-    <text x="1244" y="565">saat: PPS + chrony</text>
+    <text x="1244" y="565">saat: alıcı + chrony</text>
 
     <rect x="1230" y="640" width="170" height="56" rx="10" fill="#F1F4F2" stroke="#5D6F64" stroke-width="2"/>
     <text x="1244" y="663" font-size="16" font-weight="700" fill="#1B3A2F">Telefon</text>
@@ -257,7 +257,7 @@
 
     <rect x="1460" y="360" width="170" height="56" rx="10" fill="#F1F4F2" stroke="#7D3C98" stroke-width="2"/>
     <text x="1474" y="383" font-size="16" font-weight="700" fill="#1B3A2F">RTK alıcısı F9P</text>
-    <text x="1474" y="403">ham GNSS, PPS</text>
+    <text x="1474" y="403">ham GNSS, saat</text>
 
     <rect x="1460" y="560" width="170" height="56" rx="10" fill="#F1F4F2" stroke="#2E6FB0" stroke-width="2"/>
     <text x="1474" y="583" font-size="16" font-weight="700" fill="#1B3A2F">SSD 512 GB</text>
@@ -274,7 +274,7 @@
     <text x="1028" y="875">güç</text>
     <line x1="1080" y1="870" x2="1110" y2="870" stroke="#2E6FB0" stroke-width="3.5"/>
     <text x="1118" y="875">veri</text>
-    <line x1="1172" y1="870" x2="1202" y2="870" stroke="#7D3C98" stroke-width="3.5"/>
+    <line x1="1172" y1="870" x2="1202" y2="870" stroke="#7D3C98" stroke-width="3.5" stroke-dasharray="9 6"/>
     <text x="1210" y="875">zaman (PPS)</text>
     <line x1="1312" y1="870" x2="1342" y2="870" stroke="#5D6F64" stroke-width="3" stroke-dasharray="7 5"/>
     <text x="1350" y="875">kablosuz</text>
