@@ -122,15 +122,14 @@ String lidarModeLabel(GnssStatus s) => switch (s.kit?.lidarMode) {
 };
 
 Health clockHealth(GnssStatus s) => switch (s.kit?.clock) {
-  KitClock.pps => Health.ok,
-  KitClock.coarse => Health.warn,
+  KitClock.pps || KitClock.usb => Health.ok,
   _ => Health.bad,
 };
 
-/// "GPS'e kilitli", "Kaba (PPS yok)" or "Kilitsiz".
+/// "GPS'e kilitli", "USB (PPS yok)" or "Kilitsiz".
 String clockLabel(GnssStatus s) => switch (s.kit?.clock) {
   KitClock.pps => "GPS'e kilitli",
-  KitClock.coarse => 'Kaba (PPS yok)',
+  KitClock.usb => 'USB (PPS yok)',
   KitClock.unlocked || null => 'Kilitsiz',
 };
 

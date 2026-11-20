@@ -61,12 +61,26 @@ void main() {
     await h.dispose(tester);
   });
 
+  testWidgets('kit on the receiver USB time (no PPS wire): the clock passes', (
+    tester,
+  ) async {
+    final h = await openPrecheck(
+      tester,
+      kit: const KitStatus(clock: KitClock.usb),
+    );
+    expect(find.byKey(const Key('check-kit-clock')), findsOneWidget);
+    expect(find.text('USB (PPS yok)'), findsOneWidget);
+    expect(find.byKey(const Key('kit-override-clock')), findsNothing);
+    expect(continueButton(tester).onPressed, isNotNull);
+    await h.dispose(tester);
+  });
+
   testWidgets('kit with failed clock shows the override switch and blocks '
       'start until confirmed', (tester) async {
     final h = await openPrecheck(
       tester,
       kit: const KitStatus(
-        clock: KitClock.coarse,
+        clock: KitClock.unlocked,
         precheckFail: [KitCheck.clock],
       ),
     );
@@ -74,7 +88,7 @@ void main() {
     expect(find.byKey(const Key('check-kit-lidar_mode')), findsOneWidget);
     expect(find.byKey(const Key('check-kit-clock')), findsOneWidget);
     expect(find.text('64 bin nokta/sn'), findsOneWidget);
-    expect(find.text('Kaba (PPS yok)'), findsOneWidget);
+    expect(find.text('Kilitsiz'), findsOneWidget);
     expect(find.text('SSD'), findsOneWidget);
     // Only the failed item can be overridden.
     expect(find.byKey(const Key('kit-override-clock')), findsOneWidget);
@@ -212,7 +226,7 @@ void main() {
     // The skipped item stays on the recording screen.
     await settle(tester);
     expect(find.byKey(const Key('gnss-panel-overrides')), findsOneWidget);
-    expect(find.text('Saat (PPS)'), findsOneWidget);
+    expect(find.text('Saat'), findsOneWidget);
     expect(find.text('Batarya'), findsNothing);
     expect(find.text('SSD'), findsOneWidget);
 
@@ -268,7 +282,7 @@ void main() {
     final h = await overrideClockThenLock(tester);
     // The kit evaluates afresh at the start: the clock has lost PPS again.
     h.logger.kitAtStart = const KitStatus(
-      clock: KitClock.coarse,
+      clock: KitClock.unlocked,
       precheckFail: [KitCheck.clock],
     );
     final controller = h.container.read(sessionControllerProvider.notifier);

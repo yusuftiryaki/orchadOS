@@ -276,7 +276,7 @@ void main() {
         kit: const KitStatus(
           lidarState: LidarState.lost,
           lidarMode: LidarMode.wrong,
-          clock: KitClock.coarse,
+          clock: KitClock.usb,
           precheckFail: [KitCheck.lidar, KitCheck.ssd, KitCheck.gnss],
           alerts: [KitAlert.ssdLow, KitAlert.gnssSilent],
           overrides: [KitCheck.lidarMode, KitCheck.clock],
@@ -297,6 +297,14 @@ void main() {
       expect(bytes.sublist(69, 73), [0x0E, 0x0D, 0x0C, 0x0B]);
       expect(bytes.sublist(73, 77), [0xFE, 0xFF, 0xFF, 0xFF]);
       expect(GnssStatus.decode(bytes).encode(), bytes);
+      expect(GnssStatus.decode(bytes).kit!.clock, KitClock.usb);
+    });
+
+    test('clock_state codes: 0 unlocked, 1 usb, 2 pps; unknown is unlocked', () {
+      expect(KitClock.fromCode(0), KitClock.unlocked);
+      expect(KitClock.fromCode(1), KitClock.usb);
+      expect(KitClock.fromCode(2), KitClock.pps);
+      expect(KitClock.fromCode(7), KitClock.unlocked);
     });
 
     test('51-byte status has no kit extension', () {
