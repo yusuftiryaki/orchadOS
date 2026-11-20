@@ -197,6 +197,10 @@ def cmd_gnss_check(args: argparse.Namespace) -> int:
         transport.close()
         if raw is not None:
             raw.close()
+    from .clock import SystemClock
+
+    tracking = SystemClock().tracking()
+    report.clock_reference = tracking.ref_name if tracking and tracking.leap_ok else None
     fails, warns = verdict(report, min_dual=args.min_dual)
     if args.json:
         print(json.dumps({**report.to_dict(), "failures": fails, "warnings": warns}, indent=2))
