@@ -16,7 +16,7 @@ Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); topl
 
 | # | Parça | Alınan | Adet | Ödenen | Not |
 | --- | --- | --- | --- | --- | --- |
-| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753,04 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026); PPS çıkışının yeri doğrulanacak |
+| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753,04 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026). PPS, kartın yeşil GPS LED'ini sürüyor; telin alınacağı nokta ve seviye ölçülecek |
 | 1.4 | 360° kamera | Insta360 X4 Air, Standard Bundle | 1 | 18.599 TL | 8K 30 fps, çift 1/1,8" sensör, kayıt başına tek `.insv` dosyası |
 | 1.5 | Kamera microSD kartı | SanDisk High Endurance 256 GB (V30, UHS-I) | 1 | 3.184 TL | Tek ziyareti alır (aşağıdaki karar) |
 | 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | 27.270 TL | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
@@ -62,7 +62,7 @@ Yaklaşık tutar [Toplam](#toplam)'da. Gelen parçalarda ilk gün yapılacak den
 **Radiolink RTK F9P hakkında bilinenler** (üreticinin sayfası ve kılavuzu; masada doğrulananlar ayrıca belirtildi):
 - Modül u-blox F9P. **Masada doğrulandı (20 Kasım 2026):** ZED-F9P, yazılım HPG 1.32; USB'de `u-blox GNSS receiver` (1546:01a9) olarak görünür. GPS L1C/A ve L2C, GLONASS, Galileo, BeiDou, QZSS. Protokoller NMEA, UBX ve RTCM 3.
 - Besleme 4,5–6 V. Bağlantılar: USB-C, UART1 (I2C ile aynı fişte: 5 V, RX, TX, SCL, SDA, GND), UART2.
-- Zaman darbesi (PPS) teknik özelliklerde var, ama hangi konnektörde olduğu belgelenmemiş. Pi'ın saati PPS'e dayanıyor; konnektörde yoksa modülün TIMEPULSE ayağından tel çıkarmak gerekir. O sağlanana kadar personel ön kontrolün saat maddesini açık bir onayla atlayarak tarar ([arayuzler.md](arayuzler.md#ön-kontrol-ve-atlama)).
+- Zaman darbesi (PPS) teknik özelliklerde var, ama hangi konnektörde olduğu belgelenmemiş. **Masada bulundu (20 Kasım 2026):** kartın önündeki yeşil "GPS" LED'i TIMEPULSE ile yanıyor. Darbe RAM'de 4 sn periyot, 2 sn uzunluğa alınınca LED de 2 sn yanıp 2 sn söndü (fabrika ayarı: saniyede bir, 100 ms; geri alındı). Kırmızı LED besleme, mavi LED RTK. PPS teli LED'in sürüldüğü hattan, LED'in seri direncinin modül tarafından alınır; LED ile direncin arasından alınmaz, orada gerilim LED'in eşiğine kırpılır. Seviye multimetreyle ölçülür; darbe ölçüm süresince yine 4 sn / 2 sn'ye alınırsa multimetre de okur. Pi'ın saati PPS'e dayanıyor; bu hattan alınamazsa modülün TIMEPULSE ayağından tel çıkarmak gerekir. O sağlanana kadar personel ön kontrolün saat maddesini açık bir onayla atlayarak tarar ([arayuzler.md](arayuzler.md#ön-kontrol-ve-atlama)).
 - Dahili pusula (IST8310) I2C hattındadır; bizim kullanımımızda gerekmez.
 - Alıcı drone uçuş kontrolcüleri için ayarlı gelir; USB'den yalnız NMEA gönderir. PPK için ham gözlem mesajları (UBX-RXM-RAWX, SFRBX) gerekir; Pi'daki kayıt yazılımı bunları açılışta USB'den kendisi açar (RAM'e; alıcının kayıtlı ayarı değişmez). u-center gerekmez. Masada doğrulandı: alıcı ayarı ACK ile kabul ediyor, NMEA kesiliyor, NAV-PVT 5 Hz ve RAWX 1 Hz eksiksiz geliyor.
 
@@ -199,7 +199,7 @@ Parça parça ayrıntılı liste [tarama-kiti.md](tarama-kiti.md#doğrulanacakla
     - Çift bant: GPS L2C, Galileo E5b, GLONASS L2 ve BeiDou B2I sinyalleri var (23–46 dB-Hz). ANT-M7 ve kablo çift bantta çalışıyor.
 - [ ] **Radiolink RTK F9P, kalanlar:**
     - Tam açık gökyüzünde (dam ya da açık alan) `gnss-check` tekrarı. Masadaki denemede iki bantta faz veren uydu en çok 7'ydi (beklenen 10+); antenin yeri gökyüzünün bir kısmını kapatıyordu. Açıkta da düşük kalırsa anten incelenir.
-    - PPS çıkışının yeri ve seviyesi (3,3 V bekleniyor).
+    - PPS telinin alınacağı nokta (yeşil GPS LED'inin seri direncinin modül tarafı) ve seviyesi (3,3 V bekleniyor). Darbenin LED'e gittiği bulundu.
     - Anten kablosunun boyu direğe yetiyor mu (1.3).
     - Ham kaydın RINEX'e çevrilmesi ve PPK denemesi (TUSAGA hesabıyla).
 - [ ] **Raspberry Pi 4:** kayıt yazılımının kurulumu; telefonun Pi'ı bulması, ön kontrol ve uyarılar; PPS ile chrony'nin kilitlenmesi; iki saatlik kayıtta veri kaybı olmaması, SSD ve alıcıya USB akımının (toplam 1,2 A) yetmesi ve kapalı kutuda ısınıp yavaşlamaması (`vcgencmd get_throttled`); kablo çekip takınca kaydın sürmesi
