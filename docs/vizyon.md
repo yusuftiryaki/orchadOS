@@ -105,7 +105,7 @@ RTK GNSS, 360° kamera ve LiDAR aynı direkte olursa, tek bir grid geçişi hem 
 
 **Kalibrasyon:** Kamera–LiDAR ve LiDAR–GNSS anteni arasındaki konum ve açılar, kit kurulduğunda bir kalibrasyon hedefiyle ölçülür ve bir kalibrasyon dosyasına yazılır. Kit sökülür ya da darbe alırsa kalibrasyon yenilenir. Her kayıt, kullanılan kalibrasyon sürümüne bağlanır.
 
-**Kayıt:** Kayıt bilgisayarında ROS 2 çalışır: LiDAR sürücüsü, GNSS sürücüsü ve MCAP formatında kayıt. Bu, hoverboard projesindeki ROS 2 altyapısıyla aynı. Aynı kit ileride hoverboard robotuna doğrudan takılabilir.
+**Kayıt:** Kayıt bilgisayarında ROS 2 çalışır: LiDAR sürücüsü, GNSS sürücüsü ve MCAP formatında kayıt. Bu, robot projesindeki (`maraba`) ROS 2 altyapısıyla aynı. Aynı kit ileride robota doğrudan takılabilir.
 
 **Ziyaret başına ham veri paketi**
 
@@ -189,7 +189,7 @@ Görev ve veri düzeyinde birlikte çalışma fizibil. Farklı üreticilerin rob
 1. **MVP:** 360° kamera ve RTK ile grid tarama; AI ve uzman değerlendirmesi; etiketli veri birikimi.
 2. **Birleşik kit:** LiDAR eklenir. İlk kış iskelet denemesi kendi bahçende yapılır, sonuçlar elle ölçümle karşılaştırılır.
 3. **Kendi modeller:** Ağaç tespiti, sınıflandırma ve ölçüm modelleri işleme istasyonunda çalışır; LLM sadece belirsiz vakalara gider.
-4. **Robotla tarama:** Kit hoverboard robotuna ya da başka bir platforma takılır. Operatör başına 2–4 robot hedeflenir.
+4. **Robotla tarama:** Kit robota (`maraba`) ya da başka bir platforma takılır. Operatör başına 2–4 robot hedeflenir.
 5. **Robot filosu platformu:** Ot biçmeyi otonom robot MARABA-I yapar; sahip robotu seçer, fiyat robotun yeteneğine göre belirlenir. Sonraki adımda partner üreticilerin ve üçüncü taraf işletmecilerin robot modelleri aynı kataloğa girer; görev katmanı ve veri sözleşmesi üzerinden katılırlar.
 6. **Toprak işleme ve ilaçlama:** Mevcut makinelere otonomi kitleri ve mevzuata uygun reçete ve kayıt süreçleriyle. En son aşama.
 

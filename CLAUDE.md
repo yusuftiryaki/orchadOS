@@ -105,7 +105,7 @@ Depo seçimi `ORCHADOS_STORE_*` ya da `~/.config/orchados/ingest.toml` (s3: AWS/
 | `uv run orchados-kit write <manifest.json> [--out kit.bin \| --dry-run]` | Manifesti kodlar, tek DS2431'e yazar ve geri okuyup doğrular |
 | `uv run orchados-kit from-calibration <uuid> --hw-rev 1.0 --gnss-link usb` | Manifesti `public.calibration` kaydından üretir (`chip_id`, `extrinsics.kit_mount`) |
 
-Sözleşme robot reposunda (`hoverboard/docs/kit-soketi.md`, şema 1); test vektörleri tek taraflı değiştirilmez.
+Sözleşme robot reposunda (`maraba/docs/kit-soketi.md`, şema 1); test vektörleri tek taraflı değiştirilmez.
 
 ### Kit kaydedicisi (`services/kit-recorder/`)
 | Komut | Ne yapar |

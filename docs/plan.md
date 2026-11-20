@@ -160,7 +160,7 @@ Yazılım M2 ve M3'ün gerektirdiklerinin büyük kısmını karşılıyor; takv
 **Sıradaki işler (26 Ekim 2026; çalışma artık yerel makinede, ağır doğrulama CI'da)**
 
 1. ✅ Toparlama: PR #32 sonrası `main` CI yeşil, test projesi güncel.
-2. ✅ **Kit kimlik çipi** (PR #33) (robotla bağlantı; sözleşme `hoverboard/docs/kit-soketi.md`, şema 1): `services/kit-chip/` kodlayıcı, çözücü, ortak test vektörleri, çipe yazma aracı. Kalibrasyon kaydından manifest (`orchados-kit from-calibration`, `calibration.chip_id` + `extrinsics.kit_mount`) PR #39. Açık: kit yapılınca gerçek ölçümler ve gerçek DS2431'e ilk yazma.
+2. ✅ **Kit kimlik çipi** (PR #33) (robotla bağlantı; sözleşme `maraba/docs/kit-soketi.md`, şema 1): `services/kit-chip/` kodlayıcı, çözücü, ortak test vektörleri, çipe yazma aracı. Kalibrasyon kaydından manifest (`orchados-kit from-calibration`, `calibration.chip_id` + `extrinsics.kit_mount`) PR #39. Açık: kit yapılınca gerçek ölçümler ve gerçek DS2431'e ilk yazma.
 3. ✅ **Insta360 SDK** (PR #34) (Camera SDK 2.1.8, Media SDK 3.1.5, InsMetaData SDK 2.0.2 geldi; repoya girmez, yerelde `~/.orchados/sdk/insta360/`). Plan: `docs/gorevler/insta360-sdk.md`. İşleme hattı `.insv`'yi doğrudan alıyor, sadece seçilen kareleri `MediaSDKTest` ile birleştiriyor; meta veri aracı (`native/ins_meta_dump`) SDK'ya karşı derlendi. Sahte SDK ile test edildi; doğrulama için gerçek bir `.insv` deneme çekimi gerekiyor. Jiroskopla ince zaman eşleme sonraki iş.
 4. ✅ **Saha uygulaması** (PR #35): yakın plan listesinin sunucudan inmesi (`closeup_list`), "Sorun gördüm", sesli not, hava ve ekipman kaydı (ziyaret kaydı). Yazıldı; sesli not telefonda denenmedi.
 5. ✅ **Pilota ilk sürüm** (PR #36, 27 Ekim): 37 migration ve Edge Function'lar pilot projesinde, `orchados-pilot` yayında.

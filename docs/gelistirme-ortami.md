@@ -12,7 +12,7 @@ Repo iki devcontainer ile gelir: günlük işlerin çoğu için **core**, sadece
 | `mobile` | Flutter (stable), Android SDK (komut satırı araçları), JDK 17 | `apps/field` |
 
 Dışarıda kalanlar:
-- **ROS 2 ve LiDAR:** hoverboard reposunun container'ı.
+- **ROS 2 ve LiDAR:** robot reposunun (`maraba`) container'ı.
 - **GPU ile işleme:** İşleme istasyonunda çalışır, bu container'larda yapılmaz.
 
 ## Başlangıç

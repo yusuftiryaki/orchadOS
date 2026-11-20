@@ -926,12 +926,13 @@ Ek diziler (konumlar noktalarla aynı nicemlemeyle; sınır kutusu parçaları v
 
 ## Kit kimlik çipi
 
-Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
+Tarama kiti robota (`yusuftiryaki/maraba`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
 
-- **Sözleşmenin kaynağı:** [hoverboard/docs/kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `hoverboard/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
+- **Sözleşmenin kaynağı:** [maraba/docs/kit-soketi.md](https://github.com/yusuftiryaki/maraba/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `maraba/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
 - **Yazan taraf:** `services/kit-chip/` (`orchados-kit write|read`).
 - **Test vektörleri:** Robot reposuyla aynı dosya, `services/kit-chip/tests/vectors/kit_manifest_v1.json`. Değiştirilmeden kopyalanmıştır. Format ya da vektörler değişirse iki repo birlikte değişir.
 - **Şema numarası** sadece artar. Robot bilmediği bir şemayı reddeder.
+- **Her kitte Pi ve LiDAR var (sahip, 20 Kasım 2026).** Robot belgesindeki LiDAR'sız v1 / LiDAR'lı v2 ayrımı kalkar: her kitte Raspberry Pi 4 (kayıt, ROS 2), Unitree L2, F9P ve 360° kamera vardır; ESP32 kaydedici yoktur. Bir kitin çipinde üç frame de (`kit_gnss`, `kit_cam360`, `kit_lidar`) ve `lidar` yeteneği bulunur. F9P'yi kitin Pi'ı okuduğu için `gnss_link`'in hangi değeri alacağı ve robotun GNSS'i hangi yoldan alacağı robot planının K3 adımında robotla birlikte kesinleşir; o zamana kadar şema 1 aynen geçerlidir.
 
 **`kit_mount` frame'i** robot tarafında tanımlı (`kit-soketi.md`, "Soket — mekanik" ve URDF); aşağıdaki kabuller robot tarafınca doğrulandı (2026-10-27):
 - Robotun montaj plakasının üst yüzeyi: `base_link`'e göre x = 0,11 m, z = 0,1825 m, dönüşsüz.

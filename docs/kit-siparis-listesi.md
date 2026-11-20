@@ -111,7 +111,7 @@ Jalon (eski 4.7) çıktı: baz istasyonu kurulmuyor (karar 2).
 
 ## 6. Robot soketi (kit tarafı; sadece kit robota takılacaksa)
 
-Kit, `yusuftiryaki/hoverboard` robotuna bir soketle takılabilir. Sözleşme robot reposunda: [kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md). Pin numaraları orada hâlâ başlangıç önerisi; donanım gelince robotun bağlantı haritasına işlenip multimetreyle doğrulanacak.
+Kit, `yusuftiryaki/maraba` robotuna bir soketle takılabilir. Sözleşme robot reposunda: [kit-soketi.md](https://github.com/yusuftiryaki/maraba/blob/main/docs/kit-soketi.md). Pin numaraları orada hâlâ başlangıç önerisi; donanım gelince robotun bağlantı haritasına işlenip multimetreyle doğrulanacak.
 
 | # | Parça | Adet | Özellik | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- |

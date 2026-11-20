@@ -90,7 +90,7 @@ Mikrodenetleyiciyle yapılabilir, ama tasarruf küçük: kart başına ~60–90 
 
 Aynı nedenle ESP32 kaydedici de kitten çıktı (16 Kasım 2026). Pi zaten kitte olduğu için GNSS kaydını ve PPS'i de üstlenir; ikinci bir kart, ikinci bir hafıza kartı ve iki ayrı kayıt gerekmez. Pi, saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı Bluetooth protokolü ve aynı `gnss/` dosyaları. ESP32 firmware'i ([firmware/gnss-logger/](../firmware/gnss-logger/)) repoda referans olarak duruyor.
 
-**İleride:** Kit yüzlerce adet üretilirse Pi yerine endüstriyel bir modül (ör. Compute Module) ve özel bir taşıyıcı kart düşünülebilir. Zaman hassasiyeti kritikleşirse, hoverboard'daki ESP32 + Pi düzenine benzer şekilde, zamanlama işini küçük bir mikrodenetleyici Pi'ın yanında üstlenebilir.
+**İleride:** Kit yüzlerce adet üretilirse Pi yerine endüstriyel bir modül (ör. Compute Module) ve özel bir taşıyıcı kart düşünülebilir. Zaman hassasiyeti kritikleşirse, robottaki (maraba) ESP32 + Pi düzenine benzer şekilde, zamanlama işini küçük bir mikrodenetleyici Pi'ın yanında üstlenebilir.
 
 ## Montaj ve yükseklikler
 
@@ -106,7 +106,7 @@ Aynı nedenle ESP32 kaydedici de kitten çıktı (16 Kasım 2026). Pi zaten kitt
 Yükseklikler taşıyıcıdan değil yerden ölçülür; böylece üç taşıyıcıyla toplanan veri karşılaştırılabilir kalır. Robotta montaj plakası yerden 0,18 m'de olduğu için anten plakanın ~1,52 m, kamera ~1,42 m, LiDAR ~0,42 m üstüne gelir. Arabada ve ATV'de yuvanın yüksekliği farklıdır; direk ve LiDAR kelepçesi kayarak ayarlanır, yükseklikler her taşıyıcı için kalibrasyonda ölçülür.
 
 **Taşıyıcılar (sahip, 20 Kasım 2026):** Kit üç taşıyıcıdan birine takılır. Üçünde de direğin dibi aynı anahtarlı boru yuvasına tek yönde oturur:
-- **Robot** (`yusuftiryaki/hoverboard`): montaj plakası şasinin ortasında, yerden 0,18 m'de; soket ve kimlik çipi [aşağıda](#robota-takılan-kit-için-ölçüm).
+- **Robot** (`yusuftiryaki/maraba`): montaj plakası şasinin ortasında, yerden 0,18 m'de; soket ve kimlik çipi [aşağıda](#robota-takılan-kit-için-ölçüm).
 - **Elle çekilen araba (yürüyerek tarama):** el arabası ya da benzeri tekerlekli bir araba; personel önden çeker. Sırtta taşımanın yerini alır: sırtta LiDAR 0,6 m'de sabit tutulamaz, bacaklar görüşünü kapatır ve yüksekliği yürüdükçe oynar.
 - **ATV:** motosikletin yerine; daha hızlı ve çamura daha dayanıklı. Yuva arka bagajda ortada; LiDAR arka bagajın altına, arkaya bakan kısa bir kolla 0,6 m'ye iner. Sürücü ve ATV'nin gövdesi öndeki sektörü kapatır; yanlar açık kalır.
 
