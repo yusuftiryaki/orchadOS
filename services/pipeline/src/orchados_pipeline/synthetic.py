@@ -52,7 +52,7 @@ class SyntheticConfig:
     qr_refresh_ms: int = 100
     fps: float = 12.0  # not a multiple of the QR refresh, so QR phases vary
     width: int = 960
-    camera_height_m: float = 2.0
+    camera_height_m: float = 1.6  # the kit default (docs/tarama-kiti.md)
     clock_drift_ppm: float = 300.0
     gnss_rate_hz: float = 5.0
     gnss_margin_s: float = 2.0

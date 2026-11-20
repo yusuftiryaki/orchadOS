@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prepares a fresh Ubuntu Server 24.04 (arm64) on the kit's Raspberry Pi 5 as the
+# Prepares a fresh Ubuntu Server 24.04 (arm64) on the kit's Raspberry Pi 4 as the
 # recorder: ROS 2 Jazzy and the Unitree L2 driver, chrony with PPS, BlueZ, the
 # SSD mount, the systemd units and orchados-recorder itself.
 #
@@ -179,7 +179,7 @@ install_recorder() {
 }
 
 configure_boot() {
-  log "Boot config: PPS overlay (GPIO18), Pi 5 USB current"
+  log "Boot config: PPS overlay (GPIO18)"
   if [[ ! -f $BOOT_CONFIG ]]; then
     warn "$BOOT_CONFIG not found; add setup/config.txt.append to the boot config by hand"
     return

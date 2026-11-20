@@ -2,6 +2,8 @@
 
 16 Kasım 2026 · Yusuf (sahip) ile Claude · durum: taslak, sahip onayı bekliyor
 
+> **Not (19 Kasım 2026):** Elde Pi 5 yok; kitte Raspberry Pi 4 Model B kullanılır. Aşağıdaki "Pi 5" ifadeleri tasarım anının kaydıdır. Pi 5'e özel USB akım ayarı (`usb_max_current_enable`) kurulumdan çıkarıldı; Pi 4 notları [services/kit-recorder/README.md](../../../services/kit-recorder/README.md#pi-4)'de.
+
 ## 1. Amaç ve gerekçe
 
 LiDAR'lı kitte (karar 11 Kasım 2026) kayıt bilgisayarı Raspberry Pi 5'tir. Bugün yazılı ve testli olan kaydedici ise ESP32 ([firmware/gnss-logger/](../../../firmware/gnss-logger/)). Saha uygulaması ([apps/field/](../../../apps/field/)) onunla Bluetooth (BLE) üzerinden konuşur, işleme hattı da onun yazdığı `gnss/` klasörünü okur. Pi'da henüz hiçbir yazılım yok, işletim sistemi bile kurulu değil.
@@ -39,7 +41,7 @@ Tasarımın ana fikri: **Pi, saha uygulamasına ve işleme hattına ESP32 gibi g
 - Pi'ın kendi Wi-Fi ağı ve web durum ekranı. [tarama-kiti.md](../../tarama-kiti.md)'deki bu fikrin yerini BLE ile telefondaki ekran alır.
 - Kendi baz istasyonu. TUSAGA-Aktif RINEX'ini operasyon `base/` altına koyar; Pi'ı etkilemez.
 - ESP32 firmware'ini silmek. Firmware repoda kalır (§9).
-- Telefon cepteyken ya da ekran kapalıyken uyarmak (Android arka plan servisi, bildirim alarmı). Sahip kararı: tarama sırasında telefon motosiklet gidonundaki tutucuda durur, ekranı açıktır ve uygulama öndedir.
+- Telefon cepteyken ya da ekran kapalıyken uyarmak (Android arka plan servisi, bildirim alarmı). Sahip kararı: tarama sırasında telefon motosiklet gidonundaki tutucuda durur, ekranı açıktır ve uygulama öndedir. (20 Kasım 2026: motosiklet çıktı, yerine ATV; robot ve elle çekilen araba da var; telefon personelin elinde ya da taşıyıcıdaki tutucuda durur, ekran açık ve uygulama önde kuralı aynı.)
 - Pi'da yerel uyarı (GPIO'dan buzzer ya da LED). Sahip kararı: tek arabirim telefon. Bluetooth koparsa uygulama bunu zaten kayıp bağlantı olarak gösterir.
 
 ## 4. Anti-hedefler (çalışsa bile başarısızlık sayılır)

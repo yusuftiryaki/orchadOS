@@ -3,7 +3,7 @@
 The record carries what the chip needs (migration 20261027120000):
 - `chip_id`: the manifest's calib_id, assigned by the database, never changes;
 - `extrinsics.kit_mount`: {kit_gnss|kit_cam360|kit_lidar: [x, y, z, roll, pitch,
-  yaw]} in the robot's `kit_mount` frame (hoverboard/docs/kit-soketi.md: origin at
+  yaw]} in the robot's `kit_mount` frame (maraba/docs/kit-soketi.md: origin at
   the kit's mounting plate, x forward, y left, z up; metres, radians).
 
 The kit's serial comes from the rig's scan-kit device. What the database does

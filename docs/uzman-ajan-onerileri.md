@@ -165,7 +165,7 @@ Bkz. 1.1 içinde 4.6 bölümü. Özet: "kımıl" adı "kokarca" olsun, belirti t
 
 **b) Eşikler (öneri):**
 
-| Sınıf | Gövde çapı (aşı yerinin üstünde, yaklaşık yerden 50 cm) | Taç çapı | Motosikletten görülebilecek ölçüt |
+| Sınıf | Gövde çapı (aşı yerinin üstünde, yaklaşık yerden 50 cm) | Taç çapı | Taramadan görülebilecek ölçüt |
 | --- | --- | --- | --- |
 | Fidan | < 5 cm (bilekten ince) | < 1,5 m | Boy çoğunlukla insan boyundan kısa. Çoğunlukla destek kazığı, koruma kabı ya da torba var. Taç belirgin değil, birkaç dal. |
 | Genç | 5–12 cm | 1,5–3 m | Boy insan boyu civarında ya da biraz üstünde. Ana kollar ince (bilek kalınlığı). Tacın arkasından sıra açıkça görünüyor. |
@@ -559,7 +559,7 @@ Aşağıdaki her satır bir SVG'ye dönüşür. "Mesafe" ağacın gövdesine ola
 
 Önem sırasıyla, en önemlisi başta.
 
-1. **Tarama yöntemi: yürüyüş mü, motosiklet mi?** Görev tanımı ve MVP Modül 2 (adım 3 ve süre tablosu) "motosikletle" diyor. MVP Modül 3 ise "Yavaş yürüyüş" ve donanım bölümü "MVP'de tarama yürüyerek yapılır" diyor; kit "sırt çantası direği" olarak tarif ediliyor. Kamera yüksekliği ağaç var/yok sinyalinin kutularını (yerden 2,5–4 m) ve kesit karşılaştırılabilirliğini doğrudan etkiler. Parsel başına sabit tutulması gereken bu değer belgelerde tanımlı değil. **Karar gerekli; kamera yüksekliği metodolojiye bir sayı olarak yazılmalı.**
+1. **Tarama yöntemi: yürüyüş mü, motosiklet mi?** Görev tanımı ve MVP Modül 2 (adım 3 ve süre tablosu) "motosikletle" diyor. MVP Modül 3 ise "Yavaş yürüyüş" ve donanım bölümü "MVP'de tarama yürüyerek yapılır" diyor; kit "sırt çantası direği" olarak tarif ediliyor. Kamera yüksekliği ağaç var/yok sinyalinin kutularını (yerden 2,5–4 m) ve kesit karşılaştırılabilirliğini doğrudan etkiler. Parsel başına sabit tutulması gereken bu değer belgelerde tanımlı değil. **Karar gerekli; kamera yüksekliği metodolojiye bir sayı olarak yazılmalı.** **Sonuç (20 Kasım 2026, sahip):** motosiklet seçeneği yok; tarama robotla, ATV ile ya da yürüyerek (kit elle çekilen bir arabada). Kamera yüksekliği ayarlanabilir kalır, her ziyarette ölçülür; kitin varsayılanı 1,6 m.
 
 2. **Envanterde sağlık ölçeği girilmez, ama "dip sürgünü ve belirgin kuruma" envanterde işaretlenir.** Metodoloji bölüm 2 ile MVP Modül 2 adım 6 çelişiyor. Önerim (bölüm 2): Bunlar ağacın sabit özelliği değil, envanter ziyaretinin ölçümleri olsun. Sağlık **sınıfı** verilmesin ama bu ölçümler kaydedilsin.
 
@@ -655,7 +655,7 @@ Aşağıdaki her satır bir SVG'ye dönüşür. "Mesafe" ağacın gövdesine ola
 - Ay–mevsim eşlemesi sürüme bağlı, üç yerde aynı ve ortak test vektörleriyle (`test-vectors/season.json`); saha uygulamasının Kasım'ı hasat sayma tutarsızlığı giderildi.
 - Kayıtta (`metric_definition.valid_seasons`): `theft_trace`, `branch_break`, `debris_under_tree_present` yazın da; `frost_damage_scale` kışın da (Mart sonu geç donu için; yalnız uzman girer, AI kışın önermez).
 - Yakın plan protokolü: `summer-v0.2` ağaç sorusu "Dalda erken boşaltılmış salkım sapı var mı?" (`early_emptied_cluster_present`) ve parsel sorusu "Tel ya da çitte yeni açılmış geçit var mı?" (`fence_breach_present`, ziyarette bir kez, ağaçsız ölçüm). `winter-v0.2` kuru testinde "Baktığın üç dal ucundan herhangi birinde dolgun ya da kabaran tomurcuk var mı?" (`dead_test_live_bud`; v0.1'in ters sorusu `dead_test_no_buds` kayıtta kalır).
-- Ziyaret kuralları ve ön kontrol ([metodoloji.md](metodoloji.md) bölüm 2 ve 7): ilaçlama sonrası etiketteki tekrar giriş süresi (bilinmiyorsa en az 48 saat; ıslak yaprak ya da ilaç kokusu varsa girilmez; ziyaretten 2 gün önce ilaçlama planı sorulur); hasat sürerken girilmez (#5'te hasat başlamışsa iptal, #6'ya katılır); #6 hasattan 3–21 gün sonra, ön kontrolde çöpleme sorulur; yaz taraması sabah (gün doğumu + 1 saat – 11.00) ya da akşamüstü (16.00 – gün batımı − 1 saat); çizme zorunlu; don ve kırağı kalkmadan girilmez; çamurda motosiklet yok; ziyaretler arası en az 3 hafta; saatte ~30 km'yi aşan rüzgârda yakın plan yok.
+- Ziyaret kuralları ve ön kontrol ([metodoloji.md](metodoloji.md) bölüm 2 ve 7): ilaçlama sonrası etiketteki tekrar giriş süresi (bilinmiyorsa en az 48 saat; ıslak yaprak ya da ilaç kokusu varsa girilmez; ziyaretten 2 gün önce ilaçlama planı sorulur); hasat sürerken girilmez (#5'te hasat başlamışsa iptal, #6'ya katılır); #6 hasattan 3–21 gün sonra, ön kontrolde çöpleme sorulur; yaz taraması sabah (gün doğumu + 1 saat – 11.00) ya da akşamüstü (16.00 – gün batımı − 1 saat); çizme zorunlu; don ve kırağı kalkmadan girilmez; çamurda tarama yok; ziyaretler arası en az 3 hafta; saatte ~30 km'yi aşan rüzgârda yakın plan yok.
 
 **Güven:**
 - #5 hasat öncesi ziyareti: **yüksek**.

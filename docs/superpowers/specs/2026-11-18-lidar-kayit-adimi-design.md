@@ -214,7 +214,7 @@ Point-LIO parametreleri; anahtar kare aralığı; poz grafiği sigmaları; vokse
 | --- | --- | --- |
 | L2 IMU hataları (#9: yan açılışta ivme, #25: zaman tabanı) | Ön uç ıraksar | Damga kontrolü (§5.2), IMU hızı kapısı, kalite kapısı; masada doğrulama |
 | Sıra benzerliği | Çift ağaç, kayma | PPK bağı, gövde tutarlılığı ölçütü |
-| Motosiklet titreşimi | Gürültülü IMU, duvar ikilenmesi (#27) | Sönümleyici; ilk taramada ölçülür; eşikler |
+| Taşıyıcının titreşimi (ilk tasarımda motosiklet) | Gürültülü IMU, duvar ikilenmesi (#27) | Sönümleyici; ilk taramada ölçülür; eşikler |
 | Point-LIO ROS 2 portu Humble'da denenmiş | Derleme ve çalışma sorunu | Ayrı imaj, Humble tabanı |
 | Kayıttan oynatmanın belirlenimsizliği | Aynı girdiye farklı sonuç | Her çalıştırma ayrı kayıt, rapor ve sürüm |
 | Uzun oturumda bellek | Çökme | Parça ve anahtar kare diskte, bulut parça parça yazılır |

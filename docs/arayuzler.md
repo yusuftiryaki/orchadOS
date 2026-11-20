@@ -136,8 +136,8 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `methodology_version` | str | Saha uygulaması | Hayır | Tarama protokolü sürümü |
 | `rig_id` | str | Saha uygulaması / operasyon | Hayır | Kullanılan kit (`public.rig`) |
 | `calibration_id` | str | Operasyon | Hayır | Kitin oturum tarihinde geçerli kalibrasyon kaydı |
-| `camera_height_m` | float | Operasyon (personelin ön kontrolde ölçtüğü değer, `public.session.camera_height_m`) | Hayır, vars. 2,0 | Kamera merceğinin zeminden yüksekliği; kamera ayarlanabilir olduğu için her ziyarette ölçülür. Yoksa ya da 0,5–3,5 m dışındaysa hat uyarı verir. Yüklemede ziyaretin kaydıyla 5 cm'den fazla farklıysa yükleme reddedilir (kesitler yanlış yükseklikle kesilmiş olur); ziyarette kayıt yoksa bu değer yazılır |
-| `scan_platform` | str | Operasyon (ön kontrolden) | Hayır | `walk` (sırt direği), `motorcycle`, `robot`. Ziyaretin kaydıyla farklıysa yükleme uyarı verir, ziyaretin değeri kalır |
+| `camera_height_m` | float | Operasyon (personelin ön kontrolde ölçtüğü değer, `public.session.camera_height_m`) | Hayır, vars. 1,6 (kitin varsayılanı; 20 Kasım 2026'ya kadar 2,0) | Kamera merceğinin zeminden yüksekliği; kamera ayarlanabilir olduğu için her ziyarette ölçülür. Yoksa ya da 0,5–3,5 m dışındaysa hat uyarı verir. Yüklemede ziyaretin kaydıyla 5 cm'den fazla farklıysa yükleme reddedilir (kesitler yanlış yükseklikle kesilmiş olur); ziyarette kayıt yoksa bu değer yazılır |
+| `scan_platform` | str | Operasyon (ön kontrolden) | Hayır | `walk` (elle çekilen araba; 20 Kasım 2026'dan önce sırt direği), `atv`, `robot`; eski oturumlarda `motorcycle` da olabilir (20 Kasım 2026'dan beri sunulmuyor). Ziyaretin kaydıyla farklıysa yükleme uyarı verir, ziyaretin değeri kalır |
 | `camera_yaw_offset_deg` | float | Operasyon (kalibrasyondan) | Hayır | Panorama orta sütununun hareket yönüne göre açısı; yoksa hat parametresi kullanılır |
 | `lead_user_id` | str | Saha uygulaması | Hayır | Ekip lideri kullanıcı kimliği |
 | `crew_user_ids` | str[] | Saha uygulaması | Hayır | Diğer personelin kullanıcı kimlikleri |
@@ -155,7 +155,7 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
   "methodology_version": "scan-v1",
   "rig_id": "kit-01",
   "calibration_id": "kit-01-2026-10",
-  "camera_height_m": 2.05,
+  "camera_height_m": 1.62,
   "camera_yaw_offset_deg": 0.0,
   "lead_user_id": "0f6c2b9a-1d3e-4f5a-8b7c-9d0e1f2a3b4c",
   "app_version": "0.1.0"
@@ -214,7 +214,7 @@ Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-log
 
 ## Kit kaydedicisi (Raspberry Pi)
 
-LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 5'tir; ESP32 kaydedici kitten çıktı (karar 16 Kasım 2026, tasarım: [superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)). Pi'daki kayıt servisi (`services/kit-recorder/`) saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı BLE servisi ve cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve sonuç kodları, aynı `gnss/` dosyaları. Buna LiDAR kaydı ve kayıt sağlığı eklenir.
+LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 4'tür; ESP32 kaydedici kitten çıktı (karar 16 Kasım 2026, tasarım: [superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)). Pi'daki kayıt servisi (`services/kit-recorder/`) saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı BLE servisi ve cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve sonuç kodları, aynı `gnss/` dosyaları. Buna LiDAR kaydı ve kayıt sağlığı eklenir.
 
 ### Durum mesajı (77 bayt)
 
@@ -509,7 +509,7 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 - **Karar (oturum olayları):** Olaylar için ayrı, ekleme-yalnız bir tablo açıldı (`public.session_event`: `id`, `org_id`, `parcel_id`, `session_id`, `event_type`, `payload`, `gps_time_ns`, `time_source`, `phone_time`, `logger_result`, `recorded_by`). Gerekçe: (1) her olayın telefonda üretilmiş kimliği var, ayrı satır tekrar gönderimi `on conflict do nothing` ile güvenli kılar; `session` üzerinde bir JSON dizisini güncellemek sıraya ve eşzamanlı yazmaya bağımlı olurdu ve yayımlanmış ziyarette mümkün değil; (2) `capture.metadata` bir dosyaya bağlı, olayların dosyası yok; (3) kaydedicinin `events.csv`'si SD kartla ofise gelir, bu satırlar ise ağdan önce gelir ve kaydedicinin kaçırdığı olayları da taşır: işleme hattı QR eşlemesini iki kaynakla karşılaştırabilir. Okuma yalnızca kurum rolleri; sahip ve izleyici görmez.
 - **Karar (metrikler):** Yakın plan sorularının metrikleri kayıtta yoktu; evet/hayır, ağaç, karnede gizli (`card_visibility = hidden`) olarak eklendi: `dead_branch_present`, `trunk_damage_present`, `root_sucker_present`, `pruned`, `frost_damage_present`, `pest_sign_present`, `fruit_present`, `drought_stress_sign`, `theft_sign_present`. Hasat sorularında kayıtlı `harvest_complete` ve `branch_break` kullanılır. Personel cevabı uzmana kanıttır, karnede gösterilmez.
 - **Hatalar:** Ağ hatası, zaman aşımı, 5xx/429 ve süresi geçmiş giriş geçicidir (kayıt kuyrukta kalır, artan beklemeyle yeniden denenir). Yetki (`42501`), doğrulama (`23xxx`, `22P02`), bilinmeyen ya da iptal edilmiş ziyaret (`visit_not_found`, `visit_cancelled`), kayıtta olmayan metrik (`unknown_metric`) kalıcıdır: kayıt telefonda "başarısız" diye sebebiyle işaretlenir, kuyruk durmaz.
-- **v0.1 soruları ve olaylar:** Yakın plan protokolü `*-v0.1` (metodoloji bölüm 7; metrikler `20261028120000_closeup_protocol_v01`). Bir ağacın "Göremedim" cevapları tek bir `closeup_unseen` olayında: `payload` yer kodu, `data` = `{version, tree_id, slot_code, method_version, metric_codes[], evidence[]}`. Ön kontroldeki ilaçlama onayı `session_start` olayının `data.precheck.spraying` alanında (`none` ya da `waiting_period_passed`). Tarama yöntemi ve ölçülen kamera yüksekliği aynı yerde: `data.precheck.platform` (`walk`, `motorcycle`, `robot`) ve `data.precheck.camera_height_m` (metre, iki ondalık); ikisi ziyaret satırına da yazılır. `methodology_version`'ı telefon göndermez, operasyon belirler.
+- **v0.1 soruları ve olaylar:** Yakın plan protokolü `*-v0.1` (metodoloji bölüm 7; metrikler `20261028120000_closeup_protocol_v01`). Bir ağacın "Göremedim" cevapları tek bir `closeup_unseen` olayında: `payload` yer kodu, `data` = `{version, tree_id, slot_code, method_version, metric_codes[], evidence[]}`. Ön kontroldeki ilaçlama onayı `session_start` olayının `data.precheck.spraying` alanında (`none` ya da `waiting_period_passed`). Tarama yöntemi ve ölçülen kamera yüksekliği aynı yerde: `data.precheck.platform` (`walk`, `atv`, `robot`; eski oturumlarda `motorcycle`) ve `data.precheck.camera_height_m` (metre, iki ondalık); ikisi ziyaret satırına da yazılır. `methodology_version`'ı telefon göndermez, operasyon belirler.
 - **v0.2 soruları (methodology-v0.2):** Protokoller `winter-v0.2` (kuru testinde `dead_test_live_bud`) ve `summer-v0.2` (`early_emptied_cluster_present`; metrikler `20261103100800_methodology_v02`). **Parsel soruları** (`fence_breach_present`, evet/hayır; `summer-v0.3` ve `spring-v0.2`'den beri ayrıca `weed_height`, kategori `short`/`medium`/`tall`): yakın plan listesinde ziyarette bir kez sorulur; cevap `tree_id`'siz bir `measurement` satırıdır (konu `parcel`; telefonda `subject_type = parcel`, `subject_id` = parsel kimliği; evet/hayır `value_boolean`, kategori `value_category`). Parsel sorusunun "Göremedim"i ayrı bir `closeup_unseen` olayıdır: `payload` `parcel`, `data` = `{version, parcel_id, method_version, metric_codes[], evidence: []}` (`tree_id` ve `slot_code` yok). Hasat mevsimindeki taramanın ön kontrolünde hasat cevabı `session_start` olayının `data.precheck.harvest` alanında: `gleaning_done`, `gleaning_ongoing` ya da `no_gleaning` (hasat sürüyorsa cevap yoktur, tarama başlamaz). Ziyaretin mevsimini telefon `session.methodology_version` ile ay'dan çıkarır ([metodoloji.md](metodoloji.md) bölüm 2).
 - **Fotoğraf dosyası** telefondan ancak yükleme, `capture` satırı ve nesnenin varlık kontrolü başarılı olunca silinir.
 - **Açık:** Cevap ile kanıt fotoğrafı arasındaki bağ sunucuda yok (`measurement_evidence` yalnızca `asset`'e bağlanır); ikisi aynı oturum ve ağaçla eşleşir.
@@ -926,12 +926,13 @@ Ek diziler (konumlar noktalarla aynı nicemlemeyle; sınır kutusu parçaları v
 
 ## Kit kimlik çipi
 
-Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
+Tarama kiti robota (`yusuftiryaki/maraba`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
 
-- **Sözleşmenin kaynağı:** [hoverboard/docs/kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `hoverboard/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
+- **Sözleşmenin kaynağı:** [maraba/docs/kit-soketi.md](https://github.com/yusuftiryaki/maraba/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `maraba/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
 - **Yazan taraf:** `services/kit-chip/` (`orchados-kit write|read`).
 - **Test vektörleri:** Robot reposuyla aynı dosya, `services/kit-chip/tests/vectors/kit_manifest_v1.json`. Değiştirilmeden kopyalanmıştır. Format ya da vektörler değişirse iki repo birlikte değişir.
 - **Şema numarası** sadece artar. Robot bilmediği bir şemayı reddeder.
+- **Her kitte Pi ve LiDAR var (sahip, 20 Kasım 2026).** Robot belgesindeki LiDAR'sız v1 / LiDAR'lı v2 ayrımı kalkar: her kitte Raspberry Pi 4 (kayıt, ROS 2), Unitree L2, F9P ve 360° kamera vardır; ESP32 kaydedici yoktur. Bir kitin çipinde üç frame de (`kit_gnss`, `kit_cam360`, `kit_lidar`) ve `lidar` yeteneği bulunur. F9P'yi kitin Pi'ı okuduğu için `gnss_link`'in hangi değeri alacağı ve robotun GNSS'i hangi yoldan alacağı robot planının K3 adımında robotla birlikte kesinleşir; o zamana kadar şema 1 aynen geçerlidir.
 
 **`kit_mount` frame'i** robot tarafında tanımlı (`kit-soketi.md`, "Soket — mekanik" ve URDF); aşağıdaki kabuller robot tarafınca doğrulandı (2026-10-27):
 - Robotun montaj plakasının üst yüzeyi: `base_link`'e göre x = 0,11 m, z = 0,1825 m, dönüşsüz.

@@ -1,12 +1,14 @@
 # Kit Sipariş Listesi
 
-21 Ekim 2026 · Yusuf · son güncelleme 16 Kasım 2026 (ana parçalar alındı; baz verisi TUSAGA-Aktif'ten; ESP32 kitten çıktı)
+21 Ekim 2026 · Yusuf · son güncelleme 20 Kasım 2026 (motosiklet çıktı; kit robota, elle çekilen arabaya ya da ATV'ye takılır, LiDAR 0,6 m'de)
 
-Bu liste, MVP'de kullanılacak tarama kitinin parça parça sipariş listesidir. Kitte 360° kamera, RTK GNSS alıcısı, LiDAR ve kayıt bilgisayarı (Raspberry Pi 5) bulunur; motosiklete monte bir direkte taşınır. Kitin tasarımı [tarama-kiti.md](tarama-kiti.md)'de anlatılıyor. Pi'daki kayıt yazılımı `services/kit-recorder/`'da ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)); telefonla ve işleme hattıyla sözleşmesi [arayuzler.md](arayuzler.md#kit-kaydedicisi-raspberry-pi)'de.
+Bu liste, MVP'de kullanılacak tarama kitinin parça parça sipariş listesidir. Kitte 360° kamera, RTK GNSS alıcısı, LiDAR ve kayıt bilgisayarı (Raspberry Pi 4) bulunur; robota, elle çekilen tekerlekli bir arabaya ya da ATV'ye takılan bir direkte taşınır. Kitin tasarımı [tarama-kiti.md](tarama-kiti.md)'de anlatılıyor. Pi'daki kayıt yazılımı `services/kit-recorder/`'da ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)); telefonla ve işleme hattıyla sözleşmesi [arayuzler.md](arayuzler.md#kit-kaydedicisi-raspberry-pi)'de.
+
+> **Karar (20 Kasım 2026, sahip): motosiklet yok.** Kit üç taşıyıcıya göre tasarlanır: robot, yürüyerek taramada elle çekilen tekerlekli bir araba ve motosikletin yerine ATV; LiDAR yerden 0,6 m'de durur ([tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler)). Bölüm 4 ve 5.2 buna göre değişti.
 
 > **Karar (16 Kasım 2026, sahip): ESP32 kaydedici kitten çıktı.** GNSS kaydını, PPS'i ve telefonla Bluetooth bağlantısını Pi üstlendi. Kayıt yazılımı ESP32'nin protokolünü ve dosyalarını aynen kullanır, buna LiDAR kaydını ekler. ESP32 firmware'i ([firmware/gnss-logger/](../firmware/gnss-logger/)) repoda referans olarak duruyor.
 
-> **Karar (11 Kasım 2026, sahip): kit LiDAR'lı yapılır.** Liste ilk yazıldığında LiDAR'sız kiti anlatıyordu; LiDAR'lı kitin ek parçaları [bölüm 7](#7-lidarlı-kitin-ek-parçaları)'de. Montaj yüksekliği ve motosiklette deneme: [lidar-olcumleri.md](lidar-olcumleri.md) §8.
+> **Karar (11 Kasım 2026, sahip): kit LiDAR'lı yapılır.** Liste ilk yazıldığında LiDAR'sız kiti anlatıyordu; LiDAR'lı kitin ek parçaları [bölüm 7](#7-lidarlı-kitin-ek-parçaları)'de. LiDAR'ın montaj yüksekliği: [tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler).
 
 ## Durum: alınanlar (16 Kasım 2026)
 
@@ -20,7 +22,7 @@ Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); topl
 | 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | 27.270 TL | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
 | 7.4 | Kayıt SSD'si | Lexar SL300 512 GB (USB 3.2 Gen 2) | 1 | 3.999 TL | 15'ten fazla ziyaretin LiDAR kaydını alır |
 
-**Elde var:** Raspberry Pi 5 8 GB (aktif soğutucu, saat pili, kutu) ve sistem kartı (microSD). Bu kit için alınmadı; yukarıdaki toplamda yok.
+**Elde var:** Raspberry Pi 4 Model B (soğutucu) ve sistem kartı (microSD); iki ayarlı DC-DC düşürücü (LiDAR için 12 V, Pi için 5,1 V). Bu kit için alınmadı; yukarıdaki toplamda yok. Kitte Pi 5 yok; kayıt Pi 4'te yapılır (sahip, 19 Kasım 2026).
 
 **Karar (16 Kasım 2026, sahip): MVP kiti tek ziyareti taşır.** Tek kamera kartı ve tek SSD alındı; kart her ziyaretten sonra ofiste aktarılıp boşaltılır. Listede iki kart ve iki SSD öneren satırlar pilot sonrasına kaldı. Aynı gün iki bahçe taranacaksa ikinci bir kart gerekir.
 
@@ -28,7 +30,7 @@ Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); topl
 - TUSAGA-Aktif abonelik başvurusu (karar 2). Parça değil, ama PPK denemesi buna bağlı.
 - Güç (bölüm 3): iki akü, şarj aleti, iki akü adaptörü, kamera için USB-C PD modülü.
 - Pi'ın bağlantıları (bölüm 7): iki DC-DC düşürücü, Ethernet ve USB-C kabloları, PPS teli, su geçirmez kutu, sigorta ve anahtar, konnektörler.
-- Mekanik (bölüm 4): direk, motosiklet montajı, kamera ve anten bağlantıları; ayrıca LiDAR plakası (7.10) ve kalibrasyon hedefi (7.11).
+- Mekanik (bölüm 4): direk, taşıyıcıya montaj, kamera ve anten bağlantıları; ayrıca LiDAR plakası (7.10) ve kalibrasyon hedefi (7.11).
 - Telefon tutucu, şerit metre, lens temizleme kiti (bölüm 5).
 - Gerekirse kamera yedek bataryası (1.6).
 
@@ -81,12 +83,14 @@ ESP32 kaydedici kitten çıktı; işini Pi yapıyor ([tasarım](superpowers/spec
 
 **Güç hesabı:** LiDAR (10 W), Raspberry Pi (7 W), SSD (3 W), alıcı (1 W) ve kamera (5 W) birlikte ~26 W çeker; iki saatlik tarama ~52 Wh eder ([tarama-kiti.md](tarama-kiti.md#depolama-ve-güç-hesabı)). 5 Ah'lık 18 V akü ~90 Wh taşıdığı için bir akü bir taramayı karşılar, ikincisi yedektir. Pi akü gerilimini ölçmez; akünün dolu olduğu kit açılmadan kontrol edilir.
 
-## 4. Mekanik: motosiklet montajı ve direk
+## 4. Mekanik: taşıyıcıya montaj ve direk
 
 | # | Parça | Adet | Özellik | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- |
-| 4.1 | Direk | 1 | Alüminyum ya da karbon, Ø 25–30 mm. Kamera yerden ~2,0 m, anten ~2,1 m'de olacak boyda | 30–80 $ |
-| 4.2 | Motosiklet arka bagaj montajı | 1 | Arka sepete ya da bagaj demirine cıvatalı, direği dik tutan kelepçeli plaka | 30–60 $ |
+| 4.1 | Direk | 1 | Alüminyum ya da karbon, Ø 25–30 mm. Kamera yerden ~1,6 m, anten direğin tepesinde ~1,7 m'de olacak boyda (sahip, 20 Kasım 2026: 2,0/2,1 m'den indi); robotta plaka yerden 0,18 m'de, direk plakanın ~1,52 m üstüne çıkar. Yuvanın yüksekliği taşıyıcıya göre değiştiği için boyu ve LiDAR kelepçesi ayarlanabilir; ATV'de ~1,9 m'ye uzayabilmeli ([tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler)) | 30–80 $ |
+| 4.2 | Direk dibi ve taşıyıcı bağlantısı | 1 | Robotun montaj plakasındaki anahtarlı boru yuvasına tek yönde oturan direk dibi ([bölüm 6](#6-robot-soketi-kit-tarafı-sadece-kit-robota-takılacaksa), "Kit tabanı"); araba ve ATV için aynı yuvadan birer tane. Akü ve elektronik kutusu buraya bağlanır | 30–60 $ |
+| 4.7 | El arabası | 1 | Yürüyerek tarama için elle çekilen tekerlekli araba; geniş, şişme tekerlekli (titreşim için), yuva ortada. Elde varsa alınmaz | 50–120 $ |
+| 4.8 | ATV arka bagaj bağlantısı | 1 | Yuvayı arka bagajın ortasına bağlayan kelepçeli plaka; LiDAR'ı 0,6 m'ye indiren arkaya bakan kol. ATV taranacaksa | 30–60 $ |
 | 4.3 | Titreşim sönümleyici | 4 | Kauçuk takoz (M6/M8); montaj plakası ile direk arasına | 5–10 $ |
 | 4.4 | Kamera bağlantısı | 1 | 1/4" vidalı, direğe kelepçeli; kameranın "görünmez çubuk" aksesuarı uyumlu | 15–30 $ |
 | 4.5 | Anten bağlantısı | 1 | 5/8" anten vidası adaptörü, direk ucuna | 10–20 $ |
@@ -94,20 +98,20 @@ ESP32 kaydedici kitten çıktı; işini Pi yapıyor ([tasarım](superpowers/spec
 
 Jalon (eski 4.7) çıktı: baz istasyonu kurulmuyor (karar 2).
 
-**Montaj notu:** Kamera ve anten aynı rijit direkte, aralarındaki dikey mesafe ölçülüp kalibrasyon dosyasına yazılır. Elektronik kutusu (Pi, DC-DC düşürücüler, SSD) direğin altına ya da motosikletin bagajına bağlanır; anten kablosu direk boyunca kelepçelenir.
+**Montaj notu:** Kamera ve anten aynı rijit direkte, aralarındaki dikey mesafe ölçülüp kalibrasyon dosyasına yazılır. Elektronik kutusu (Pi, DC-DC düşürücüler, SSD) ve akü direğin dibine bağlanır; yukarıda olurlarsa robotun devrilme payı azalır. LiDAR direğe yerden 0,6 m'de bağlanır (7.10). Anten kablosu direk boyunca kelepçelenir.
 
 ## 5. Telefon ve diğer
 
 | # | Parça | Adet | Özellik | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- |
 | 5.1 | Android telefon (personelinki yoksa) | 1 | Android 12+, BLE 5, iyi bir arka kamera (yakın plan), güneşte okunur ekran | 200–350 $ |
-| 5.2 | Telefon tutucu | 1 | Motosiklet gidonuna, titreşim sönümlü | 15–30 $ |
+| 5.2 | Telefon tutucu | 1 | Taşıyıcıya ya da direğe, personelin göreceği yükseklikte; titreşim sönümlü. Personel telefonu elinde de taşıyabilir | 15–30 $ |
 | 5.3 | Şerit metre (5 m) ve çelik metre | 1 | Kalibrasyon ve gövde çapı ölçümü | 10–20 $ |
 | 5.4 | Lens temizleme kiti | 1 | Kamera lensleri için | 5–10 $ |
 
 ## 6. Robot soketi (kit tarafı; sadece kit robota takılacaksa)
 
-Kit, `yusuftiryaki/hoverboard` robotuna bir soketle takılabilir. Sözleşme robot reposunda: [kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md). Pin numaraları orada hâlâ başlangıç önerisi; donanım gelince robotun bağlantı haritasına işlenip multimetreyle doğrulanacak.
+Kit, `yusuftiryaki/maraba` robotuna bir soketle takılabilir. Sözleşme robot reposunda: [kit-soketi.md](https://github.com/yusuftiryaki/maraba/blob/main/docs/kit-soketi.md). Pin numaraları orada hâlâ başlangıç önerisi; donanım gelince robotun bağlantı haritasına işlenip multimetreyle doğrulanacak.
 
 | # | Parça | Adet | Özellik | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- |
@@ -127,15 +131,15 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 | # | Parça | Adet | Özellik | Durum | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- | --- |
 | 7.1 | **LiDAR** | 1 | Unitree 4D LiDAR L2. Kutusunda güç adaptörü, seri bağlantı modülü ve veri kablosu gelir | **Alındı** | 27.270 TL |
-| 7.2 | **Raspberry Pi 5, 8 GB** | 1 | Aktif soğutucu, saat pili (RTC), kutu | **Elde var** | — |
+| 7.2 | **Raspberry Pi 4 Model B** | 1 | Soğutucu. Saat pili (RTC) yok: saat açılışta GNSS ile kurulur. Bellek açılışta `free -h` ile okunur; ROS 2 ile kayıt için en az 2 GB, tercihen 4 GB | **Elde var** | — |
 | 7.3 | Pi sistem kartı (microSD) | 1 | 32–128 GB, "high endurance" ya da endüstriyel | **Elde var** | — |
 | 7.4 | **Kayıt SSD'si** (USB 3) | 1 | Lexar SL300 512 GB | **Alındı** | 3.999 TL |
-| 7.5 | DC-DC düşürücü, 18 V → 12 V | 1 | Çıkış 12 V, en az 1,5 A; LiDAR için. Fiş DC 3,5 × 1,35 mm | Alınacak | 3–8 $ |
-| 7.6 | DC-DC düşürücü, 18 V → 5 V, 5 A | 1 | Pi için. Pi 5, 5 A'lık kaynağı tanımazsa USB çıkış akımını kısar; SSD için `usb_max_current_enable=1` gerekebilir | Alınacak | 8–15 $ |
+| 7.5 | DC-DC düşürücü, akü → 12 V | 1 | Ayarlı; çıkış 12 V'a ayarlanır, en az 1,5 A; LiDAR için. Fiş DC 3,5 × 1,35 mm | **Elde var** | — |
+| 7.6 | DC-DC düşürücü, akü → 5 V, en az 3 A | 1 | Ayarlı; çıkış 5,1 V'a ayarlanır. Pi için. Pi 4'ün USB portları toplam 1,2 A verir; SSD ve alıcı bunu paylaşır. Girişin 18 V aküyü kaldırdığı ve yük altında çıkışın 5,0–5,2 V kaldığı masada multimetreyle doğrulanır | **Elde var** | — |
 | 7.7 | Ethernet kablosu | 1 | Kısa (0,3–0,5 m), Cat5e; LiDAR'ın RJ45 ucu ile Pi arasına | Alınacak | 2–5 $ |
 | 7.8 | USB-C veri kablosu | 1 | Kısa; RTK alıcısından Pi'a ham GNSS | Alınacak | 3–6 $ |
 | 7.9 | PPS teli ve seviye koruması | 1 set | Alıcının zaman darbesi (PPS) çıkışından Pi'ın GPIO18'ine (pin 12) tel; 3,3 V ise seri 100–330 Ω direnç, 5 V ise gerilim bölücü. Seviye multimetreyle ölçülür | Alınacak | 1–3 $ |
-| 7.10 | LiDAR bağlantı plakası | 1 | 4 × M3 delik (derinlik 6 mm); direğe kelepçeli, titreşim sönümlü. LiDAR'ın dört yanında hava boşluğu kalmalı | Yapılacak | 10–20 $ |
+| 7.10 | LiDAR bağlantı plakası | 1 | 4 × M3 delik (derinlik 6 mm); direğe yerden 0,6 m'de kelepçeli, titreşim sönümlü. LiDAR'ın dört yanında hava boşluğu kalmalı. Ota ve alçak dallara karşı ince telli bir koruyucu kafes düşünülür | Yapılacak | 10–20 $ |
 | 7.11 | Kalibrasyon hedefi | 1 | Kamera–LiDAR kalibrasyonu için baskılı hedef | Yapılacak | 30–60 $ |
 | 7.12 | Su geçirmez elektronik kutusu | 1 | IP65, kablo rakorlu; Pi, iki DC-DC düşürücü ve SSD sığmalı. Pi'ın soğutucusu için hava payı | Alınacak | 10–20 $ |
 | 7.13 | Sigorta yuvası, sigorta ve açma/kapama anahtarı | 1 set | Akü girişine. Kit 18 V'ta ~1,5 A çeker; sigorta buna göre seçilir | Alınacak | 3–6 $ |
@@ -146,19 +150,19 @@ Tasarım ve L2'nin teknik değerleri: [tarama-kiti.md](tarama-kiti.md#lidar-unit
 
 ## Toplam
 
-**Alınanlar:** beş parça, **77.805 TL** (KDV dahil; [Durum](#durum-alınanlar-16-kasım-2026)). Raspberry Pi 5 ve sistem kartı elde var, toplama girmez.
+**Alınanlar:** beş parça, **77.805 TL** (KDV dahil; [Durum](#durum-alınanlar-16-kasım-2026)). Raspberry Pi 4, sistem kartı ve iki DC-DC düşürücü elde var, toplama girmez.
 
 **Kalanlar** (yaklaşık uluslararası fiyatlar, doğrulanmadı):
 
 | Grup | Yaklaşık |
 | --- | --- |
 | 3. Güç (2 akü, şarj aleti, 2 adaptör, USB-C PD) | 170–310 $ |
-| 4. Mekanik (4.1–4.6) | 100–220 $ |
+| 4. Mekanik (4.1–4.8; el arabası elde varsa hariç) | 180–400 $ |
 | 5. Telefon ve diğer | 30–60 $ (telefon hariç) |
 | 7. LiDAR'lı kitin kalanları (7.5–7.15: DC-DC'ler, kablolar, PPS teli, kutu, sigorta, konnektörler, LiDAR plakası, kalibrasyon hedefi) | 90–180 $ |
-| **Kalanların toplamı (telefon hariç)** | **~390–770 $** |
+| **Kalanların toplamı (telefon hariç)** | **~470–950 $** |
 | 1.6 Kamera yedek bataryası (yalnız kamera aküden beslenemezse) | 60–100 $ |
-| 6. Robot soketi (isteğe bağlı, konnektör hariç) | 25–50 $ |
+| 6. Robot soketi (robotla taranacaksa; konnektör hariç) | 25–50 $ |
 
 TL ile dolar tutarları kalanların güncel fiyatları alınmadan toplanmaz. Türkiye'de KDV ve kur farkı kalanların tutarını belirgin artırabilir. TUSAGA-Aktif aboneliği bu listede yok.
 
@@ -168,7 +172,7 @@ TL ile dolar tutarları kalanların güncel fiyatları alınmadan toplanmaz. Tü
 
 ## Sipariş sırası
 
-1. **Yapıldı (16 Kasım):** kamera, kamera kartı, RTK alıcısı ve anteni, LiDAR, SSD. Raspberry Pi 5 ve sistem kartı zaten elde. Baz verisi kararı verildi: TUSAGA-Aktif (karar 2). SDK başvurusu daha önce sonuçlandı.
+1. **Yapıldı (16 Kasım):** kamera, kamera kartı, RTK alıcısı ve anteni, LiDAR, SSD. Raspberry Pi 4 ve sistem kartı zaten elde. Baz verisi kararı verildi: TUSAGA-Aktif (karar 2). SDK başvurusu daha önce sonuçlandı.
 2. **Şimdi:**
     - TUSAGA-Aktif abonelik başvurusu.
     - Akü markası (karar 3) ve güç (bölüm 3).
@@ -176,13 +180,13 @@ TL ile dolar tutarları kalanların güncel fiyatları alınmadan toplanmaz. Tü
     - Mekanik (bölüm 4) ve telefon tutucu (5.2).
 3. **Masada, güç ve mekanik gelmeden** (sıra ve ayrıntı `services/kit-recorder/README.md`'de):
     - Pi'a Ubuntu Server 24.04 ve kayıt yazılımını kur; telefonun Pi'ı Bluetooth ile bulduğunu ve ön kontrolü dene.
-    - L2 sürücüsünün Pi 5'te ROS 2 Jazzy ile çalışmasını dene. Kayıt yazılımının en büyük teknik riski bu.
+    - L2 sürücüsünün Pi 4'te ROS 2 Jazzy ile çalışmasını dene. Kayıt yazılımının en büyük teknik riski bu.
     - Alıcıyı USB'den bağla, PPS telini çek; ham kayıt, PPS ve saat kilidi.
     - Açık gökyüzünde ilk fix; iki saatlik masa kaydı.
 4. **TUSAGA hesabı açılınca:** yarım saatlik ham kayıt ve PPK denemesi (İP3).
 5. **Mekanik:**
-    - Motosiklete montaj ve kalibrasyon ölçümü.
-    - Kit robota da takılacaksa: kit tabanına göre sensör konumlarının ölçümü ([tarama-kiti.md](tarama-kiti.md#robota-takılan-kit-için-ölçüm)) ve kimlik çipinin yazılması.
+    - Robota, arabaya ve ATV'ye montaj; her taşıyıcı için kalibrasyon ölçümü (yerden yükseklikler).
+    - Robotta: kit tabanına göre sensör konumlarının ölçümü ([tarama-kiti.md](tarama-kiti.md#robota-takılan-kit-için-ölçüm)) ve kimlik çipinin yazılması.
     - Kendi bahçende tek koridor taraması (Kapı 1 denemesi). LiDAR ve GNSS aynı oturumda kaydedilmiş olmalı; yalnız GNSS kaydı Kapı 1'e yetmez.
 
 ## Doğrulanacaklar
@@ -190,8 +194,8 @@ TL ile dolar tutarları kalanların güncel fiyatları alınmadan toplanmaz. Tü
 Parça parça ayrıntılı liste [tarama-kiti.md](tarama-kiti.md#doğrulanacaklar)'de. Parçalar gelince ilk gün:
 
 - [ ] **Radiolink RTK F9P:** PPS çıkışının yeri ve seviyesi (3,3 V bekleniyor); USB'den ham gözlem (RAWX, SFRBX) çıkışı; açık gökyüzünde ilk fix ve çift bant sinyali
-- [ ] **Raspberry Pi 5:** kayıt yazılımının kurulumu; telefonun Pi'ı bulması, ön kontrol ve uyarılar; PPS ile chrony'nin kilitlenmesi; iki saatlik kayıtta veri kaybı olmaması ve SSD'ye USB akımının yetmesi; kablo çekip takınca kaydın sürmesi
+- [ ] **Raspberry Pi 4:** kayıt yazılımının kurulumu; telefonun Pi'ı bulması, ön kontrol ve uyarılar; PPS ile chrony'nin kilitlenmesi; iki saatlik kayıtta veri kaybı olmaması, SSD ve alıcıya USB akımının (toplam 1,2 A) yetmesi ve kapalı kutuda ısınıp yavaşlamaması (`vcgencmd get_throttled`); kablo çekip takınca kaydın sürmesi
 - [ ] **Insta360 X4 Air:** kayıt sırasında USB-C'den beslenerek iki saat kesintisiz 8K kayıt ve ısınma; SanDisk 256 GB kartla kart hızı uyarısı çıkmaması; gerçek `.insv` dosyasının işleme hattından geçmesi ve jiroskop verisi
-- [ ] **Unitree L2:** masada adaptörüyle ilk nokta bulutu; negatif açı kipinin açılması; sürücünün Raspberry Pi 5'te çalışması
-- [ ] Motosiklet titreşiminin panorama netliğine ve LiDAR yörüngesine etkisi; gerekirse ek sönümleme ya da daha düşük hız
+- [ ] **Unitree L2:** masada adaptörüyle ilk nokta bulutu; negatif açı kipinin açılması; sürücünün Raspberry Pi 4'te çalışması
+- [ ] Taşıyıcının titreşiminin panorama netliğine ve LiDAR yörüngesine etkisi; gerekirse ek sönümleme ya da daha düşük hız
 - [ ] Kalan parçaların güncel fiyatları

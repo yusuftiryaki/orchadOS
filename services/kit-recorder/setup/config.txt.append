@@ -1,5 +1,3 @@
 [all]
 # PPS from the GNSS receiver's TIMEPULSE on GPIO18 (header pin 12, 3.3 V) -> /dev/pps0
 dtoverlay=pps-gpio,gpiopin=18
-# Pi 5: allow the full USB current for the SSD and the receiver (5 A supply)
-usb_max_current_enable=1

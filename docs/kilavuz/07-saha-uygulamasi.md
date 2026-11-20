@@ -257,7 +257,7 @@ Bağlanmadan bu üç satır "Bilgi yok" ve kırmızı çarpıdır.
 2. "Kamera lensleri temiz".
 3. "Kamerada video kaydı başladı".
 4. İlaçlama sorusu: "Son günlerde ilaçlama yapıldıysa etiketteki tekrar giriş süresi geçti" ve iki cevap.
-5. "Tarama şekli ve kamera yüksekliği": "Yürüyerek (sırt direği)", "Motosikletle", "Robotla".
+5. "Tarama şekli ve kamera yüksekliği": "Yürüyerek (el arabası)", "ATV ile", "Robotla".
 6. "Kamera yüksekliği" alanı (metre).
 7. "Bilgilendirme": levha ve tanıtım kartı soruları, "Evet" / "Hayır".
 8. "Devam": bütün maddeler tamamsa açılır, tarama ekranına geçer.
@@ -278,7 +278,7 @@ Bağlanmadan bu üç satır "Bilgi yok" ve kırmızı çarpıdır.
 
 ### Önceki taramayla karşılaştırma
 
-Bu telefonda aynı parselin daha önce kaydedilmiş bir taraması varsa tarama şekli ve yükseklik ondan doldurulur ve "Bu parselde son tarama: Motosikletle, 2,10 m — aynı yükseklik karşılaştırmayı kolaylaştırır" yazar. Şekil değişirse ya da yükseklik 0,25 m'den fazla farklıysa turuncu bir uyarı çıkar; engellemez, ama ölçümü kontrol edin.
+Bu telefonda aynı parselin daha önce kaydedilmiş bir taraması varsa tarama şekli ve yükseklik ondan doldurulur ve "Bu parselde son tarama: Robotla, 2,10 m — aynı yükseklik karşılaştırmayı kolaylaştırır" yazar. Şekil değişirse ya da yükseklik 0,25 m'den fazla farklıysa turuncu bir uyarı çıkar; engellemez, ama ölçümü kontrol edin.
 
 Kartın altındaki hatırlatma: "Şafakta, gün batımında, yağmurda, tozda ve kırağı kalkmadan tarama yapılmaz. Yazın 11.00–16.00 arası taranmaz. Çizme giy."
 
@@ -293,7 +293,7 @@ Kartın altındaki hatırlatma: "Şafakta, gün batımında, yağmurda, tozda ve
 | "Kamera lensleri temiz", "Kamerada video kaydı başladı" | Sizin onayınız; ikisi de işaretlenmeden devam edilmez. Kaydedilmez, yalnız kapıdır. |
 | İlaçlama cevapları | Biri seçilmeli. Kaydedilir. |
 | Hasat cevapları | Yalnız hasat mevsimindeki periyodik ziyarette; biri seçilmeli. Kaydedilir. |
-| "Yürüyerek (sırt direği)", "Motosikletle", "Robotla" | Tarama şekli; biri seçilmeli. Kaydedilir. |
+| "Yürüyerek (el arabası)", "ATV ile", "Robotla" | Tarama şekli; biri seçilmeli. Kaydedilir. |
 | "Kamera yüksekliği" | 0,50–3,50 m arası sayı. Kaydedilir. |
 | "Evet" / "Hayır" (levha, tanıtım kartı) | İkisi de cevaplanmalı. Seçili cevaba yeniden dokunmak cevabı geri alır. |
 | "Neden? (kısa)" | Bir "Hayır" varsa zorunlu; en çok 200 karakter. |

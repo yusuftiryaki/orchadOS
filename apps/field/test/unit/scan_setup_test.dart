@@ -19,13 +19,13 @@ void main() {
 
   test('differences from the last scan', () {
     const last = ScanSetup(
-      platform: ScanPlatform.motorcycle,
+      platform: ScanPlatform.robot,
       cameraHeightM: 2.1,
     );
-    expect(last.label, 'Motosikletle, 2,10 m');
+    expect(last.label, 'Robotla, 2,10 m');
     expect(
       const ScanSetup(
-        platform: ScanPlatform.motorcycle,
+        platform: ScanPlatform.robot,
         cameraHeightM: 1.85,
       ).differencesFrom(last),
       isEmpty,
@@ -36,11 +36,16 @@ void main() {
         cameraHeightM: 1.84,
       ).differencesFrom(last),
       [
-        'Platform son taramadan farklı (Motosikletle)',
+        'Platform son taramadan farklı (Robotla)',
         'Kamera yüksekliği son taramadan 0,26 m farklı (2,10 m)',
       ],
     );
     expect(ScanPlatform.fromCode('robot'), ScanPlatform.robot);
+    expect(ScanPlatform.fromCode('atv'), ScanPlatform.atv);
+    expect(ScanPlatform.atv.label, 'ATV ile');
+    expect(ScanPlatform.walk.label, 'Yürüyerek (el arabası)');
     expect(ScanPlatform.fromCode('drone'), isNull);
+    // No longer offered (owner, 2026-11-20); older rows read as unknown.
+    expect(ScanPlatform.fromCode('motorcycle'), isNull);
   });
 }

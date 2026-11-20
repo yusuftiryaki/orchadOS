@@ -3,9 +3,12 @@
 /// compare with the previous one of the parcel when both stay the same.
 /// Stored on the local session, on `session_start` (`data.precheck`) and on
 /// the planned visit (`public.session.scan_platform`, `camera_height_m`).
+/// Walking scans pull the kit on a hand cart; an ATV replaces the motorcycle
+/// (owner, 2026-11-20): an older `motorcycle` row reads as unknown and
+/// prefills nothing.
 enum ScanPlatform {
-  walk('walk', 'Yürüyerek (sırt direği)'),
-  motorcycle('motorcycle', 'Motosikletle'),
+  walk('walk', 'Yürüyerek (el arabası)'),
+  atv('atv', 'ATV ile'),
   robot('robot', 'Robotla');
 
   const ScanPlatform(this.code, this.label);
@@ -50,7 +53,7 @@ class ScanSetup {
   final ScanPlatform platform;
   final double cameraHeightM;
 
-  /// "Motosikletle, 2,10 m".
+  /// "Robotla, 2,10 m".
   String get label => '${platform.label}, ${formatMetres(cameraHeightM)} m';
 
   /// Differences from [previous] worth a warning; empty when comparable.

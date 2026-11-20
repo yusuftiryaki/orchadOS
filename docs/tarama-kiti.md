@@ -2,15 +2,19 @@
 
 17 Ekim 2026 · Yusuf
 
-Kit, personelin sırtında taşıdığı tek bir direk düzeneğidir. Üzerinde RTK GNSS, 360° kamera, LiDAR ve kayıt bilgisayarı (Raspberry Pi 5) bulunur. Pi, ROS 2 ile LiDAR ve GNSS verisini kaydeder ve sensörlerin zamanını GPS zamanına bağlar. Sahadan dönünce SSD ve kameranın hafıza kartı ofisteki işleme istasyonuna takılır. İlk tahminde LiDAR'lı tam kit yaklaşık **2.400–3.200 $**, LiDAR'sız kit yaklaşık **1.600–2.300 $** tutuyordu; alınan parçaların fiyatları [Maliyet](#maliyet) bölümünde.
+Kit, robota, elle çekilen tekerlekli bir arabaya ya da ATV'ye takılan tek bir direk düzeneğidir. Üzerinde RTK GNSS, 360° kamera, LiDAR ve kayıt bilgisayarı (Raspberry Pi 4) bulunur. Pi, ROS 2 ile LiDAR ve GNSS verisini kaydeder ve sensörlerin zamanını GPS zamanına bağlar. Sahadan dönünce SSD ve kameranın hafıza kartı ofisteki işleme istasyonuna takılır. İlk tahminde LiDAR'lı tam kit yaklaşık **2.400–3.200 $**, LiDAR'sız kit yaklaşık **1.600–2.300 $** tutuyordu; alınan parçaların fiyatları [Maliyet](#maliyet) bölümünde.
 
 > **Güncelleme (16 Kasım 2026): ana parçalar alındı.** Bu doküman artık alınan parçalara göre yazılıdır: LiDAR **Unitree 4D LiDAR L2**, 360° kamera **Insta360 X4 Air**, RTK alıcısı **Radiolink RTK F9P**, kayıt diski **Lexar SL300 512 GB**, kamera kartı **SanDisk High Endurance 256 GB**. İlk tasarım Livox Mid-360 sınıfı bir LiDAR'a göreydi; L2'nin getirdiği farklar (yarım küre görüş alanı, PTP'nin olmaması, daha seyrek bulut) ilgili bölümlerde yazılı. Alınanlar ve kalanlar: [kit-siparis-listesi.md](kit-siparis-listesi.md).
 
 > **Güncelleme (16 Kasım 2026): kayıt yazılımı ve baz verisi.** ESP32 kaydedici kitten çıktı; GNSS kaydını, PPS'i ve telefonla bağlantıyı Pi'daki kayıt servisi üstlendi (`services/kit-recorder/`, [tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md), sözleşme [arayuzler.md](arayuzler.md#kit-kaydedicisi-raspberry-pi)). Telefon Pi'a Bluetooth ile bağlanır; Pi'ın kendi Wi-Fi ağı ve web ekranı yok. Baz verisi TUSAGA-Aktif'ten gelir; kendi baz istasyonu kurulmaz.
 
+> **Güncelleme (20 Kasım 2026, sahip): motosiklet yok, LiDAR 0,6 m'de, kamera 1,6 m'de.** Kit motosiklete göre değil, üç taşıyıcıya göre tasarlanır: robot, yürüyerek taramada elle çekilen tekerlekli bir araba (el arabası vb.) ve motosikletin yerine ATV. LiDAR yerden 0,6 m'ye indi: 1,2 m'de gövdenin alt metresini ve koridorun yakınındaki zemini göremiyordu, ağaçlar 3D dünyada gövdesiz görünecekti. Kamera 2,0 m'den 1,6 m'ye, anten 2,1 m'den 1,7 m'ye indi; direk kısaldı. Ayrıntı [Montaj ve yükseklikler](#montaj-ve-yükseklikler)'de.
+
 Kitin ne için kullanıldığı ve neden bu sensörlerin seçildiği [vizyon.md](vizyon.md) dosyasında. Bu doküman kitin kendisini tarif eder.
 
 ## Bileşenler ve bağlantılar
+
+![Tarama kiti: robota takılan direkteki sensörler ve bağlantıları (araba ve ATV'de direk aynı)](img/tarama-kiti.svg)
 
 ```mermaid
 flowchart LR
@@ -18,7 +22,7 @@ flowchart LR
     BAT --> DC5["DC-DC 5 V / 5 A"]
     BAT --> PD["USB-C PD"]
     ANT["GNSS anteni"] --> F9P["RTK alıcısı<br/>Radiolink RTK F9P"]
-    F9P -- "USB: ham GNSS (UBX)" --> PI["Raspberry Pi 5<br/>ROS 2 Jazzy"]
+    F9P -- "USB: ham GNSS (UBX)" --> PI["Raspberry Pi 4<br/>ROS 2 Jazzy"]
     F9P -- "PPS sinyali (GPIO)" --> PI
     LID["LiDAR + dahili IMU<br/>Unitree 4D LiDAR L2"] -- "Ethernet (UDP): nokta + IMU" --> PI
     DC12 --> LID
@@ -34,10 +38,10 @@ flowchart LR
 | LiDAR: Unitree 4D LiDAR L2 | 3D geometri; dahili IMU ile SLAM | Ayrı bir IMU gerekmez (6 eksen, 500 Hz). Görüş alanı tabanının üstündeki yarım küre: 360° × 90°, negatif açı kipinde 96°. Ayrıntı [aşağıda](#lidar-unitree-4d-lidar-l2) |
 | 360° kamera: Insta360 X4 Air | Panorama, görsel değerlendirme, nokta bulutunu renklendirme | 8K 30 fps, kayıt başına tek `.insv` dosyası. Kendi hafıza kartına kaydeder; içindeki jiroskop verisi zaman eşlemede de kullanılır |
 | RTK GNSS: Radiolink RTK F9P | Mutlak konum, GPS zamanı (PPS), PPK için ham gözlemler | Sahada internet gerekmez; konum sonradan PPK ile düzeltilir. PPS çıkışı ve ham gözlem kaydı parça gelince doğrulanacak |
-| Raspberry Pi 5 (8 GB) | LiDAR ve ham GNSS kaydı, zaman kaynağı; telefona kayıt durumu | Kayıt yapar, ağır işleme yapmaz. Elde var. Kayıt yazılımı: `services/kit-recorder/` ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)) |
+| Raspberry Pi 4 Model B | LiDAR ve ham GNSS kaydı, zaman kaynağı; telefona kayıt durumu | Kayıt yapar, ağır işleme yapmaz. Elde var; Pi 5 yerine (sahip, 19 Kasım 2026). Kayıt yazılımı: `services/kit-recorder/` ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)) |
 | Çıkarılabilir SSD (USB 3): Lexar SL300 512 GB | LiDAR, IMU ve GNSS kaydı (MCAP) | MVP'de tek SSD; ziyaretten sonra ofiste boşaltılır |
 | Batarya | Tüm kiti besler | Değiştirilebilir alet aküleri: ucuz, sağlam, sahada hızlı değişir |
-| Personel telefonu | Ön kontrol, kayıt başlat/durdur, kayıt sırasında uyarılar, QR saat göstergesi | Saha uygulamasının ekranları; Pi'a Bluetooth ile bağlanır. Taramada gidondaki tutucuda durur, ekranı açıktır |
+| Personel telefonu | Ön kontrol, kayıt başlat/durdur, kayıt sırasında uyarılar, QR saat göstergesi | Saha uygulamasının ekranları; Pi'a Bluetooth ile bağlanır. Taramada personelin elinde ya da taşıyıcıdaki tutucuda durur, ekranı açıktır |
 
 ## LiDAR: Unitree 4D LiDAR L2
 
@@ -67,13 +71,13 @@ Değerler üreticinin kullanım kılavuzundandır (v1.1); sahada doğrulanmadı.
 | Menzil (%10) | ~40 m | 15 m | Ağaçlar 2–8 m'de olduğu için yeterli; uzak sıralar buluta girmez |
 | Zaman eşleme | Ethernet üzerinden PTP | PTP ya da PPS girişi kılavuzda yok | Zaman damgası Pi'ın saatine göre alınır ([Zaman senkronizasyonu](#zaman-senkronizasyonu)) |
 | Güç | ~7 W | 10 W | Batarya hesabı güncellendi |
-| Yazılım | Üreticinin ROS 2 sürücüsü, yaygın SLAM uyarlamaları | `unilidar_sdk2` (ROS 2 Foxy ile doğrulanmış), üreticinin Point-LIO uyarlaması | Pi 5 (ARM64, ROS 2 Jazzy) üzerinde denenmeli |
+| Yazılım | Üreticinin ROS 2 sürücüsü, yaygın SLAM uyarlamaları | `unilidar_sdk2` (ROS 2 Foxy ile doğrulanmış), üreticinin Point-LIO uyarlaması | Pi 4 (ARM64, ROS 2 Jazzy) üzerinde denenmeli |
 
 ## Neden mikrodenetleyici değil de Raspberry Pi
 
-İşlem gücü açısından Pi 5 bu iş için fazla; kayıt sırasında kapasitesinin küçük bir kısmını kullanır. Yine de seçilmesinin nedeni işlem gücü değil, yazılım ekosistemi:
+Kayıt için Pi 4 yeterli: Pi ham veriyi sıkıştırmadan SSD'ye yazar, SLAM çalıştırmaz; L2'nin veri hızı gigabit Ethernet'e ve USB 3'e rahatça sığar. Pi 5'e göre farkları: saat pili yok (saat açılışta GNSS ile kurulur, ön kontrol saat kilitlenmeden kayda izin vermez), USB portları toplam 1,2 A verir, kapalı kutuda soğutucusuz ısınıp yavaşlar. Yine de seçilmesinin nedeni işlem gücü değil, yazılım ekosistemi:
 
-| İş | Mikrodenetleyici (ör. STM32H7, ESP32) | Raspberry Pi 5 |
+| İş | Mikrodenetleyici (ör. STM32H7, ESP32) | Raspberry Pi |
 | --- | --- | --- |
 | GNSS kaydı ve PPS | Kolay | Kolay |
 | LiDAR verisini almak (Ethernet, ~4 MB/s) | STM32H7 ile mümkün. Ancak LiDAR'ın kontrol protokolünü üreticinin Linux SDK'sı yerine sıfırdan yazmak gerekir | Üreticinin SDK'sı ve ROS 2 sürücüsü hazır |
@@ -86,43 +90,66 @@ Mikrodenetleyiciyle yapılabilir, ama tasarruf küçük: kart başına ~60–90 
 
 Aynı nedenle ESP32 kaydedici de kitten çıktı (16 Kasım 2026). Pi zaten kitte olduğu için GNSS kaydını ve PPS'i de üstlenir; ikinci bir kart, ikinci bir hafıza kartı ve iki ayrı kayıt gerekmez. Pi, saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı Bluetooth protokolü ve aynı `gnss/` dosyaları. ESP32 firmware'i ([firmware/gnss-logger/](../firmware/gnss-logger/)) repoda referans olarak duruyor.
 
-**İleride:** Kit yüzlerce adet üretilirse Pi yerine endüstriyel bir modül (ör. Compute Module 5) ve özel bir taşıyıcı kart düşünülebilir. Zaman hassasiyeti kritikleşirse, hoverboard'daki ESP32 + Pi düzenine benzer şekilde, zamanlama işini küçük bir mikrodenetleyici Pi'ın yanında üstlenebilir. Pi 5'in 4 GB'lık modeli de kayıt için yeterli.
+**İleride:** Kit yüzlerce adet üretilirse Pi yerine endüstriyel bir modül (ör. Compute Module) ve özel bir taşıyıcı kart düşünülebilir. Zaman hassasiyeti kritikleşirse, robottaki (maraba) ESP32 + Pi düzenine benzer şekilde, zamanlama işini küçük bir mikrodenetleyici Pi'ın yanında üstlenebilir.
 
 ## Montaj ve yükseklikler
 
 ```
-  ~2,1 m   GNSS anteni      gökyüzünü tam görmeli
-  ~2,0 m   360° kamera      panorama yüksekliği her ziyarette aynı
+  ~1,7 m   GNSS anteni      direğin tepesinde; gökyüzünü kamera kapatmasın
+  ~1,6 m   360° kamera      göz hizası; panorama yüksekliği her ziyarette aynı
     |
-  ~1,2 m   LiDAR            gövde ve tacı birlikte görebilmesi için (denemede seçilecek)
+  ~0,6 m   LiDAR            gövdeyi dibe yakın, tacı tepesine kadar görmesi için
     |
-  sırt çerçevesi: Pi + elektronik kutusu + batarya
+  taşıyıcı: direğin dibi anahtarlı yuvaya oturur (robotta yerden 0,18 m); akü ve elektronik kutusu direğin dibinde
 ```
 
-**LiDAR neden tepede değil:** L2 tabanının üstündeki yarım küreyi görür; taban düzleminin altına yalnız negatif açı kipinde ve 6° iner. Dik monte edilince kendi yüksekliğinin altında gördüğü en alçak nokta `LiDAR yüksekliği − mesafe × 0,105` olur. 2 m'de dursaydı 4 m ötedeki ağacın gövdesini 1,6 m'den aşağıda göremezdi. 1,2 m'de dururken 4 m mesafede yaklaşık 0,8 m'den yukarısını, tacın tepesine kadar görür.
+Yükseklikler taşıyıcıdan değil yerden ölçülür; böylece üç taşıyıcıyla toplanan veri karşılaştırılabilir kalır. Robotta montaj plakası yerden 0,18 m'de olduğu için anten plakanın ~1,52 m, kamera ~1,42 m, LiDAR ~0,42 m üstüne gelir. Arabada ve ATV'de yuvanın yüksekliği farklıdır; direk ve LiDAR kelepçesi kayarak ayarlanır, yükseklikler her taşıyıcı için kalibrasyonda ölçülür.
 
-| LiDAR yüksekliği | 2 m'deki ağaçta en alçak nokta | 4 m'deki ağaçta en alçak nokta |
-| --- | --- | --- |
-| 1,2 m | ~1,0 m | ~0,8 m |
-| 0,9 m | ~0,7 m | ~0,5 m |
-| 0,6 m | ~0,4 m | ~0,2 m |
+**Taşıyıcılar (sahip, 20 Kasım 2026):** Kit üç taşıyıcıdan birine takılır. Üçünde de direğin dibi aynı anahtarlı boru yuvasına tek yönde oturur:
+- **Robot** (`yusuftiryaki/maraba`): montaj plakası şasinin ortasında, yerden 0,18 m'de; soket ve kimlik çipi [aşağıda](#robota-takılan-kit-için-ölçüm).
+- **Elle çekilen araba (yürüyerek tarama):** el arabası ya da benzeri tekerlekli bir araba; personel önden çeker. Sırtta taşımanın yerini alır: sırtta LiDAR 0,6 m'de sabit tutulamaz, bacaklar görüşünü kapatır ve yüksekliği yürüdükçe oynar.
+- **ATV:** motosikletin yerine; daha hızlı ve çamura daha dayanıklı. Yuva arka bagajda ortada; LiDAR arka bagajın altına, arkaya bakan kısa bir kolla 0,6 m'ye iner. Sürücü ve ATV'nin gövdesi öndeki sektörü kapatır; yanlar açık kalır.
+
+Motosiklet seçeneği yok: LiDAR'ı 0,6 m'de arka tekerleğin çamuruna ve egzoza açık bırakıyordu.
+
+**Panorama ağacı tam görür, LiDAR görmez.** 360° kamera her yönü görür; gövde dibine kadar fotoğrafta vardır, yalnız kameranın tam altı (taşıyıcı ve direk) maskelenir. L2 ise tabanının üstündeki yarım küreyi görür; taban düzleminin altına yalnız negatif açı kipinde ve 6° iner. Dik monte edilince gördüğü en alçak nokta `LiDAR yüksekliği − mesafe × 0,105` olur. 3D dünyanın noktaları LiDAR'dan geldiği için ([3d-dunya.md](3d-dunya.md)), LiDAR'ın görmediği yer dünyada da yoktur.
+
+| LiDAR yüksekliği | 2 m'deki ağaçta en alçak nokta | 3 m'de | 4 m'de | Zemin şu uzaklıktan görünür |
+| --- | --- | --- | --- | --- |
+| 1,2 m (eski plan) | ~1,0 m | ~0,9 m | ~0,8 m | ~11 m |
+| 0,9 m | ~0,7 m | ~0,6 m | ~0,5 m | ~8,5 m |
+| **0,6 m (seçilen)** | **~0,4 m** | **~0,3 m** | **~0,2 m** | **~5,7 m** |
+| 0,4 m | ~0,2 m | ~0,1 m | dip | ~3,8 m |
+
+**Neden 0,6 m:** Taşıyıcı koridorun ortasından gittiğinde en yakın gövde sıra arasının yarısı kadar uzaktadır (7 m'lik sıra arasında ~3,5 m). 0,6 m'deki LiDAR 3 m'deki gövdeyi yaklaşık 30 cm'den yukarı, tacı tepesine kadar görür; gövde çapı hem metodolojinin 50 cm'sinde hem metriğin 30 cm'sinde ölçülebilir hale gelir ([lidar-olcumleri.md](lidar-olcumleri.md) §8). Daha aşağısı az kazandırır: gövdenin en alt 30–40 cm'si yazın otun içindedir ve ölçüm yöntemleri yerden 25–40 cm'nin altını ot katmanı sayıp atar. Zemin yaklaşık 5,7 m öteden görünür; ağaçların altındaki zemin buluta girer, koridorun ortasındaki ~3 m'lik şerit seyrek kalır. 1,2 m'de dursaydı gövdenin alt metresi ve koridorun 11 m'lik çevresindeki zemin bulutta olmazdı.
 
 Negatif açı kipi kapalıyken LiDAR kendi yüksekliğinin altını hiç görmez; kip kit kurulurken açılır ve ön kontrolde denetlenir.
 
-**Bunun bir sonucu var:** 1,2 m'deki LiDAR gövde kalınlığını yaklaşık 80 cm'den yukarıda ölçebilir, 30 ya da 50 cm'de ölçemez. Alçaltmak gövdeyi daha aşağıdan gösterir ama motosiklette ve otlu zeminde LiDAR'ı korumak zorlaşır. Yükseklik motosiklet denemesinde seçilecek; gövde çapının ölçüm yüksekliği kararı buna bağlı ([lidar-olcumleri.md](lidar-olcumleri.md) §8). Seçilen yükseklikten önce dallanan ağaçlarda gövde ölçümü yakın planla ya da şerit metreyle yapılır.
+**Neden kamera 1,6 m (sahip, 20 Kasım 2026):** Önceki plandaki 2,0 m'yi ne yöntem ne kod gerektiriyordu. Direk ne kadar uzunsa o kadar sorun çıkarır:
+- **Sallanma:** Direğin ucundaki sallanma boyunun küpüyle büyür. 2,1 m yerine 1,7 m'lik direk yaklaşık yarı yarıya az sallanır; kamera ve antenin titreşimi azalır.
+- **Dallar:** Koridora sarkan dallara daha az takılır. Robotta direğin ucu bir dala takılırsa robotu deviren bir kaldıraç olur (robot reposunda `docs/kit-soketi.md`, "Kalan risk").
+- **Taşıma:** Robot, araba ve ATV'de taşımak ve kurmak kolaylaşır.
+- **3D dünya:** Dünyanın yürüme kipi zaten göz hizasında, zemin + 1,6 m'de ([3d-dunya.md](3d-dunya.md)); panoramayla aynı yükseklikte olduğu için geçiş doğal görünür.
+
+Görüntüdeki fark küçüktür: 3,5 m ötedeki ağacın 5 m'deki tepesine 2,0 m'den ~41°, 1,6 m'den ~44° yukarı bakılır; 360° kamera tacı yine tepesine kadar görür. Taç biraz daha alttan görünür ve yakın ağacın alt dalları arkadaki taçları biraz daha çok kapatır. 1,5 m'nin altına inilmez. Ağaç var/yok kutuları ve kesitler yerden yükseklikle tanımlıdır, ziyaretin ölçülen kamera yüksekliğiyle izdüşürülür; değişiklik yöntemi bozmaz ([metodoloji.md](metodoloji.md) bölüm 1).
+
+Anten kameranın ~10 cm üstünde, direğin tepesinde kalır; altta kalsaydı kamera tam tepedeki uyduları kapatırdı. ATV'de oturan sürücünün başı 1,5–1,6 m'dedir; anten başın gerisinde aynı yükseklikte kalıp öndeki alçak uyduları kapatırsa direk ATV'de ~1,9 m'ye uzatılır ve kamera yüksekliği ön kontrolde öyle girilir. Bu ilk ATV denemesinde görülür.
 
 **Diğer montaj notları:**
-- **Görüntüde görünenler:** Kamera tepedeki anteni ve alttaki LiDAR'ı görür; bu bölgeler (gökyüzü ve personelin durduğu alt kısım) maskelenir. L2 yukarıyı da gördüğü için direği, kamerayı ve anteni tarar; bu noktalar bulutta sabit bir sütun olarak görünür ve yazılımla maskelenir. Direğin kapattığı dar koni taçta veri kaybı yaratıyorsa LiDAR direkten yana açılan kısa bir kola alınır.
-- **Personelin gövdesi:** LiDAR'ın ön tarafını kapatır. Ağaçlar yanlarda kaldığı için bu kabul edilebilir; kapanan sektör yazılımla maskelenir. İstenirse LiDAR yana açılan kısa bir kola takılabilir.
+- **Görüntüde görünenler:** Kamera tepedeki anteni, alttaki LiDAR'ı ve taşıyıcıyı görür; bu bölgeler (gökyüzü ve alt kısım) maskelenir. L2 yukarıyı da gördüğü için direği, kamerayı ve anteni tarar; bu noktalar bulutta sabit bir sütun olarak görünür ve yazılımla maskelenir. Direğin kapattığı dar koni taçta veri kaybı yaratıyorsa LiDAR direkten yana açılan kısa bir kola alınır.
+- **Taşıyıcının kendisi:** Robotun şasisi (0,18 m) LiDAR'ın görüşüne girmez. Robotun kendi direği (manyetometre; kit direğinin 0,26 m arkasında, ~0,63 m'ye kadar) arkada dar bir sektörü kapatır. Arabada çeken personel, ATV'de sürücü ve ATV'nin gövdesi öndeki sektörü kapatır. Kapanan sektörler yazılımla maskelenir; ağaçlar yanlarda kaldığı için bu kabul edilebilir.
+- **Panoramada personel:** Arabayı çeken personel her panoramanın ön sektöründe, ATV'de sürücü yakın planda görünür. Ağaçlar çoğunlukla yanlarda kaldığı için kesitlerde kapattığı az olur; çekme kolu uzun tutulursa daha da azalır. Yüz bulanıklaştırma yapılmaz; bir itirazda o kişinin göründüğü kare elle gizlenir ([H01](hukuk/kararlar.md#h01)).
+- **Manyetometre ve LiDAR:** Robotta LiDAR, robotun manyetometresine yaklaştı (~0,26 m, neredeyse aynı yükseklikte); L2'nin dönen motoru yön okumasını bozabilir. Robotun ilk takılıştaki yön kontrolü bunu da yakalar; bozuyorsa LiDAR kolu öne alınır.
+- **Ot ve dallar:** 0,6 m'de LiDAR ota ve alçak dallara yakındır. Kubbenin çevresine görüşü az kapatan ince telli bir koruyucu kafes düşünülür; uzun otlu bahçede görüş ilk taramada denetlenir.
 - **Rijitlik:** Tüm sensörler aynı rijit direkte durur. Aralarındaki mesafeler ve açılar kalibrasyonda ölçülür ve kit sökülmedikçe değişmez.
-- **Ağırlık:** Yaklaşık 4–5 kg (çerçeve, iki batarya ve elektronik dahil). İki saatlik tarama için sırt çerçevesi şart, elde taşınamaz.
+- **Ağırlık:** Yaklaşık 4–5 kg (direk, akü ve elektronik dahil). Akü ve elektronik kutusu direğin dibine konur; robotta yukarıda olurlarsa ağırlık merkezi yükselir ve devrilme payı azalır (robot reposunda `docs/kit-soketi.md`, "Soket — mekanik").
 
 ## Zaman senkronizasyonu
 
 Tüm sensörlerin zamanı GPS zamanına bağlanır:
 
 1. **Pi'ın saati:** RTK alıcısının PPS sinyali Pi'ın GPIO18'ine bağlanır. Kayıt servisi alıcının zamanını chrony'ye verir, chrony PPS ile kilitlenir; Pi'ın sistem saati böylece GPS zamanına bağlanır. gpsd kullanılmaz, çünkü alıcının seri portunun tek sahibi kayıt servisidir. Ayrıntı: [arayuzler.md](arayuzler.md#saat).
-2. **LiDAR:** L2'nin kılavuzunda PTP ya da PPS girişi yok; LiDAR saatini dışarıdan alamaz. Nokta ve IMU paketleri Pi'a vardıkları anda Pi'ın GPS'e kilitli saatiyle damgalanır. SDK nokta ve IMU mesajlarında LiDAR'ın kendi zaman alanını da veriyor; nokta ile IMU arasındaki eşlemenin buna dayanması ve Pi'a varış gecikmesinden etkilenmemesi beklenir (doğrulanacak). Geriye Ethernet ve işletim sistemi gecikmesi kalır (birkaç milisaniye beklenir, ölçülmedi). 2 ms'lik bir hata yürüme hızında (~1 m/s) 2 mm, motosiklet hızında (~5 m/s) 1 cm konum hatası demek. Sabit kısmı kalibrasyonda ölçülüp düzeltilir.
+2. **LiDAR:** L2'nin kılavuzunda PTP ya da PPS girişi yok; LiDAR saatini dışarıdan alamaz. Nokta ve IMU paketleri Pi'a vardıkları anda Pi'ın GPS'e kilitli saatiyle damgalanır. SDK nokta ve IMU mesajlarında LiDAR'ın kendi zaman alanını da veriyor; nokta ile IMU arasındaki eşlemenin buna dayanması ve Pi'a varış gecikmesinden etkilenmemesi beklenir (doğrulanacak). Geriye Ethernet ve işletim sistemi gecikmesi kalır (birkaç milisaniye beklenir, ölçülmedi). 2 ms'lik bir hata yürüme ve robot hızında (~1 m/s) 2 mm, ATV hızında (~3 m/s) 6 mm konum hatası demek. Sabit kısmı kalibrasyonda ölçülüp düzeltilir.
 3. **360° kamera:** Dışarıdan tetiklenemez, kendi saatiyle kaydeder. İki adımda eşlenir:
     - **Kaba eşleme:** Taramanın başında ve sonunda, telefon Pi'ın saatini QR kod olarak gösterir ve bu QR kameraya okutulur. İki işaret arasındaki saat kayması doğrusal olarak düzeltilir.
     - **İnce eşleme:** Kameranın dahili jiroskop verisi ile LiDAR'ın IMU verisi karşılaştırılır. İkisi aynı direkte aynı dönüşleri yaşadığı için, zaman farkı milisaniye düzeyinde otomatik bulunur. Aynı karşılaştırma LiDAR'ın Pi'a varış gecikmesini de ortaya çıkarır.
@@ -140,7 +167,7 @@ Tüm sensörlerin zamanı GPS zamanına bağlanır:
 
     LiDAR ve saat maddeleri geçmezse personel taramayı açık bir onayla yine de başlatabilir; atlanan madde kayda geçer. SSD ve alıcı maddeleri atlanamaz. Pi akü gerilimini ölçmez; akü kit açılmadan kontrol edilir. Ayrıntı: [arayuzler.md](arayuzler.md#ön-kontrol-ve-atlama).
 3. **Kayıt başlar:** Telefondan başlatılır, kamerada video başlatılır. Başlangıç QR'ı okutulur.
-4. **Tarama:** Grid rotası boyunca gidilir. Telefon gidondaki tutucuda durur, ekranı açık ve uygulama öndedir. Ekranda GNSS izi parsel haritası üzerinde görünür; gezilmemiş koridorlar işaretlidir. LiDAR susarsa ya da kayda yazılmazsa, alıcı ya da saat koparsa, SSD sorun verirse telefon sesle ve ekranda uyarır. Kopuşlar kaydı durdurmaz; boşluklar kayda geçer.
+4. **Tarama:** Grid rotası boyunca gidilir. Telefon personelin elinde ya da taşıyıcıdaki tutucuda durur, ekranı açık ve uygulama öndedir. Ekranda GNSS izi parsel haritası üzerinde görünür; gezilmemiş koridorlar işaretlidir. LiDAR susarsa ya da kayda yazılmazsa, alıcı ya da saat koparsa, SSD sorun verirse telefon sesle ve ekranda uyarır. Kopuşlar kaydı durdurmaz; boşluklar kayda geçer.
 5. **Bitiş:** Bitiş QR'ı okutulur, kayıtlar durdurulur. Telefon kısa bir özet gösterir: süre, LiDAR verisi ve boşluklar, uyarılar. Oturum bilgisi (bahçe, personel, ekipman seri numaraları, kalibrasyon sürümü) saha uygulamasının ve Pi'ın oturum dosyalarına yazılır.
 
 **Merkezde (işleme istasyonu):**
@@ -171,7 +198,7 @@ Video boyutu Insta360'ın X4 Air için verdiği dakika başı değerlerden hesap
 | Tüketici | Yaklaşık güç |
 | --- | --- |
 | LiDAR (12 V) | ~10 W; soğukta 13 W'a kadar |
-| Raspberry Pi 5 (kayıt yükü) | ~7 W |
+| Raspberry Pi 4 (kayıt yükü) | ~5 W |
 | SSD | ~3 W |
 | RTK alıcısı | ~1 W |
 | 360° kamera (dışarıdan beslenirse) | ~5 W |
@@ -238,12 +265,12 @@ Personel telefonu ve TUSAGA-Aktif (CORS-TR) aboneliği bu toplama dahil değil. 
 ## Doğrulanacaklar
 
 **LiDAR (Unitree L2):**
-- [ ] `unilidar_sdk2` ve ROS 2 sürücüsü Raspberry Pi 5 (ARM64, Ubuntu 24.04, ROS 2 Jazzy) üzerinde derlenip çalışıyor mu? Üretici yalnız Ubuntu 20.04 ve ROS 2 Foxy ile doğrulamış.
-- [ ] Negatif açı kipi açıkken gövdenin görülen en alçak yüksekliği; seçilecek montaj yüksekliği.
-- [ ] Nokta yoğunluğu taç ölçümlerine ve 3D dünyaya yetiyor mu (yürüme ve motosiklet hızında)?
+- [ ] `unilidar_sdk2` ve ROS 2 sürücüsü Raspberry Pi 4 (ARM64, Ubuntu 24.04, ROS 2 Jazzy) üzerinde derlenip çalışıyor mu? Üretici yalnız Ubuntu 20.04 ve ROS 2 Foxy ile doğrulamış.
+- [ ] Negatif açı kipi açıkken 0,6 m'deki LiDAR 3 m'deki gövdeyi ~0,3 m'den, zemini ~5,7 m öteden görüyor mu?
+- [ ] Nokta yoğunluğu taç ölçümlerine ve 3D dünyaya yetiyor mu (robot, araba ve ATV hızında)?
 - [ ] Yaz güneşinde, yapraklı ve yapraksız ağaçta menzil.
 - [ ] Pi'a varış gecikmesi ve oynaması (zaman damgası hatası).
-- [ ] Üreticinin Point-LIO uyarlaması bahçede ve motosiklet titreşiminde tutarlı bir yörünge veriyor mu?
+- [ ] Üreticinin Point-LIO uyarlaması bahçede ve taşıyıcının titreşiminde tutarlı bir yörünge veriyor mu?
 - [ ] Toz ve çiseleme: IP54 montaj açısına göre değişiyor; gerekirse ek koruma.
 
 **RTK alıcısı (Radiolink RTK F9P):**
@@ -258,9 +285,9 @@ Personel telefonu ve TUSAGA-Aktif (CORS-TR) aboneliği bu toplama dahil değil. 
 - [ ] Gerçek `.insv` dosyasının işleme hattından geçmesi (Media SDK 3.1.5) ve jiroskop verisinin ince zaman eşlemeye yetmesi.
 
 **Kayıt:**
-- [ ] Pi 5, LiDAR + GNSS kaydını SSD'ye iki saat boyunca veri kaybetmeden yazabiliyor mu? Pi'ın USB akım sınırı SSD'ye yetiyor mu?
+- [ ] Pi 4, LiDAR + GNSS kaydını SSD'ye iki saat boyunca veri kaybetmeden yazabiliyor mu? USB portlarının toplam 1,2 A'sı SSD ve alıcıya yetiyor mu? Kapalı kutuda ısınıp yavaşlıyor mu?
 - [ ] PPS Pi'a geliyor mu, chrony PPS'e kilitleniyor mu?
 - [ ] Telefon Pi'ı Bluetooth ile buluyor mu; ön kontrol ve uyarılar çalışıyor mu? Kablo çekip geri takınca kayıt sürüyor mu?
-- [ ] 1,2 m LiDAR yüksekliği gerçek ağaçlarda hem gövdeyi hem tacın üstünü görüyor mu?
+- [ ] 0,6 m LiDAR yüksekliği gerçek ağaçlarda gövdeyi dibe yakın ve tacın üstünü görüyor mu; ot ve alçak dallar görüşü ne kadar kapatıyor? Gerekirse aynı sırada 0,9 m ile karşılaştırılır.
 - [ ] Fıstık ağaçlarında ilk dallanma yüksekliği tipik olarak nerede? Gövde ölçüm yüksekliği buna göre belirlenecek.
 - [ ] Bileşenlerin güncel fiyatları ve Türkiye'ye getirme maliyeti.

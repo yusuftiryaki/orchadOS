@@ -366,7 +366,7 @@ void main() {
         parcelId: parcelId,
         visitKind: 'periodic',
         startedAt: DateTime.utc(2026, 5, 1),
-        scanPlatform: 'robot',
+        scanPlatform: 'walk',
         cameraHeightM: 1.2,
       );
       await repo.createSession(
@@ -374,7 +374,7 @@ void main() {
         parcelId: parcelId,
         visitKind: 'periodic',
         startedAt: DateTime.utc(2026, 9, 1),
-        scanPlatform: 'motorcycle',
+        scanPlatform: 'robot',
         cameraHeightM: 2.1,
       );
       await repo.createSession(
@@ -418,13 +418,15 @@ void main() {
     // Prefilled from the newest scan of this parcel that has a setup.
     expect(
       find.text(
-        'Bu parselde son tarama: Motosikletle, 2,10 m — aynı yükseklik '
+        'Bu parselde son tarama: Robotla, 2,10 m — aynı yükseklik '
         'karşılaştırmayı kolaylaştırır',
       ),
       findsOneWidget,
     );
-    expect(platformTicked('motorcycle'), isTrue);
+    expect(platformTicked('robot'), isTrue);
     expect(platformTicked('walk'), isFalse);
+    expect(platformTicked('atv'), isFalse);
+    expect(find.byKey(const Key('check-platform-motorcycle')), findsNothing);
     expect(tester.widget<TextField>(height).controller!.text, '2,10');
     expect(
       find.text('Merceğin yerden yüksekliğini metreyle ölçüp yazın'),
@@ -471,16 +473,16 @@ void main() {
     await typeHeight('2,1');
 
     // Another platform is warned about too.
-    await tapVisible(tester, find.byKey(const Key('check-platform-robot')));
+    await tapVisible(tester, find.byKey(const Key('check-platform-walk')));
     await tester.pump();
-    expect(platformTicked('robot'), isTrue);
-    expect(platformTicked('motorcycle'), isFalse);
+    expect(platformTicked('walk'), isTrue);
+    expect(platformTicked('robot'), isFalse);
     expect(
-      find.textContaining('Platform son taramadan farklı (Motosikletle)'),
+      find.textContaining('Platform son taramadan farklı (Robotla)'),
       findsOneWidget,
     );
     expect(cont().onPressed, isNotNull);
-    await tapVisible(tester, find.byKey(const Key('check-platform-robot')));
+    await tapVisible(tester, find.byKey(const Key('check-platform-walk')));
     await tester.pump();
     expect(cont().onPressed, isNull, reason: 'platform required');
     await tapVisible(tester, find.byKey(const Key('check-platform-walk')));

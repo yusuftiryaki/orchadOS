@@ -11,7 +11,6 @@ SETUP = ROOT / "setup"
 
 def test_setup_files_pin_contract_values():
     assert "dtoverlay=pps-gpio,gpiopin=18" in (SETUP / "config.txt.append").read_text()
-    assert "usb_max_current_enable=1" in (SETUP / "config.txt.append").read_text()
     chrony = (SETUP / "chrony-orchados.conf").read_text()
     assert "refclock PPS /dev/pps0 lock GNSS" in chrony and "/run/chrony.gnss.sock" in chrony
     assert "refclock SOCK /run/chrony.gnss.sock refid GNSS" in chrony
@@ -119,7 +118,7 @@ def test_put_block_replaces_the_file_by_rename(tmp_path):
     assert target.read_text() == text and target.stat().st_ino == inode
     assert sorted(p.name for p in tmp_path.iterdir()) == ["block", "config.txt"]
     # A new block replaces the old one.
-    block.write_text("usb_max_current_enable=1\n")
+    block.write_text("dtparam=audio=off\n")
     assert _run_put_block(target, block) == 0
     text = target.read_text()
     assert "pps-gpio" not in text and text.count("# >>> orchados kit-recorder >>>") == 1
