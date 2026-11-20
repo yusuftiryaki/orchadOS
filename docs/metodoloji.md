@@ -41,7 +41,7 @@ orchadOS bütün meyve bahçelerine hizmet verir; bu metodoloji **Antep fıstı�
 2. **Görüneni söyler, teşhis koymaz.** Denetim "taçta %10–30 kuru dal var" der; "kök çürüklüğü var" demez. Teşhis ve ilaç önerisi uzmanın ayrıca yazdığı öneride, açıkça uzman görüşü olarak yer alır.
 3. **Kaynaklar karışmaz.** Personel cevabı, AI önerisi ve uzman kararı ayrı kayıtlardır. Birinin üzerine yazılmaz. Sahip sadece uzmanın onayladığı sonucu görür.
 4. **Belirsizlik saklanmaz.** Görüntüden karar verilemeyen bir şey "belirsiz" kalır. Tahminle doldurulmaz.
-5. **Karşılaştırılabilir.** Rota parsel başına sabittir. Tarama üç yolla yapılabilir: yürüyerek (sırt direği), motosikletle ya da robotla; kamera yüksekliği ayarlanabilir. Bu yüzden yöntem ve ölçülen kamera yüksekliği her ziyarette ön kontrolde kaydedilir. Bir parselde mümkün olduğunca aynı yöntem ve yükseklik kullanılır; böylece bir ağacın bu kışki görüntüsü geçen kışkiyle yan yana konabilir. Farklıysa uzman paneli bunu gösterir (bölüm 11).
+5. **Karşılaştırılabilir.** Rota parsel başına sabittir. Tarama üç yolla yapılabilir: yürüyerek (elle çekilen arabayla), ATV ile ya da robotla; kamera yüksekliği ayarlanabilir. Motosiklet seçeneği yok (sahip, 20 Kasım 2026). Bu yüzden yöntem ve ölçülen kamera yüksekliği her ziyarette ön kontrolde kaydedilir. Bir parselde mümkün olduğunca aynı yöntem ve yükseklik kullanılır; böylece bir ağacın bu kışki görüntüsü geçen kışkiyle yan yana konabilir. Farklıysa uzman paneli bunu gösterir (bölüm 11).
 6. **Sınır iddiası yoktur.** Haritadaki sınır, sahibin gösterdiği fiili kullanım sınırıdır; tapu ya da mülkiyet sınırı değildir. Bu ibare her raporda yer alır.
 
 ## 2. Ziyaretler ve mevsimler
@@ -81,7 +81,7 @@ Ziyaretin mevsimi, taramanın yapıldığı aydan (UTC) ve ziyaretin metodoloji 
 - **Hasat sürerken bahçeye girilmez.** #5 hasat öncesi ziyaretinde hasat başlamışsa ziyaret iptal edilir ve #6'ya katılır. #6 hasat bitiminden 3–21 gün sonra yapılır; ön kontrolde hasadın bittiği ve çöplemenin sürüp sürmediği sorulur.
 - **Yaz tarama saatleri:** Sabah gün doğumundan 1 saat sonra ile 11.00 arası ya da akşamüstü 16.00 ile gün batımından 1 saat önce arası.
 - **Don ve kırağı:** Don ya da kırağı kalkmadan tarama yapılmaz.
-- **Çamur:** Çamurda motosikletle tarama yapılmaz.
+- **Çamur:** Çamurda ATV ya da robotla tarama yapılmaz.
 - **Güvenlik:** Çizme zorunludur.
 - **Ziyaretler arası:** Aynı parselde iki ziyaret arasında en az 3 hafta olur.
 - **Rüzgâr:** Rüzgâr saatte yaklaşık 30 km'yi aşıyorsa yakın plan çekilmez.
@@ -486,13 +486,13 @@ Karne, son yayımlanmış ziyaretin özetidir.
 - [x] Genel durum skoru (bölüm 9) — 100 / 70 / 25 / 0, "yok" yalnız kaybolduğu ziyarette, aynı mevsimle trend
 - [x] AI güven eşiği ve kalite örneklemi (bölüm 6) — %70 eşik pilotta ayarlanacak; %10 / en az 20, %85 durdurma, mevsimin ilk ziyaretinde toplu onay kapalı, zor ölçekler zorunlu inceleme
 - [x] Kapsama eşiği (bölüm 10) — periyodik %95, envanter %98, geniş aralıkta 20×20 m hücre
-- [x] Tarama yöntemi ve kamera yüksekliği (bölüm 1) — 27 Ekim 2026, işletme kararı: üç yöntem de kullanılır (yürüyüş/sırt direği, motosiklet, robot); kamera yüksekliği ayarlanabilir, sabit bir sayı yok. Personel ön kontrolde yöntemi seçer ve merceğin yerden yüksekliğini ölçüp girer (0,50–3,50 m); telefon parseldeki son taramanın değerlerini önerir, yöntem farklıysa ya da yükseklik 25 cm'den fazla değiştiyse uyarır. İşleme hattı kesitleri ve ağaç var/yok kutularını (yerden 2,5–4 m) bu ölçülen yükseklikle izdüşürür; kutular yerden yükseklikle tanımlı; kamera yükselip alçaldıkça görüntüdeki yerleri değişir ama ağacın hep aynı bölümüne bakarlar. Uzman paneli, önceki ziyaret başka yöntemle ya da 25 cm'den fazla farklı yükseklikle çekildiyse uyarır. Robotta yükseklik kitin kalibrasyonundan (`kit_mount`) okunabilir; şimdilik o da elle girilir
+- [x] Tarama yöntemi ve kamera yüksekliği (bölüm 1) — 27 Ekim 2026, işletme kararı: üç yöntem de kullanılır (yürüyüş/sırt direği, motosiklet, robot; 20 Kasım 2026, sahip: motosiklet çıktı, yerine ATV; yürüyüşte kit sırtta değil elle çekilen arabada; motosiklet eski kayıtlarda kalır); kamera yüksekliği ayarlanabilir, sabit bir sayı yok. Personel ön kontrolde yöntemi seçer ve merceğin yerden yüksekliğini ölçüp girer (0,50–3,50 m); telefon parseldeki son taramanın değerlerini önerir, yöntem farklıysa ya da yükseklik 25 cm'den fazla değiştiyse uyarır. İşleme hattı kesitleri ve ağaç var/yok kutularını (yerden 2,5–4 m) bu ölçülen yükseklikle izdüşürür; kutular yerden yükseklikle tanımlı; kamera yükselip alçaldıkça görüntüdeki yerleri değişir ama ağacın hep aynı bölümüne bakarlar. Uzman paneli, önceki ziyaret başka yöntemle ya da 25 cm'den fazla farklı yükseklikle çekildiyse uyarır. Robotta yükseklik kitin kalibrasyonundan (`kit_mount`) okunabilir; şimdilik o da elle girilir
 - [x] Referans fotoğrafların seçim ölçütleri (Ek A) — fotoğrafların kendisi henüz yok
 
 - [x] Ziyaret takvimi ve ay–mevsim eşlemesi (bölüm 2) — 28 Ekim 2026, uzman ajan kararı (v0.2): 6 ziyaretlik "Kapsamlı" takvim, Mart kış, Ağustos yaz, ziyaret kuralları. Pilot uzmana sorular: [uzman-ajan-onerileri.md](uzman-ajan-onerileri.md) bölüm 7.
 
 **Açık kalanlar:**
-- **Yönteme göre ayar:** Motosikletin titreşimi ve hızı ile robotun alçak montajı kesit kalitesini ve var/yok sinyalini nasıl etkiliyor, pilotta yöntem başına ölçülecek. Gerekirse yönteme göre ayrı eşikler gelir.
+- **Yönteme göre ayar:** ATV'nin titreşimi ve hızı, arabanın ve robotun titreşimi kesit kalitesini ve var/yok sinyalini nasıl etkiliyor, pilotta yöntem başına ölçülecek. Gerekirse yönteme göre ayrı eşikler gelir.
 - **Yabani ot ve toprak işleme:** Bakım uyumu satırı için önerilen `weed_cover` (az / orta / yoğun) yerine 2 Kasım 2026'da parsel sorusu `weed_height` (kısa / orta / uzun; bölüm 7) geldi; ilkbahar ve yaz ziyaretlerinde sorulur. Hasattaki kuru ot ve yangın riski `dry_weeds_present` ile kalır. Toprak işleme için ölçüm henüz yok.
 - **Karazenk:** v0.2 ilkbahar ziyaretinin odağında; `pest_sign_type`'ta ayrı kodu (`leafhopper`) yok, şimdilik `other` girilir.
 - **Ziyaretin takvim satırı:** Hangi ziyaretin #1–#6 olduğu kayıtlı değil, mevsim aydan çıkıyor. Raporda "uyanma" ya da "hasat öncesi" diye adlandırmak için `session.visit_slot` (boş olabilir) alanı önerildi.
@@ -500,7 +500,7 @@ Karne, son yayımlanmış ziyaretin özetidir.
 - **Gövde ölçeğinin anlamı değişti:** v0.1'de dip sürgünü `trunk_base_scale`'den çıktı; kod adı aynı kaldı. Ağaç karnesinde v0 ve v0.1 değerleri sürümüyle okunmalı.
 - **Örneklemin %5'e inmesi** ve **meyve yükünün iki yıl önceyle yorumlanması** henüz kodda yok.
 - **Referans fotoğraflar:** Pilot bahçelerden toplanacak (Ek A).
-- **Gövde çapının ölçüm yüksekliği (İP16):** Bölüm 3 gövde çapını yerden yaklaşık 50 cm'de (aşı yerinin üstünde) tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR ise 4 m'deki ağacın gövdesini ancak 70–80 cm'den yukarıda görür ([tarama-kiti.md](tarama-kiti.md)). Karar verilene kadar LiDAR gövde çapı ölçüm olarak yazılmaz, yalnız iskelet raporunun ayrıntısında durur ([lidar-olcumleri.md](lidar-olcumleri.md) §8).
+- **Gövde çapının ölçüm yüksekliği (İP16):** Bölüm 3 gövde çapını yerden yaklaşık 50 cm'de (aşı yerinin üstünde) tanımlıyor; metrik kaydındaki kod `trunk_diameter_h30` (30 cm). 1,2 m'deki LiDAR 4 m'deki ağacın gövdesini ancak 70–80 cm'den yukarıda görüyordu; LiDAR 0,6 m'ye indi (sahip, 20 Kasım 2026) ve 3 m'deki gövdeyi yaklaşık 30 cm'den yukarı görür ([tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler)). Gerçek kayıtta doğrulanana ve ölçüm yüksekliği seçilene kadar LiDAR gövde çapı ölçüm olarak yazılmaz, yalnız iskelet raporunun ayrıntısında durur ([lidar-olcumleri.md](lidar-olcumleri.md) §8).
 - **LiDAR ölçümlerinin karneye girmesi (İP16):** Sahip kararıyla (5 Kasım 2026) taç çapı, boy, taç hacmi, ana kol sayısı ve kesim sayısı doğrulama beklenmeden karnede gösterilir; uzman bu ölçümleri ayrıca onaylamaz, ziyaretin yayımıyla açılırlar. Pilotta referans ağaçlarda elle ölçümle karşılaştırma yine yapılır ([lidar-olcumleri.md](lidar-olcumleri.md) §7); yetersiz çıkan metrik karneden geri alınır. Kesilen odun hacmi, odun hacmi ve fraktal boyut araştırma metriğidir.
 
 ## Ek A – Hazırlanacak referans fotoğraflar

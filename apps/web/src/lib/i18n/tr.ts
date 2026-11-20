@@ -483,9 +483,10 @@ export const tr = {
       },
       noPrevious: "Yok",
       scanPlatforms: {
-        walk: "Yürüyerek (sırt direği)",
-        motorcycle: "Motosikletle",
+        walk: "Yürüyerek",
+        atv: "ATV ile",
         robot: "Robotla",
+        motorcycle: "Motosikletle",
       },
       cameraHeight: (m: string) => `Kamera ${m} m`,
       scanSetupUnknown: "Tarama yöntemi kaydedilmemiş",

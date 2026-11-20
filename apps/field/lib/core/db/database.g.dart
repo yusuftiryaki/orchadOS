@@ -495,8 +495,9 @@ class SessionRow extends DataClass implements Insertable<SessionRow> {
   /// never sent as a visit update).
   final String status;
 
-  /// How the scan was done (schema 6): `walk` (backpack pole),
-  /// `motorcycle` or `robot`; `public.session.scan_platform`. Null on
+  /// How the scan was done (schema 6): `walk` (hand cart;
+  /// backpack pole on older rows), `atv` or `robot` (`motorcycle` on older
+  /// rows); `public.session.scan_platform`. Null on
   /// verification tours and on rows from before schema 6.
   final String? scanPlatform;
 

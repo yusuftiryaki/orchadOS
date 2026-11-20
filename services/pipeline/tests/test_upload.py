@@ -566,7 +566,7 @@ def test_upload_fills_the_visits_camera_height(run, tmp_path):
 def test_upload_keeps_the_crews_record(run, tmp_path):
     run_dir, _, opts = run
     cat = FakeCatalog()
-    cat.row = replace(cat.row, camera_height_m=2.03, scan_platform="motorcycle")
+    cat.row = replace(cat.row, camera_height_m=2.03, scan_platform="robot")
     rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
     assert cat.scan_setup == {}
     assert rep.status_after == "processed"

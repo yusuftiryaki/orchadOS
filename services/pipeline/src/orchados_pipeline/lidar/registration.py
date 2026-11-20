@@ -435,8 +435,8 @@ def trunk_spread(
     breaks over 2 s end a pass) closer than trunk_pass_range_m. Each pass's centre is a
     circle fitted to that pass's points within trunk_radius_m of the candidate and
     0.5-1.5 m above the ground there. The ground is the low end of the points near the
-    trunk in every scan, passes or not: a LiDAR at 1.2 m sees the ground only from
-    about 11 m away (6 deg below its base plane)."""
+    trunk in every scan, passes or not: a LiDAR at 0.6 m sees the ground only from
+    about 5.7 m away (6 deg below its base plane)."""
     cand = np.asarray(candidates, dtype=np.float64).reshape(-1, 2)
     track = np.asarray(sensor_track, dtype=np.float64).reshape(-1, 4)
     if len(cand) == 0 or len(track) == 0:

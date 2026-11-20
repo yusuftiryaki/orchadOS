@@ -93,7 +93,7 @@ Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm tar
 
 1. **Hazırlık:** Sahibin kaba sınırı ve harita altlığı cihaza offline indirilir. Kitte GNSS ham kaydı başlatılır. Envanter otların kısa olduğu dönemde yapılır (hasat sonrası ya da kış), çünkü uzun ot gövde diplerini kapatır.
 2. **Kullanım sınırının çıkarılması:** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca kitle yürünür. Personel her köşede telefondan "köşe" işareti koyar; köşelerin konumu sonradan PPK ile santimetreye düzeltilir. Sınırı belirleyen işaretler fotoğraflanır: sınır taşı, çit, duvar, yol, komşu bahçeyle ayrım hattı. Sınırı gösteren kişi sahada yoksa personel sahiple telefonda konuşarak ilerler.
-3. **Grid tarama:** Modül 3 protokolüyle, motosikletle yapılır. Her ağacın dört yönden ilk referans görüntüsü, yani "sıfır noktası" oluşur.
+3. **Grid tarama:** Modül 3 protokolüyle robotla, ATV ile ya da yürüyerek (elle çekilen arabayla) yapılır. Her ağacın dört yönden ilk referans görüntüsü, yani "sıfır noktası" oluşur.
 
 **Ofiste**
 
@@ -114,7 +114,7 @@ Envanter, her parselin dijital haritasını bir kez çıkarır. Sonraki tüm tar
 | --- | --- | --- |
 | Varış, kit kontrolü, sınırı gösterecek kişiyle buluşma | Saha | 20–30 dk |
 | Sınır yürüyüşü | Saha | 30–45 dk |
-| Grid tarama (motosikletle) | Saha | 45–55 dk |
+| Grid tarama (robot, ATV ya da araba; süre taşıyıcının hızıyla yeniden ölçülecek) | Saha | 45–55 dk |
 | Video işleme | İşleme istasyonu, gözetimsiz | 1–1,5 saat |
 | Gövde üçgenleme | Ofis | ~50 dk; model geldikçe azalır |
 | Ağaç özellikleri ve altyapı | Ofis | ~30 dk |
@@ -455,7 +455,7 @@ Mimari tek kişinin yönetebileceği biçimde tasarlandı: yönetilen bir backen
 
 Kitin ayrıntılı tasarımı, LiDAR'lı sürümü ve maliyeti [tarama-kiti.md](tarama-kiti.md) dosyasında. Alınan parçalar (16 Kasım 2026): Insta360 X4 Air, Radiolink RTK F9P, Unitree 4D LiDAR L2, kamera kartı ve kayıt SSD'si; liste [kit-siparis-listesi.md](kit-siparis-listesi.md)'de.
 
-Kit sökülüp takılabilir tasarlanır; aynı kit ileride traktöre, ATV'ye ya da motosiklete de bağlanabilir. MVP'de tarama yürüyerek yapılır.
+Kit sökülüp takılabilir tasarlanır; aynı kit robota, elle çekilen tekerlekli bir arabaya ya da ATV'ye takılır. Motosiklet seçeneği yok (sahip, 20 Kasım 2026); LiDAR'lı kit için [tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler).
 
 ## Yol haritası ve takvim
 

@@ -28,7 +28,7 @@ Saha uygulaması şu an kapsamayı gösteriyor ama rota önermiyor. Bu görev ro
     - **Çıktı:** Sıralı bir koridor listesi. Her koridor bir çizgidir: başlangıç, bitiş, türü (sıra boyu / dik / kenar).
     - **Envanter sonrası:** Koridorlar sıraların arasından geçer. Sıra aralığı yer konumlarından bulunur.
     - **Envanter öncesi** (ilk tarama): Sıra yönü ve tahmini aralık, sınırdan ve parsel kaydından gelir. Yoksa personel ekranda sıra yönünü iki dokunuşla belirler.
-    - Gidiş-dönüş (serpantin) sırası; motosikletle dönüşleri azaltır.
+    - Gidiş-dönüş (serpantin) sırası; ATV, araba ve robotla dönüşleri azaltır.
     - **Sabitlik:** Aynı girdiyle hep aynı rota çıkar. Parsel için ilk kullanılan rota bir sürüm olarak saklanır (bkz. madde 3); sonraki ziyaretler aynı rotayı kullanır.
 2. **Ekranda:**
     - Kapsama haritasının üstünde rota: sıradaki koridor vurgulu, biten koridorlar soluk.

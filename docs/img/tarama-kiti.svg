@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1000" width="1680" height="1000" font-family="'DM Sans', Arial, sans-serif">
-  <title>orchadOS tarama kiti: motosiklet direğindeki sensörler ve bağlantıları</title>
+  <title>orchadOS tarama kiti: robota, arabaya ya da ATV'ye takılan direkteki sensörler ve bağlantıları</title>
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#DCE8E0"/>
@@ -41,15 +41,15 @@
 
   <!-- title -->
   <text x="40" y="68" font-size="40" font-weight="700" fill="#1B3A2F">Tarama kiti</text>
-  <text x="40" y="104" font-size="20" fill="#3D5247">RTK GNSS, 360° kamera ve LiDAR motosikletin arkasındaki direkte; kayıt Raspberry Pi 4'te</text>
+  <text x="40" y="104" font-size="20" fill="#3D5247">RTK GNSS, 360° kamera ve LiDAR tek direkte: robotta, elle çekilen arabada ya da ATV'de; kayıt Raspberry Pi 4'te</text>
 
   <!-- ===== Side view (heights to scale: 1 m = 290 px, ground y = 880) ===== -->
 
   <!-- LiDAR field of view: the half sphere above its base, 6° below it in negative-angle mode -->
   <g clip-path="url(#scene)">
-    <path d="M276 532 L833 590.5 A560 560 0 1 0 -281 590.5 Z" fill="#6FA35A" opacity="0.13"/>
+    <path d="M276 706 L833 764.5 A560 560 0 1 0 -281 764.5 Z" fill="#6FA35A" opacity="0.13"/>
   </g>
-  <text x="420" y="176" font-size="15" font-style="italic" fill="#2F6B3A">LiDAR'ın görüş alanı: tabanının üstündeki yarım küre</text>
+  <text x="440" y="214" font-size="15" font-style="italic" fill="#2F6B3A">LiDAR'ın görüş alanı: tabanının üstündeki yarım küre</text>
 
   <!-- height scale -->
   <g stroke="#5D6F64" stroke-width="2" fill="#3D5247" font-size="15">
@@ -70,7 +70,7 @@
   <g stroke="#7B8A80" stroke-width="1.5" stroke-dasharray="5 5">
     <line x1="76" y1="271" x2="200" y2="271"/>
     <line x1="76" y1="300" x2="214" y2="300"/>
-    <line x1="76" y1="532" x2="214" y2="532"/>
+    <line x1="76" y1="706" x2="140" y2="706"/>
   </g>
 
   <!-- pistachio tree -->
@@ -87,46 +87,44 @@
     <circle cx="800" cy="300" r="6"/><circle cx="810" cy="306" r="6"/>
   </g>
 
-  <!-- lowest point the LiDAR sees on the trunk: 1.2 m − 1.74 m × tan 6° ≈ 1.0 m -->
-  <line x1="276" y1="532" x2="779" y2="585" stroke="#2F6B3A" stroke-width="2" stroke-dasharray="8 5"/>
-  <circle cx="779" cy="585" r="6" fill="#2F6B3A"/>
-  <text x="560" y="553" font-size="15" font-style="italic" fill="#2F6B3A">−6°, negatif açı kipi</text>
-  <text x="768" y="612" font-size="15" text-anchor="end" fill="#1B3A2F">gövdede görülen</text>
-  <text x="768" y="631" font-size="15" text-anchor="end" fill="#1B3A2F">en alçak nokta ~1,0 m</text>
+  <!-- the 360° camera sees the trunk down to the ground -->
+  <line x1="244" y1="302" x2="779" y2="876" stroke="#4B6FA8" stroke-width="2" stroke-dasharray="3 6" stroke-linecap="round"/>
+  <text x="394" y="424" font-size="15" font-style="italic" fill="#36598F">360° kamera gövdeyi</text>
+  <text x="394" y="443" font-size="15" font-style="italic" fill="#36598F">dibine kadar görür</text>
 
-  <!-- motorcycle (facing right) -->
-  <line x1="300" y1="796" x2="165" y2="776" stroke="#8C8C8C" stroke-width="11" stroke-linecap="round"/>
-  <line x1="210" y1="822" x2="330" y2="780" stroke="#3A3A3A" stroke-width="10" stroke-linecap="round"/>
-  <rect x="300" y="730" width="110" height="70" rx="10" fill="#4A4A4A"/>
-  <path d="M330 780 L300 700 L430 690 L470 660 L500 700 L420 760 Z" fill="none" stroke="#B23A2A" stroke-width="10" stroke-linejoin="round"/>
-  <path d="M240 700 L300 690 L300 706 L250 712 Z" fill="#B23A2A"/>
-  <path d="M260 690 L400 690 L395 706 L265 706 Z" fill="#222"/>
-  <path d="M400 690 Q430 655 480 662 L470 700 Z" fill="#B23A2A"/>
-  <line x1="520" y1="822" x2="495" y2="650" stroke="#9A9A9A" stroke-width="9" stroke-linecap="round"/>
-  <line x1="478" y1="646" x2="514" y2="630" stroke="#222" stroke-width="7" stroke-linecap="round"/>
-  <circle cx="522" cy="684" r="12" fill="#F3D36B" stroke="#555" stroke-width="2"/>
-  <g fill="none" stroke-width="14" stroke="#2B2B2B">
-    <circle cx="210" cy="822" r="52"/>
-    <circle cx="520" cy="822" r="52"/>
+  <!-- lowest point the LiDAR sees on the trunk: 0.6 m − 1.73 m × tan 6° ≈ 0.4 m -->
+  <line x1="276" y1="706" x2="779" y2="759" stroke="#2F6B3A" stroke-width="2" stroke-dasharray="8 5"/>
+  <circle cx="779" cy="759" r="6" fill="#2F6B3A"/>
+  <text x="380" y="762" font-size="15" font-style="italic" fill="#2F6B3A">−6°, negatif açı kipi</text>
+  <g font-size="15" fill="#1B3A2F">
+    <text x="812" y="752">LiDAR'ın gövdede</text>
+    <text x="812" y="771">gördüğü en alçak</text>
+    <text x="812" y="790">nokta ~0,4 m</text>
   </g>
-  <g fill="none" stroke-width="3" stroke="#9A9A9A">
-    <circle cx="210" cy="822" r="30"/>
-    <circle cx="520" cy="822" r="30"/>
-  </g>
-  <!-- rear rack -->
-  <rect x="140" y="638" width="170" height="8" fill="#555"/>
-  <line x1="170" y1="646" x2="250" y2="700" stroke="#555" stroke-width="5"/>
-  <line x1="290" y1="646" x2="290" y2="690" stroke="#555" stroke-width="5"/>
+  <text x="812" y="810" font-size="13" fill="#3D5247">(ağaç 1,7 m'de;</text>
+  <text x="812" y="827" font-size="13" fill="#3D5247">3 m'de ~0,3 m)</text>
 
-  <!-- electronics box and battery on the rack -->
-  <rect x="140" y="588" width="82" height="50" rx="6" fill="#3E5A4C" stroke="#1B3A2F" stroke-width="2"/>
-  <text x="181" y="618" font-size="13" font-weight="700" fill="#F5F2E8" text-anchor="middle">Pi 4</text>
-  <rect x="244" y="604" width="60" height="34" rx="5" fill="#2E7DBA" stroke="#1D4E75" stroke-width="2"/>
-  <text x="274" y="626" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">18 V</text>
+  <!-- robot (facing right): chassis top and mounting plate at 0.18 m -->
+  <rect x="150" y="700" width="5" height="128" fill="#7A7A7A"/>
+  <rect x="142" y="690" width="21" height="12" rx="2" fill="#555"/>
+  <rect x="140" y="828" width="190" height="26" rx="5" fill="#4A4A4A"/>
+  <rect x="200" y="824" width="64" height="5" fill="#A9B2AE"/>
+  <rect x="322" y="833" width="10" height="12" rx="2" fill="#222"/>
+  <circle cx="329" cy="839" r="3" fill="#5AA0C8"/>
+  <circle cx="185" cy="856" r="24" fill="#2B2B2B"/>
+  <circle cx="185" cy="856" r="9" fill="#9A9A9A"/>
+  <line x1="300" y1="854" x2="300" y2="862" stroke="#555" stroke-width="4"/>
+  <circle cx="300" cy="870" r="10" fill="#2B2B2B"/>
+
+  <!-- electronics box and battery at the foot of the pole -->
+  <rect x="166" y="786" width="58" height="38" rx="5" fill="#3E5A4C" stroke="#1B3A2F" stroke-width="2"/>
+  <text x="195" y="810" font-size="13" font-weight="700" fill="#F5F2E8" text-anchor="middle">Pi 4</text>
+  <rect x="240" y="796" width="54" height="28" rx="4" fill="#2E7DBA" stroke="#1D4E75" stroke-width="2"/>
+  <text x="267" y="815" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">18 V</text>
 
   <!-- pole, antenna cable -->
-  <rect x="228" y="270" width="8" height="368" fill="url(#alu)"/>
-  <line x1="239" y1="276" x2="239" y2="588" stroke="#333" stroke-width="2"/>
+  <rect x="228" y="270" width="8" height="554" fill="url(#alu)"/>
+  <line x1="225" y1="276" x2="225" y2="786" stroke="#333" stroke-width="2"/>
 
   <!-- GNSS antenna (~2.1 m) -->
   <ellipse cx="232" cy="270" rx="30" ry="9" fill="#EFEFEF" stroke="#555" stroke-width="2"/>
@@ -137,15 +135,11 @@
   <circle cx="222" cy="298" r="7" fill="#4B6FA8" stroke="#111" stroke-width="2"/>
   <circle cx="242" cy="298" r="7" fill="#4B6FA8" stroke="#111" stroke-width="2"/>
 
-  <!-- LiDAR (~1.2 m) on a short arm -->
-  <rect x="236" y="535" width="24" height="7" fill="#666"/>
-  <path d="M260 518 Q276 500 292 518 Z" fill="#3A3A3A"/>
-  <rect x="258" y="518" width="36" height="30" rx="4" fill="#2A2A2A"/>
-  <rect x="261" y="525" width="30" height="6" fill="#5AA0C8"/>
-
-  <!-- phone on the handlebar -->
-  <rect x="505" y="600" width="18" height="30" rx="3" fill="#222"/>
-  <rect x="508" y="604" width="12" height="20" fill="#9FD0C0"/>
+  <!-- LiDAR (~0.6 m) on a short arm -->
+  <rect x="236" y="709" width="24" height="7" fill="#666"/>
+  <path d="M260 692 Q276 674 292 692 Z" fill="#3A3A3A"/>
+  <rect x="258" y="692" width="36" height="30" rx="4" fill="#2A2A2A"/>
+  <rect x="261" y="699" width="30" height="6" fill="#5AA0C8"/>
 
   <!-- labels on the pole -->
   <g fill="#1B3A2F">
@@ -155,16 +149,17 @@
     <line x1="250" y1="306" x2="296" y2="306" stroke="#5D6F64" stroke-width="1.5"/>
     <text x="300" y="306" font-size="19" font-weight="700">360° kamera · ~2,0 m</text>
     <text x="300" y="326" font-size="15" fill="#3D5247">Insta360 X4 Air; kendi kartına kaydeder</text>
-    <text x="310" y="452" font-size="19" font-weight="700">LiDAR · ~1,2 m</text>
-    <text x="310" y="472" font-size="15" fill="#3D5247">Unitree L2, dahili IMU</text>
-    <text x="310" y="491" font-size="15" fill="#3D5247">(yükseklik denemede seçilecek)</text>
+    <text x="306" y="622" font-size="19" font-weight="700">LiDAR · ~0,6 m</text>
+    <text x="306" y="642" font-size="15" fill="#3D5247">Unitree L2, dahili IMU</text>
+    <text x="306" y="661" font-size="15" fill="#3D5247">gövdeyi dibe yakın,</text>
+    <text x="306" y="680" font-size="15" fill="#3D5247">tacı tepesine kadar görür</text>
   </g>
 
   <!-- labels on the ground -->
   <g stroke="#5D6F64" stroke-width="1.5">
-    <line x1="150" y1="638" x2="100" y2="905"/>
-    <line x1="290" y1="638" x2="330" y2="905"/>
-    <line x1="514" y1="630" x2="630" y2="905"/>
+    <line x1="172" y1="824" x2="100" y2="905"/>
+    <line x1="288" y1="824" x2="330" y2="905"/>
+    <line x1="326" y1="850" x2="630" y2="905"/>
   </g>
   <g fill="#1B3A2F" font-size="15">
     <text x="40" y="928" font-size="17" font-weight="700">Elektronik kutusu</text>
@@ -173,9 +168,9 @@
     <text x="300" y="928" font-size="17" font-weight="700">18 V alet aküsü</text>
     <text x="300" y="950">sigorta ve anahtarla</text>
     <text x="300" y="970">(henüz alınmadı)</text>
-    <text x="600" y="928" font-size="17" font-weight="700">Telefon (gidonda)</text>
-    <text x="600" y="950">ön kontrol, uyarılar, QR saat;</text>
-    <text x="600" y="970">Pi'a Bluetooth ile bağlı</text>
+    <text x="600" y="928" font-size="17" font-weight="700">Robot</text>
+    <text x="600" y="950">montaj plakası yerden 0,18 m;</text>
+    <text x="600" y="970">aynı yuva arabada ve ATV'de de var</text>
   </g>
 
   <!-- ===== Connections ===== -->

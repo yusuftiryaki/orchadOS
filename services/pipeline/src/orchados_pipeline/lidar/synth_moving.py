@@ -18,9 +18,9 @@ kit recorder writes (docs/arayuzler.md, "Kit kaydedicisi"):
 
 Scene: flat ground (z = 0), trunks as vertical cylinders a little off the
 planting grid and crowns as ellipsoids whose bottom is above 1.5 m (the trunk
-band of the registration's quality check stays clear). The LiDAR sits 1.2 m
+band of the registration's quality check stays clear). The LiDAR sits 0.6 m
 above the ground (docs/tarama-kiti.md) and sees from 6 deg below its base plane
-(negative angle mode): the ground only from about 11 m away. The kit's mast
+(negative angle mode): the ground only from about 5.7 m away. The kit's mast
 (LiDAR to antenna) returns points close to the sensor, as the real one does.
 
 Frames: ENU metres around (origin_lat, origin_lon, origin_height_m); the LiDAR
@@ -60,9 +60,9 @@ START_UTC = datetime(2026, 10, 15, 8, 0, 0, tzinfo=UTC)
 TOPICS = {"points": "/unilidar/cloud", "imu": "/unilidar/imu", "ubx": "/orchados/gnss_ubx"}
 PPK_DIR = "synthetic-ppk"
 
-SENSOR_HEIGHT_M = 1.2  # docs/tarama-kiti.md, Montaj ve yükseklikler
-# LiDAR body -> antenna phase centre: antenna ~2.1 m, LiDAR ~1.2 m (docs/tarama-kiti.md).
-LEVER_ARM_M = (0.0, 0.0, 0.9)
+SENSOR_HEIGHT_M = 0.6  # docs/tarama-kiti.md, Montaj ve yükseklikler
+# LiDAR body -> antenna phase centre: antenna ~2.1 m, LiDAR ~0.6 m (docs/tarama-kiti.md).
+LEVER_ARM_M = (0.0, 0.0, 1.5)
 MSG_HZ = 10
 TRUTH_HZ = 100
 MAX_RANGE_M = 30.0
@@ -738,7 +738,7 @@ def make_moving_session(dest: Path, cfg: MovingConfig | None = None) -> MovingTr
             "methodology_version": "scan-v1",
             "rig_id": "kit-synth",
             "calibration_id": None,
-            "scan_platform": "motorcycle",
+            "scan_platform": "robot",
             "app_version": "synthetic",
         },
     )

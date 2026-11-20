@@ -415,13 +415,13 @@ void main() {
         visitKind: 'periodic',
         startedAt: t0,
         startGpsTimeMs: gps0,
-        scanPlatform: 'motorcycle',
+        scanPlatform: 'robot',
         cameraHeightM: 2.1,
       );
       await worker().syncNow();
       expect(server.visitValues[visitId], {
         'started_at': t0.toIso8601String(),
-        'scan_platform': 'motorcycle',
+        'scan_platform': 'robot',
         'camera_height_m': 2.1,
       });
 
@@ -434,7 +434,7 @@ void main() {
       expect(server.visits[visitId], 'captured');
       expect(server.visitValues[visitId], {
         'started_at': t0.toIso8601String(),
-        'scan_platform': 'motorcycle',
+        'scan_platform': 'robot',
         'camera_height_m': 2.1,
         'status': 'captured',
         'ended_at': t0.add(const Duration(minutes: 30)).toIso8601String(),

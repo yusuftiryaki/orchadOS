@@ -33,7 +33,7 @@ Hesabınızı operasyon açar; e-posta ve parola size ayrıca iletilir. Parolay�
 
 1. Android telefona orchadOS saha uygulaması kurulur (operasyon kurar).
 2. Uygulamayı açın, E-posta ve Parola ile "Giriş yap"a dokunun. İlk giriş internet ister; sonrasında uygulama bahçede internetsiz çalışır.
-3. Tarama kitini tanıyın: motosiklete takılan direkte 360° kamera, RTK GNSS anteni ve GNSS kaydedici. Saha kitinde ayrıca QR kodlu bilgilendirme levhası ve tanıtım kartı bulunur.
+3. Tarama kitini tanıyın: robota, elle çekilen arabaya ya da ATV'ye takılan direkte 360° kamera, RTK GNSS anteni, LiDAR ve kayıt bilgisayarı. Saha kitinde ayrıca QR kodlu bilgilendirme levhası ve tanıtım kartı bulunur.
 4. Kamera, kaydedici ve telefon her ziyaretten önceki akşam şarj edilir; kamera hafıza kartı ve kaydedicinin SD kartı boş olmalıdır.
 
 ## Ofis personeli
@@ -122,7 +122,7 @@ Sahadaki her ziyaret aynı sırayla yürür: görevi aç, ön kontrolü bitir, s
 3. **Kaydediciyi bağlayın.** Uygulama Bluetooth ile GNSS kaydediciye bağlanır ve konum kalitesini gösterir.
 4. **Kaydı başlatın.** "Kaydı başlat"a dokunun.
 5. **Başlangıç QR.** "Başlangıç QR"a dokunup telefondaki saat QR'ını 360° kameraya okutun. Bu adım video ile GPS zamanını eşler; atlanmaz.
-6. **Tarama.** Motosikletle önce sıralar boyunca, sonra dik koridorlar, en son kenarlar. Sorunlu bir ağaç görürseniz "Sorun gördüm"e dokunup ağacı seçin; yakın plan listesine eklenir.
+6. **Tarama.** Robotla, ATV ile ya da arabayı çekerek önce sıralar boyunca, sonra dik koridorlar, en son kenarlar. Sorunlu bir ağaç görürseniz "Sorun gördüm"e dokunup ağacı seçin; yakın plan listesine eklenir.
 7. **Bitiş QR ve kaydı durdurun.** Bitiş QR'ını kameraya gösterin, "Kaydı durdur", sonra kameradaki videoyu da durdurun.
 8. **Yakın plan.** Listenin başında bahçenin tamamı için sorular bir kez gelir; ilkbahar ve yazda "Bahçede yabani ot ne boyda?": **kısa** (bileğe kadar), **orta** (dize kadar), **uzun** (dizi aşıyor). Bahçenin genelini düşünün; bilemiyorsanız "Göremedim". Sonra listedeki her ağaçta mevsime göre 2–3 fotoğraf çekin ve evet/hayır sorularını cevaplayın. Göremediğiniz bir şey için "Göremedim" seçin; isterseniz sesli not ekleyin. Bulanık ya da karanlık fotoğrafı uygulama reddeder; "Yeniden çek". Fotoğraflar yalnızca uygulama içinden çekilir.
 9. **Ziyareti bitirin.** Ziyaret özetinde kapsama, atlanan koridorlar ve yakın plan sayısı görünür. Hava, kamera seri numarası ve sahadaki sorunları not edin, "Bahçede rastlanan kişilere sözlü bilgi verildi mi?" sorusunu cevaplayın ve "Ziyareti bitir".

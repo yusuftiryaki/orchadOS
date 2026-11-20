@@ -125,7 +125,9 @@ def test_self_mask_removes_the_kit(good_registration):
     near = 0
     for p in poses[:, 3:6]:
         lo, hi = np.searchsorted(cloud[:, 0], [p[0] - 0.7, p[0] + 0.7])
-        near += int(np.sum(np.linalg.norm(cloud[lo:hi] - p, axis=1) < 0.7))
+        d = cloud[lo:hi] - p
+        # The ground 0.6 m below the LiDAR is seen from other poses (from ~5.7 m away).
+        near += int(np.sum((np.linalg.norm(d, axis=1) < 0.7) & (d[:, 2] > -0.4)))
     assert near == 0
     # The mask itself: close points and the mast cone go, the rest stays.
     xyz = np.array([[0.2, 0, 0], [0, 0, 0.5], [0.05, 0, 2.5], [5, 0, 0.5], [0, 0, 4.0]])

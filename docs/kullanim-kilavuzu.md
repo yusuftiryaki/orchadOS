@@ -27,7 +27,7 @@ Ofis ve saha personeli için kısa, adım adım kılavuz: [personel-kilavuzu.md]
 
 | Araç | Nerede çalışır | Kim kullanır |
 | --- | --- | --- |
-| **Tarama kiti** | Motosiklette direk: 360° kamera, RTK GNSS anteni, GNSS kaydedici (ESP32) | Saha personeli |
+| **Tarama kiti** | Robota, elle çekilen arabaya ya da ATV'ye takılan direk: 360° kamera, RTK GNSS anteni, LiDAR, kayıt bilgisayarı (Raspberry Pi) | Saha personeli |
 | **Saha uygulaması** | Personelin Android telefonu; internetsiz çalışır | Saha personeli |
 | **İşleme istasyonu** | Ofisteki GPU'lu bilgisayar; komut satırı aracı `orchados-pipeline` | Operasyon |
 | **Web uygulaması** | Tarayıcı. Rol bazlı dört bölüm: `/portal`, `/uzman`, `/ofis`, `/operasyon` | Herkes, rolüne göre |
@@ -233,7 +233,7 @@ Envanter her parselin dijital haritasını bir kez çıkarır. Sonraki her ziyar
 5. **Bahçede bulunanlar:** Taramadan önce bahçe girişine levha konur; tanıtım kartı ve sözlü bilgi bölüm 3.2'deki gibidir.
 6. **Sınır yürüyüşü:** Sahibin ya da yetkilendirdiği kişinin gösterdiği sınır boyunca yürünür. Her köşede uygulamada "köşe" işaretlenir; sınır işaretleri fotoğraflanır.
     - **Sınırı gösteren kişi** (T16, H07, H32): Sınır ekranında kişiye kısa sözlü bilgi okunur ve adı ile rolü (sahip, sahibin yakını, bahçe çalışanı, komşu, diğer) kaydedilir; telefon yazılmaz. Kayıt envanterle birlikte saklanır; ops parsel sayfasında ve uzman envanter görünümünde görünür, sahip görmez.
-7. **Grid tarama:** Motosikletle önce sıra boyunca, sonra dik koridorlar, en son kenarlar.
+7. **Grid tarama:** Robotla, ATV ile ya da arabayı çekerek önce sıra boyunca, sonra dik koridorlar, en son kenarlar.
 8. **Bitir:** Ziyaret özeti ekranında kayıtların gönderildiği görülür. Kameranın hafıza kartı ofise getirilir; ham video telefondan gönderilmez.
 
 | Adım | Durum |
