@@ -68,8 +68,8 @@
     </g>
   </g>
   <g stroke="#7B8A80" stroke-width="1.5" stroke-dasharray="5 5">
-    <line x1="76" y1="271" x2="200" y2="271"/>
-    <line x1="76" y1="300" x2="214" y2="300"/>
+    <line x1="76" y1="387" x2="200" y2="387"/>
+    <line x1="76" y1="416" x2="214" y2="416"/>
     <line x1="76" y1="706" x2="140" y2="706"/>
   </g>
 
@@ -88,9 +88,9 @@
   </g>
 
   <!-- the 360° camera sees the trunk down to the ground -->
-  <line x1="244" y1="302" x2="779" y2="876" stroke="#4B6FA8" stroke-width="2" stroke-dasharray="3 6" stroke-linecap="round"/>
-  <text x="394" y="424" font-size="15" font-style="italic" fill="#36598F">360° kamera gövdeyi</text>
-  <text x="394" y="443" font-size="15" font-style="italic" fill="#36598F">dibine kadar görür</text>
+  <line x1="244" y1="420" x2="779" y2="876" stroke="#4B6FA8" stroke-width="2" stroke-dasharray="3 6" stroke-linecap="round"/>
+  <text x="470" y="560" font-size="15" font-style="italic" fill="#36598F">360° kamera gövdeyi</text>
+  <text x="470" y="579" font-size="15" font-style="italic" fill="#36598F">dibine kadar görür</text>
 
   <!-- lowest point the LiDAR sees on the trunk: 0.6 m − 1.73 m × tan 6° ≈ 0.4 m -->
   <line x1="276" y1="706" x2="779" y2="759" stroke="#2F6B3A" stroke-width="2" stroke-dasharray="8 5"/>
@@ -123,17 +123,17 @@
   <text x="267" y="815" font-size="13" font-weight="700" fill="#FFFFFF" text-anchor="middle">18 V</text>
 
   <!-- pole, antenna cable -->
-  <rect x="228" y="270" width="8" height="554" fill="url(#alu)"/>
-  <line x1="225" y1="276" x2="225" y2="786" stroke="#333" stroke-width="2"/>
+  <rect x="228" y="386" width="8" height="438" fill="url(#alu)"/>
+  <line x1="225" y1="392" x2="225" y2="786" stroke="#333" stroke-width="2"/>
 
-  <!-- GNSS antenna (~2.1 m) -->
-  <ellipse cx="232" cy="270" rx="30" ry="9" fill="#EFEFEF" stroke="#555" stroke-width="2"/>
-  <ellipse cx="232" cy="263" rx="21" ry="8" fill="#FAFAFA" stroke="#555" stroke-width="2"/>
+  <!-- GNSS antenna (~1.7 m), on top of the pole -->
+  <ellipse cx="232" cy="387" rx="30" ry="9" fill="#EFEFEF" stroke="#555" stroke-width="2"/>
+  <ellipse cx="232" cy="380" rx="21" ry="8" fill="#FAFAFA" stroke="#555" stroke-width="2"/>
 
-  <!-- 360° camera (~2.0 m) -->
-  <rect x="222" y="282" width="20" height="50" rx="7" fill="#1D1D1D"/>
-  <circle cx="222" cy="298" r="7" fill="#4B6FA8" stroke="#111" stroke-width="2"/>
-  <circle cx="242" cy="298" r="7" fill="#4B6FA8" stroke="#111" stroke-width="2"/>
+  <!-- 360° camera (~1.6 m, eye height) -->
+  <rect x="222" y="400" width="20" height="50" rx="7" fill="#1D1D1D"/>
+  <circle cx="222" cy="416" r="7" fill="#4B6FA8" stroke="#111" stroke-width="2"/>
+  <circle cx="242" cy="416" r="7" fill="#4B6FA8" stroke="#111" stroke-width="2"/>
 
   <!-- LiDAR (~0.6 m) on a short arm -->
   <rect x="236" y="709" width="24" height="7" fill="#666"/>
@@ -143,12 +143,12 @@
 
   <!-- labels on the pole -->
   <g fill="#1B3A2F">
-    <line x1="262" y1="266" x2="296" y2="248" stroke="#5D6F64" stroke-width="1.5"/>
-    <text x="300" y="244" font-size="19" font-weight="700">GNSS anteni · ~2,1 m</text>
-    <text x="300" y="264" font-size="15" fill="#3D5247">Radiolink ANT-M7; gökyüzünü tam görmeli</text>
-    <line x1="250" y1="306" x2="296" y2="306" stroke="#5D6F64" stroke-width="1.5"/>
-    <text x="300" y="306" font-size="19" font-weight="700">360° kamera · ~2,0 m</text>
-    <text x="300" y="326" font-size="15" fill="#3D5247">Insta360 X4 Air; kendi kartına kaydeder</text>
+    <line x1="262" y1="383" x2="296" y2="365" stroke="#5D6F64" stroke-width="1.5"/>
+    <text x="300" y="361" font-size="19" font-weight="700">GNSS anteni · ~1,7 m</text>
+    <text x="300" y="381" font-size="15" fill="#3D5247">Radiolink ANT-M7; direğin tepesinde</text>
+    <line x1="250" y1="424" x2="296" y2="424" stroke="#5D6F64" stroke-width="1.5"/>
+    <text x="300" y="424" font-size="19" font-weight="700">360° kamera · ~1,6 m</text>
+    <text x="300" y="444" font-size="15" fill="#3D5247">Insta360 X4 Air; göz hizası</text>
     <text x="306" y="622" font-size="19" font-weight="700">LiDAR · ~0,6 m</text>
     <text x="306" y="642" font-size="15" fill="#3D5247">Unitree L2, dahili IMU</text>
     <text x="306" y="661" font-size="15" fill="#3D5247">gövdeyi dibe yakın,</text>

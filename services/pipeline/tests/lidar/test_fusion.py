@@ -55,8 +55,8 @@ def _errors(result, keyframes, truth, frame, h0) -> np.ndarray:
 
 
 def test_lever_arm_default_is_the_kit():
-    # docs/tarama-kiti.md: LiDAR ~0.6 m, GNSS antenna ~2.1 m above the ground.
-    assert RegistrationParams().lever_arm_m == (0.0, 0.0, 1.5)
+    # docs/tarama-kiti.md: LiDAR ~0.6 m, GNSS antenna ~1.7 m above the ground.
+    assert RegistrationParams().lever_arm_m == (0.0, 0.0, 1.1)
 
 
 def test_synthetic_lever_arm_is_the_truth_one():

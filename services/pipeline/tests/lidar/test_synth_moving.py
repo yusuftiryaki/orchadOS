@@ -65,9 +65,9 @@ def test_session_layout(short):
     session = json.loads((dest / "session.json").read_text())
     assert session["session_id"] == rec["session_id"]
     assert len(truth.trees) == 3
-    # The kit's antenna about 1.5 m above the LiDAR (docs/tarama-kiti.md), as registered by
+    # The kit's antenna about 1.1 m above the LiDAR (docs/tarama-kiti.md), as registered by
     # default: lidar register --frontend fake on a synthetic session needs no parameters.
-    assert truth.lever_arm_m == [0.0, 0.0, 1.5]
+    assert truth.lever_arm_m == [0.0, 0.0, 1.1]
     assert tuple(truth.lever_arm_m) == RegistrationParams().lever_arm_m
 
 

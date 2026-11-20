@@ -87,7 +87,7 @@ ESP32 kaydedici kitten çıktı; işini Pi yapıyor ([tasarım](superpowers/spec
 
 | # | Parça | Adet | Özellik | Yaklaşık fiyat |
 | --- | --- | --- | --- | --- |
-| 4.1 | Direk | 1 | Alüminyum ya da karbon, Ø 25–30 mm. Kamera yerden ~2,0 m, anten ~2,1 m'de olacak boyda; robotta plaka yerden 0,18 m'de, kamera plakanın ~1,82 m üstünde. Yuvanın yüksekliği taşıyıcıya göre değiştiği için boyu ve LiDAR kelepçesi ayarlanabilir | 30–80 $ |
+| 4.1 | Direk | 1 | Alüminyum ya da karbon, Ø 25–30 mm. Kamera yerden ~1,6 m, anten direğin tepesinde ~1,7 m'de olacak boyda (sahip, 20 Kasım 2026: 2,0/2,1 m'den indi); robotta plaka yerden 0,18 m'de, direk plakanın ~1,52 m üstüne çıkar. Yuvanın yüksekliği taşıyıcıya göre değiştiği için boyu ve LiDAR kelepçesi ayarlanabilir; ATV'de ~1,9 m'ye uzayabilmeli ([tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler)) | 30–80 $ |
 | 4.2 | Direk dibi ve taşıyıcı bağlantısı | 1 | Robotun montaj plakasındaki anahtarlı boru yuvasına tek yönde oturan direk dibi ([bölüm 6](#6-robot-soketi-kit-tarafı-sadece-kit-robota-takılacaksa), "Kit tabanı"); araba ve ATV için aynı yuvadan birer tane. Akü ve elektronik kutusu buraya bağlanır | 30–60 $ |
 | 4.7 | El arabası | 1 | Yürüyerek tarama için elle çekilen tekerlekli araba; geniş, şişme tekerlekli (titreşim için), yuva ortada. Elde varsa alınmaz | 50–120 $ |
 | 4.8 | ATV arka bagaj bağlantısı | 1 | Yuvayı arka bagajın ortasına bağlayan kelepçeli plaka; LiDAR'ı 0,6 m'ye indiren arkaya bakan kol. ATV taranacaksa | 30–60 $ |

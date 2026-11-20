@@ -560,13 +560,13 @@ def test_upload_fills_the_visits_camera_height(run, tmp_path):
     run_dir, _, opts = run
     cat = FakeCatalog()
     upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
-    assert cat.scan_setup == {"camera_height_m": 2.0}
+    assert cat.scan_setup == {"camera_height_m": 1.6}
 
 
 def test_upload_keeps_the_crews_record(run, tmp_path):
     run_dir, _, opts = run
     cat = FakeCatalog()
-    cat.row = replace(cat.row, camera_height_m=2.03, scan_platform="robot")
+    cat.row = replace(cat.row, camera_height_m=1.63, scan_platform="robot")
     rep = upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
     assert cat.scan_setup == {}
     assert rep.status_after == "processed"
@@ -575,8 +575,8 @@ def test_upload_keeps_the_crews_record(run, tmp_path):
 def test_upload_refuses_a_run_with_another_camera_height(run, tmp_path):
     run_dir, _, opts = run
     cat = FakeCatalog()
-    cat.row = replace(cat.row, camera_height_m=1.6)
-    with pytest.raises(UploadError, match="recorded camera height is 1.6 m"):
+    cat.row = replace(cat.row, camera_height_m=2.0)
+    with pytest.raises(UploadError, match="recorded camera height is 2.0 m"):
         upload_run(run_dir, SESSION, cat, LocalMediaStore(tmp_path / "b"), opts)
     assert not cat.asset_rows and not cat.capture_rows
 

@@ -136,7 +136,7 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `methodology_version` | str | Saha uygulaması | Hayır | Tarama protokolü sürümü |
 | `rig_id` | str | Saha uygulaması / operasyon | Hayır | Kullanılan kit (`public.rig`) |
 | `calibration_id` | str | Operasyon | Hayır | Kitin oturum tarihinde geçerli kalibrasyon kaydı |
-| `camera_height_m` | float | Operasyon (personelin ön kontrolde ölçtüğü değer, `public.session.camera_height_m`) | Hayır, vars. 2,0 | Kamera merceğinin zeminden yüksekliği; kamera ayarlanabilir olduğu için her ziyarette ölçülür. Yoksa ya da 0,5–3,5 m dışındaysa hat uyarı verir. Yüklemede ziyaretin kaydıyla 5 cm'den fazla farklıysa yükleme reddedilir (kesitler yanlış yükseklikle kesilmiş olur); ziyarette kayıt yoksa bu değer yazılır |
+| `camera_height_m` | float | Operasyon (personelin ön kontrolde ölçtüğü değer, `public.session.camera_height_m`) | Hayır, vars. 1,6 (kitin varsayılanı; 20 Kasım 2026'ya kadar 2,0) | Kamera merceğinin zeminden yüksekliği; kamera ayarlanabilir olduğu için her ziyarette ölçülür. Yoksa ya da 0,5–3,5 m dışındaysa hat uyarı verir. Yüklemede ziyaretin kaydıyla 5 cm'den fazla farklıysa yükleme reddedilir (kesitler yanlış yükseklikle kesilmiş olur); ziyarette kayıt yoksa bu değer yazılır |
 | `scan_platform` | str | Operasyon (ön kontrolden) | Hayır | `walk` (elle çekilen araba; 20 Kasım 2026'dan önce sırt direği), `atv`, `robot`; eski oturumlarda `motorcycle` da olabilir (20 Kasım 2026'dan beri sunulmuyor). Ziyaretin kaydıyla farklıysa yükleme uyarı verir, ziyaretin değeri kalır |
 | `camera_yaw_offset_deg` | float | Operasyon (kalibrasyondan) | Hayır | Panorama orta sütununun hareket yönüne göre açısı; yoksa hat parametresi kullanılır |
 | `lead_user_id` | str | Saha uygulaması | Hayır | Ekip lideri kullanıcı kimliği |
@@ -155,7 +155,7 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
   "methodology_version": "scan-v1",
   "rig_id": "kit-01",
   "calibration_id": "kit-01-2026-10",
-  "camera_height_m": 2.05,
+  "camera_height_m": 1.62,
   "camera_yaw_offset_deg": 0.0,
   "lead_user_id": "0f6c2b9a-1d3e-4f5a-8b7c-9d0e1f2a3b4c",
   "app_version": "0.1.0"

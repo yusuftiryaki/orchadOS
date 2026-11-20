@@ -114,7 +114,7 @@ def _logger_warnings(logger: LoggerSession) -> list[str]:
 
 # Valid range of public.session.camera_height_m.
 CAMERA_HEIGHT_RANGE_M = (0.5, 3.5)
-CAMERA_HEIGHT_UNSET = f"{SESSION_JSON}: camera_height_m not set, default 2.0 m used"
+CAMERA_HEIGHT_UNSET = f"{SESSION_JSON}: camera_height_m not set, default 1.6 m used"
 
 
 def _camera_warnings(session: SessionInfo) -> list[str]:

@@ -61,8 +61,8 @@ TOPICS = {"points": "/unilidar/cloud", "imu": "/unilidar/imu", "ubx": "/orchados
 PPK_DIR = "synthetic-ppk"
 
 SENSOR_HEIGHT_M = 0.6  # docs/tarama-kiti.md, Montaj ve yükseklikler
-# LiDAR body -> antenna phase centre: antenna ~2.1 m, LiDAR ~0.6 m (docs/tarama-kiti.md).
-LEVER_ARM_M = (0.0, 0.0, 1.5)
+# LiDAR body -> antenna phase centre: antenna ~1.7 m, LiDAR ~0.6 m (docs/tarama-kiti.md).
+LEVER_ARM_M = (0.0, 0.0, 1.1)
 MSG_HZ = 10
 TRUTH_HZ = 100
 MAX_RANGE_M = 30.0

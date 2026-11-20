@@ -8,7 +8,7 @@ Kit, robota, elle çekilen tekerlekli bir arabaya ya da ATV'ye takılan tek bir 
 
 > **Güncelleme (16 Kasım 2026): kayıt yazılımı ve baz verisi.** ESP32 kaydedici kitten çıktı; GNSS kaydını, PPS'i ve telefonla bağlantıyı Pi'daki kayıt servisi üstlendi (`services/kit-recorder/`, [tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md), sözleşme [arayuzler.md](arayuzler.md#kit-kaydedicisi-raspberry-pi)). Telefon Pi'a Bluetooth ile bağlanır; Pi'ın kendi Wi-Fi ağı ve web ekranı yok. Baz verisi TUSAGA-Aktif'ten gelir; kendi baz istasyonu kurulmaz.
 
-> **Güncelleme (20 Kasım 2026, sahip): motosiklet yok, LiDAR 0,6 m'de.** Kit motosiklete göre değil, üç taşıyıcıya göre tasarlanır: robot, yürüyerek taramada elle çekilen tekerlekli bir araba (el arabası vb.) ve motosikletin yerine ATV. LiDAR yerden 0,6 m'ye indi: 1,2 m'de gövdenin alt metresini ve koridorun yakınındaki zemini göremiyordu, ağaçlar 3D dünyada gövdesiz görünecekti. Ayrıntı [Montaj ve yükseklikler](#montaj-ve-yükseklikler)'de.
+> **Güncelleme (20 Kasım 2026, sahip): motosiklet yok, LiDAR 0,6 m'de, kamera 1,6 m'de.** Kit motosiklete göre değil, üç taşıyıcıya göre tasarlanır: robot, yürüyerek taramada elle çekilen tekerlekli bir araba (el arabası vb.) ve motosikletin yerine ATV. LiDAR yerden 0,6 m'ye indi: 1,2 m'de gövdenin alt metresini ve koridorun yakınındaki zemini göremiyordu, ağaçlar 3D dünyada gövdesiz görünecekti. Kamera 2,0 m'den 1,6 m'ye, anten 2,1 m'den 1,7 m'ye indi; direk kısaldı. Ayrıntı [Montaj ve yükseklikler](#montaj-ve-yükseklikler)'de.
 
 Kitin ne için kullanıldığı ve neden bu sensörlerin seçildiği [vizyon.md](vizyon.md) dosyasında. Bu doküman kitin kendisini tarif eder.
 
@@ -95,15 +95,15 @@ Aynı nedenle ESP32 kaydedici de kitten çıktı (16 Kasım 2026). Pi zaten kitt
 ## Montaj ve yükseklikler
 
 ```
-  ~2,1 m   GNSS anteni      gökyüzünü tam görmeli
-  ~2,0 m   360° kamera      panorama yüksekliği her ziyarette aynı
+  ~1,7 m   GNSS anteni      direğin tepesinde; gökyüzünü kamera kapatmasın
+  ~1,6 m   360° kamera      göz hizası; panorama yüksekliği her ziyarette aynı
     |
   ~0,6 m   LiDAR            gövdeyi dibe yakın, tacı tepesine kadar görmesi için
     |
   taşıyıcı: direğin dibi anahtarlı yuvaya oturur (robotta yerden 0,18 m); akü ve elektronik kutusu direğin dibinde
 ```
 
-Yükseklikler taşıyıcıdan değil yerden ölçülür; böylece üç taşıyıcıyla toplanan veri karşılaştırılabilir kalır. Robotta montaj plakası yerden 0,18 m'de olduğu için kamera plakanın ~1,82 m, LiDAR ~0,42 m üstüne gelir. Arabada ve ATV'de yuvanın yüksekliği farklıdır; direk ve LiDAR kelepçesi kayarak ayarlanır, yükseklikler her taşıyıcı için kalibrasyonda ölçülür.
+Yükseklikler taşıyıcıdan değil yerden ölçülür; böylece üç taşıyıcıyla toplanan veri karşılaştırılabilir kalır. Robotta montaj plakası yerden 0,18 m'de olduğu için anten plakanın ~1,52 m, kamera ~1,42 m, LiDAR ~0,42 m üstüne gelir. Arabada ve ATV'de yuvanın yüksekliği farklıdır; direk ve LiDAR kelepçesi kayarak ayarlanır, yükseklikler her taşıyıcı için kalibrasyonda ölçülür.
 
 **Taşıyıcılar (sahip, 20 Kasım 2026):** Kit üç taşıyıcıdan birine takılır. Üçünde de direğin dibi aynı anahtarlı boru yuvasına tek yönde oturur:
 - **Robot** (`yusuftiryaki/hoverboard`): montaj plakası şasinin ortasında, yerden 0,18 m'de; soket ve kimlik çipi [aşağıda](#robota-takılan-kit-için-ölçüm).
@@ -125,9 +125,21 @@ Motosiklet seçeneği yok: LiDAR'ı 0,6 m'de arka tekerleğin çamuruna ve egzoz
 
 Negatif açı kipi kapalıyken LiDAR kendi yüksekliğinin altını hiç görmez; kip kit kurulurken açılır ve ön kontrolde denetlenir.
 
+**Neden kamera 1,6 m (sahip, 20 Kasım 2026):** Önceki plandaki 2,0 m'yi ne yöntem ne kod gerektiriyordu. Direk ne kadar uzunsa o kadar sorun çıkarır:
+- **Sallanma:** Direğin ucundaki sallanma boyunun küpüyle büyür. 2,1 m yerine 1,7 m'lik direk yaklaşık yarı yarıya az sallanır; kamera ve antenin titreşimi azalır.
+- **Dallar:** Koridora sarkan dallara daha az takılır. Robotta direğin ucu bir dala takılırsa robotu deviren bir kaldıraç olur (robot reposunda `docs/kit-soketi.md`, "Kalan risk").
+- **Taşıma:** Robot, araba ve ATV'de taşımak ve kurmak kolaylaşır.
+- **3D dünya:** Dünyanın yürüme kipi zaten göz hizasında, zemin + 1,6 m'de ([3d-dunya.md](3d-dunya.md)); panoramayla aynı yükseklikte olduğu için geçiş doğal görünür.
+
+Görüntüdeki fark küçüktür: 3,5 m ötedeki ağacın 5 m'deki tepesine 2,0 m'den ~41°, 1,6 m'den ~44° yukarı bakılır; 360° kamera tacı yine tepesine kadar görür. Taç biraz daha alttan görünür ve yakın ağacın alt dalları arkadaki taçları biraz daha çok kapatır. 1,5 m'nin altına inilmez. Ağaç var/yok kutuları ve kesitler yerden yükseklikle tanımlıdır, ziyaretin ölçülen kamera yüksekliğiyle izdüşürülür; değişiklik yöntemi bozmaz ([metodoloji.md](metodoloji.md) bölüm 1).
+
+Anten kameranın ~10 cm üstünde, direğin tepesinde kalır; altta kalsaydı kamera tam tepedeki uyduları kapatırdı. ATV'de oturan sürücünün başı 1,5–1,6 m'dedir; anten başın gerisinde aynı yükseklikte kalıp öndeki alçak uyduları kapatırsa direk ATV'de ~1,9 m'ye uzatılır ve kamera yüksekliği ön kontrolde öyle girilir. Bu ilk ATV denemesinde görülür.
+
 **Diğer montaj notları:**
 - **Görüntüde görünenler:** Kamera tepedeki anteni, alttaki LiDAR'ı ve taşıyıcıyı görür; bu bölgeler (gökyüzü ve alt kısım) maskelenir. L2 yukarıyı da gördüğü için direği, kamerayı ve anteni tarar; bu noktalar bulutta sabit bir sütun olarak görünür ve yazılımla maskelenir. Direğin kapattığı dar koni taçta veri kaybı yaratıyorsa LiDAR direkten yana açılan kısa bir kola alınır.
 - **Taşıyıcının kendisi:** Robotun şasisi (0,18 m) LiDAR'ın görüşüne girmez. Robotun kendi direği (manyetometre; kit direğinin 0,26 m arkasında, ~0,63 m'ye kadar) arkada dar bir sektörü kapatır. Arabada çeken personel, ATV'de sürücü ve ATV'nin gövdesi öndeki sektörü kapatır. Kapanan sektörler yazılımla maskelenir; ağaçlar yanlarda kaldığı için bu kabul edilebilir.
+- **Panoramada personel:** Arabayı çeken personel her panoramanın ön sektöründe, ATV'de sürücü yakın planda görünür. Ağaçlar çoğunlukla yanlarda kaldığı için kesitlerde kapattığı az olur; çekme kolu uzun tutulursa daha da azalır. Yüz bulanıklaştırma yapılmaz; bir itirazda o kişinin göründüğü kare elle gizlenir ([H01](hukuk/kararlar.md#h01)).
+- **Manyetometre ve LiDAR:** Robotta LiDAR, robotun manyetometresine yaklaştı (~0,26 m, neredeyse aynı yükseklikte); L2'nin dönen motoru yön okumasını bozabilir. Robotun ilk takılıştaki yön kontrolü bunu da yakalar; bozuyorsa LiDAR kolu öne alınır.
 - **Ot ve dallar:** 0,6 m'de LiDAR ota ve alçak dallara yakındır. Kubbenin çevresine görüşü az kapatan ince telli bir koruyucu kafes düşünülür; uzun otlu bahçede görüş ilk taramada denetlenir.
 - **Rijitlik:** Tüm sensörler aynı rijit direkte durur. Aralarındaki mesafeler ve açılar kalibrasyonda ölçülür ve kit sökülmedikçe değişmez.
 - **Ağırlık:** Yaklaşık 4–5 kg (direk, akü ve elektronik dahil). Akü ve elektronik kutusu direğin dibine konur; robotta yukarıda olurlarsa ağırlık merkezi yükselir ve devrilme payı azalır (robot reposunda `docs/kit-soketi.md`, "Soket — mekanik").
