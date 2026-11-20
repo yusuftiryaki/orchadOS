@@ -12,6 +12,8 @@ Kitin ne için kullanıldığı ve neden bu sensörlerin seçildiği [vizyon.md]
 
 ## Bileşenler ve bağlantılar
 
+![Tarama kiti: motosiklet direğindeki sensörler ve bağlantıları](img/tarama-kiti.svg)
+
 ```mermaid
 flowchart LR
     BAT["Batarya<br/>18 V alet aküsü"] --> DC12["DC-DC 12 V"]
