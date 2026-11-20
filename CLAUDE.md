@@ -113,6 +113,7 @@ Sözleşme robot reposunda (`maraba/docs/kit-soketi.md`, şema 1); test vektörl
 | `uv sync` / `uv run pytest` | Bağımlılıklar / donanımsız testler (sahte saat, alıcı, LiDAR, SSD) |
 | `uv run orchados-recorder fake-run <klasör> --session-id S-1 --parcel-id P-12 --seconds 20 [--lidar-gap 5]` | Donanımsız, BLE'siz bir oturum yazar (`sessions/<id>/gnss/`, `lidar/raw/`); hat ve yükleme testleri için örnek |
 | `sudo setup/install.sh [--skip-lidar-driver]` | Pi'da (Ubuntu Server 24.04 arm64): ROS 2 Jazzy, L2 sürücüsü, chrony + PPS, BlueZ, SSD bağlama, systemd birimleri; tekrar çalıştırılabilir |
+| `uv run orchados-recorder gnss-check [--seconds 300] [--out bench.ubx]` | Alıcı, anten ve kablo denemesi (açık gökyüzü; Pi'da servis durdurulur): modül, ayarın ACK'si, mesaj hızları, 3D fix, ikinci bantta faz veren uydular; PASS / WARN / FAIL |
 | `systemctl status orchados-recorder` / `journalctl -u orchados-recorder -f` | Pi'da servis durumu ve günlüğü |
 
 BLE protokolü ve dosyalar ESP32 kaydediciyle aynı, farklar ve kit uzantısı `docs/arayuzler.md` "Kit kaydedicisi (Raspberry Pi)"; kurulum ve işletim `services/kit-recorder/README.md`.

@@ -9,7 +9,7 @@ LiDAR'lı tarama kitinde kayıt bilgisayarı Raspberry Pi 4 Model B'dir (elde Pi
 
 Sözleşme (durum mesajının kit uzantısı, olaylar, `session.json` eklentileri, `lidar/raw/recording.json`): [docs/arayuzler.md](../../docs/arayuzler.md#kit-kaydedicisi-raspberry-pi). Tasarım: [docs/superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](../../docs/superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md).
 
-> **Donanımda denenmedi.** Kayıt çekirdeği sahte saat ve sahte kaynaklarla test edildi. Kurulum betiği, BLE sunucusu, L2 sürücüsü, PPS ve chrony henüz gerçek bir Pi'da çalıştırılmadı (plan, Task 17). Aşağıda "donanımda doğrulanır" diye işaretli değerler o denemede kesinleşir.
+> **Donanımda denenmedi.** Kayıt çekirdeği sahte saat ve sahte kaynaklarla test edildi. Kurulum betiği, BLE sunucusu, L2 sürücüsü, PPS ve chrony henüz gerçek bir Pi'da çalıştırılmadı (plan, Task 17). Alıcı tarafı gerçek Radiolink F9P ile denendi (20 Kasım 2026, geliştirme bilgisayarında `gnss-check`): ayar ACK alıyor, mesajlar istenen hızda geliyor. Aşağıda "donanımda doğrulanır" diye işaretli değerler o denemede kesinleşir.
 
 ## Komutlar (geliştirme makinesi)
 
@@ -24,6 +24,29 @@ uv run orchados-recorder fake-run /tmp/ssd --session-id S-1 --parcel-id P-12 --s
 `fake-run` donanımsız, BLE'siz bir oturum yazar: `/tmp/ssd/sessions/S-1/` altında `gnss/` (`gnss.ubx`, `events.csv`, `session.json`) ve `lidar/raw/` (`bag/`, `recording.json`). `--lidar-gap` LiDAR'ı o kadar saniye susturur; `events.csv`'de `lidar_lost` ve `lidar_regained` görünür. Sonunda oturum klasörünü ve birkaç sayıyı JSON olarak basar. İşleme hattının ve yükleme aracının testleri için örnek oturum buradan üretilir.
 
 Pi'da servis `orchados-recorder run --config /etc/orchados/recorder.toml` ile çalışır (systemd, aşağıda).
+
+## Alıcı denemesi: `gnss-check`
+
+Alıcıyı, anteni ve kabloyu tek komutla dener. Pi'da da, Linux bir geliştirme bilgisayarında da çalışır (kullanıcı `dialout` grubunda olmalı). Anten açık gökyüzünü görmeli; Pi'da önce servis durdurulur, çünkü portun tek sahibi odur:
+
+```bash
+uv run orchados-recorder gnss-check --seconds 300 --out bench.ubx   # geliştirme bilgisayarında
+
+# Pi'da
+sudo systemctl stop orchados-recorder
+sudo /opt/orchados/kit-recorder/.venv/bin/orchados-recorder gnss-check --out /mnt/orchados-ssd/bench.ubx
+sudo systemctl start orchados-recorder
+```
+
+Sırasıyla: alıcının kendi çıktısı (3 sn), MON-VER (modül ve yazılım), MON-RF (anten durumu, parazit), kayıt servisinin USB ayarı (`USB_CONFIG`) ile birlikte geçici olarak NAV-SIG, sonra `--seconds` boyunca kayıt. Sonunda NAV-SIG kapatılır. Hepsi alıcının RAM'ine yazılır; güç kesilince alıcı kendi kayıtlı ayarına döner.
+
+| Sonuç | Ne zaman |
+| --- | --- |
+| **FAIL** (çıkış 1) | MON-VER'e cevap yok ya da modül ZED-F9P değil; ayar ACK almadı; NAV-PVT ya da RAWX beklenen hızın %90'ının altında; SFRBX yok; 3D fix yok; ikinci bantta (L2/E5b) faz veren uydu yok |
+| **WARN** | İki bantta faz veren uydu en çok `--min-dual`'ın (10) altında: gökyüzü kısmen kapalı ya da anten zayıf. İlk 3D fix 120 sn'den geç |
+| **PASS** (çıkış 0) | Geri kalan her durumda |
+
+Port bulunamazsa çıkış 2. `--json` raporu JSON olarak basar; `--out` ham UBX akışını dosyaya yazar (RINEX'e çevirip PPK denemesi için).
 
 ## Dosyalar
 
@@ -99,6 +122,8 @@ chronyc sources -v                           # GNSS ve PPS kaynakları; PPS'in b
 chronyc tracking                             # saat hatası
 findmnt /mnt/orchados-ssd                    # SSD bağlı mı
 ```
+
+Alıcının kendisinden şüphelenilirse servis durdurulup `gnss-check` çalıştırılır (yukarıda).
 
 Telefonda saha uygulaması `orchados-gnss-XXXX` adlı cihazı görür (`XXXX`: Pi'ın Bluetooth adresinin son iki baytı).
 

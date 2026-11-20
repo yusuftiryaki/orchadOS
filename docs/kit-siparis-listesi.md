@@ -16,7 +16,7 @@ Hepsi yurt içinden alındı. Fiyatlar sipariş tutarlarıdır (KDV dahil); topl
 
 | # | Parça | Alınan | Adet | Ödenen | Not |
 | --- | --- | --- | --- | --- | --- |
-| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753,04 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. PPS çıkışının yeri ve ham gözlem kaydı gelince doğrulanacak |
+| 1.1–1.3 | RTK alıcı, anten, anten kablosu | Radiolink RTK F9P Rover Kit (alıcı + ANT-M7 anten + kablo) | 1 | 24.753,04 TL | u-blox F9P, çift bant (L1/L2), USB-C, 2 UART, dahili pusula. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026); PPS çıkışının yeri doğrulanacak |
 | 1.4 | 360° kamera | Insta360 X4 Air, Standard Bundle | 1 | 18.599 TL | 8K 30 fps, çift 1/1,8" sensör, kayıt başına tek `.insv` dosyası |
 | 1.5 | Kamera microSD kartı | SanDisk High Endurance 256 GB (V30, UHS-I) | 1 | 3.184 TL | Tek ziyareti alır (aşağıdaki karar) |
 | 7.1 | LiDAR | Unitree 4D LiDAR L2 | 1 | 27.270 TL | 360° × 90° (negatif açı kipinde 96°), saniyede 64.000 nokta, dahili IMU, 12 V |
@@ -59,12 +59,12 @@ Yaklaşık tutar [Toplam](#toplam)'da. Gelen parçalarda ilk gün yapılacak den
 | 1.5 | Kamera microSD kartı | 2 | UHS-I, V30, exFAT, en çok 1 TB (Insta360'ın şartı; UHS-II kart kullanılmaz). 8K'da ziyaret başına ~108–132 GB | **1 adet alındı:** SanDisk High Endurance 256 GB. İkincisi pilot sonrasına | 40–60 $ / adet |
 | 1.6 | Kamera yedek bataryası | 2 | Orijinal | Alınmadı. Kamera kayıt sırasında aküden beslenebiliyorsa gerekmez (3.4); beslenemiyorsa şart, çünkü tek batarya 8K'da ~88 dakika dayanır | 30–50 $ / adet |
 
-**Radiolink RTK F9P hakkında bilinenler** (üreticinin sayfası ve kılavuzu; parça gelince doğrulanacak):
-- Modül u-blox F9P; GPS L1C/A ve L2C, GLONASS, Galileo, BeiDou, QZSS. Protokoller NMEA, UBX ve RTCM 3.
+**Radiolink RTK F9P hakkında bilinenler** (üreticinin sayfası ve kılavuzu; masada doğrulananlar ayrıca belirtildi):
+- Modül u-blox F9P. **Masada doğrulandı (20 Kasım 2026):** ZED-F9P, yazılım HPG 1.32; USB'de `u-blox GNSS receiver` (1546:01a9) olarak görünür. GPS L1C/A ve L2C, GLONASS, Galileo, BeiDou, QZSS. Protokoller NMEA, UBX ve RTCM 3.
 - Besleme 4,5–6 V. Bağlantılar: USB-C, UART1 (I2C ile aynı fişte: 5 V, RX, TX, SCL, SDA, GND), UART2.
 - Zaman darbesi (PPS) teknik özelliklerde var, ama hangi konnektörde olduğu belgelenmemiş. Pi'ın saati PPS'e dayanıyor; konnektörde yoksa modülün TIMEPULSE ayağından tel çıkarmak gerekir. O sağlanana kadar personel ön kontrolün saat maddesini açık bir onayla atlayarak tarar ([arayuzler.md](arayuzler.md#ön-kontrol-ve-atlama)).
 - Dahili pusula (IST8310) I2C hattındadır; bizim kullanımımızda gerekmez.
-- Alıcı drone uçuş kontrolcüleri için ayarlı gelir. PPK için ham gözlem mesajları (UBX-RXM-RAWX, SFRBX) gerekir; Pi'daki kayıt yazılımı bunları açılışta USB'den kendisi açar. u-center ile elle de açılabilir.
+- Alıcı drone uçuş kontrolcüleri için ayarlı gelir; USB'den yalnız NMEA gönderir. PPK için ham gözlem mesajları (UBX-RXM-RAWX, SFRBX) gerekir; Pi'daki kayıt yazılımı bunları açılışta USB'den kendisi açar (RAM'e; alıcının kayıtlı ayarı değişmez). u-center gerekmez. Masada doğrulandı: alıcı ayarı ACK ile kabul ediyor, NMEA kesiliyor, NAV-PVT 5 Hz ve RAWX 1 Hz eksiksiz geliyor.
 
 **Baz verisi ve referans ölçüm:** Karar 2 ile ikinci alıcı alınmadı; baz verisi TUSAGA-Aktif'ten gelir. Pilotta referans sıra ölçümü ([MVP.md](MVP.md) Modül 2) ikinci alıcıyı ve bir jalonu varsayıyordu; ikisi de alınmıyor. Referans ölçüm ek masrafsız, kitin kendi alıcısıyla yapılır (karar 18 Kasım 2026; yöntem MVP.md'de).
 
@@ -181,7 +181,7 @@ TL ile dolar tutarları kalanların güncel fiyatları alınmadan toplanmaz. Tü
 3. **Masada, güç ve mekanik gelmeden** (sıra ve ayrıntı `services/kit-recorder/README.md`'de):
     - Pi'a Ubuntu Server 24.04 ve kayıt yazılımını kur; telefonun Pi'ı Bluetooth ile bulduğunu ve ön kontrolü dene.
     - L2 sürücüsünün Pi 4'te ROS 2 Jazzy ile çalışmasını dene. Kayıt yazılımının en büyük teknik riski bu.
-    - Alıcıyı USB'den bağla, PPS telini çek; ham kayıt, PPS ve saat kilidi.
+    - Alıcıyı USB'den bağla, PPS telini çek; ham kayıt, PPS ve saat kilidi. Alıcının kendisi önce `orchados-recorder gnss-check` ile denenir (Pi'da da, geliştirme bilgisayarında da çalışır; 20 Kasım'da bilgisayarda geçti).
     - Açık gökyüzünde ilk fix; iki saatlik masa kaydı.
 4. **TUSAGA hesabı açılınca:** yarım saatlik ham kayıt ve PPK denemesi (İP3).
 5. **Mekanik:**
@@ -193,7 +193,15 @@ TL ile dolar tutarları kalanların güncel fiyatları alınmadan toplanmaz. Tü
 
 Parça parça ayrıntılı liste [tarama-kiti.md](tarama-kiti.md#doğrulanacaklar)'de. Parçalar gelince ilk gün:
 
-- [ ] **Radiolink RTK F9P:** PPS çıkışının yeri ve seviyesi (3,3 V bekleniyor); USB'den ham gözlem (RAWX, SFRBX) çıkışı; açık gökyüzünde ilk fix ve çift bant sinyali
+- [x] **Radiolink RTK F9P, masada (20 Kasım 2026, geliştirme bilgisayarında `orchados-recorder gnss-check`):**
+    - ZED-F9P, HPG 1.32; kayıt yazılımının ayarı kabul edildi; NAV-PVT 5 Hz, RAWX 1 Hz, SFRBX geliyor, bozuk paket yok.
+    - Anten dışarıda: ilk 3D fix en çok 5 sn, konumda 13–15 uydu, ~1,6–2 m (düzeltmesiz).
+    - Çift bant: GPS L2C, Galileo E5b, GLONASS L2 ve BeiDou B2I sinyalleri var (23–46 dB-Hz). ANT-M7 ve kablo çift bantta çalışıyor.
+- [ ] **Radiolink RTK F9P, kalanlar:**
+    - Tam açık gökyüzünde (dam ya da açık alan) `gnss-check` tekrarı. Masadaki denemede iki bantta faz veren uydu en çok 7'ydi (beklenen 10+); antenin yeri gökyüzünün bir kısmını kapatıyordu. Açıkta da düşük kalırsa anten incelenir.
+    - PPS çıkışının yeri ve seviyesi (3,3 V bekleniyor).
+    - Anten kablosunun boyu direğe yetiyor mu (1.3).
+    - Ham kaydın RINEX'e çevrilmesi ve PPK denemesi (TUSAGA hesabıyla).
 - [ ] **Raspberry Pi 4:** kayıt yazılımının kurulumu; telefonun Pi'ı bulması, ön kontrol ve uyarılar; PPS ile chrony'nin kilitlenmesi; iki saatlik kayıtta veri kaybı olmaması, SSD ve alıcıya USB akımının (toplam 1,2 A) yetmesi ve kapalı kutuda ısınıp yavaşlamaması (`vcgencmd get_throttled`); kablo çekip takınca kaydın sürmesi
 - [ ] **Insta360 X4 Air:** kayıt sırasında USB-C'den beslenerek iki saat kesintisiz 8K kayıt ve ısınma; SanDisk 256 GB kartla kart hızı uyarısı çıkmaması; gerçek `.insv` dosyasının işleme hattından geçmesi ve jiroskop verisi
 - [ ] **Unitree L2:** masada adaptörüyle ilk nokta bulutu; negatif açı kipinin açılması; sürücünün Raspberry Pi 4'te çalışması

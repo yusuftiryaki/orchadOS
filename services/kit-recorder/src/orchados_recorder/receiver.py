@@ -287,6 +287,12 @@ class SerialTransport:
             self._drop(ser, exc)
             raise OSError(str(exc)) from exc
 
+    def close(self) -> None:
+        with self._lock:
+            if self._ser is not None:
+                self._ser.close()
+                self._ser = None
+
 
 class QueuedTransport:
     """Reads the inner transport in a background thread.

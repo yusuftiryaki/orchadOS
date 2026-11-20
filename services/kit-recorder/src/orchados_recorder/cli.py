@@ -3,6 +3,8 @@
 orchados-recorder run [--config PATH]      # the service (receiver, LiDAR, BLE); systemd
 orchados-recorder fake-run SSD_DIR --session-id ID --parcel-id ID --seconds N [--lidar-gap S]
                                            # no hardware: one synthetic session on fakes
+orchados-recorder gnss-check [--port auto] [--seconds 300] [--out FILE.ubx] [--json]
+                                           # bench test of receiver, antenna and cable
 orchados-recorder version
 """
 
@@ -170,6 +172,39 @@ def cmd_run(args: argparse.Namespace) -> int:
         transport.close()
 
 
+def cmd_gnss_check(args: argparse.Namespace) -> int:
+    from .gnsscheck import format_report, run_check, verdict
+    from .receiver import SerialTransport, find_receiver_port
+
+    port = find_receiver_port() if args.port == "auto" else args.port
+    if port is None or not Path(port).exists():
+        print(
+            f"receiver port not found ({args.port}); is the receiver plugged in?", file=sys.stderr
+        )
+        return 2
+    if args.seconds < 10:
+        print("--seconds must be >= 10", file=sys.stderr)
+        return 2
+    print(f"gnss-check on {port} for {args.seconds:.0f} s ...", file=sys.stderr)
+    transport = SerialTransport(port)
+    raw = open(args.out, "wb") if args.out else None
+    try:
+        report = run_check(transport, args.seconds, raw=raw)
+    except OSError as exc:
+        print(f"receiver: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        transport.close()
+        if raw is not None:
+            raw.close()
+    fails, warns = verdict(report, min_dual=args.min_dual)
+    if args.json:
+        print(json.dumps({**report.to_dict(), "failures": fails, "warnings": warns}, indent=2))
+    else:
+        print(format_report(report, fails, warns))
+    return 1 if fails else 0
+
+
 def cmd_version(_args: argparse.Namespace) -> int:
     print(__version__)
     return 0
@@ -190,6 +225,17 @@ def build_parser() -> argparse.ArgumentParser:
     fake.add_argument("--seconds", type=int, required=True)
     fake.add_argument("--lidar-gap", type=int, default=0, help="LiDAR silent this many seconds")
     fake.set_defaults(func=cmd_fake_run)
+
+    check = sub.add_parser(
+        "gnss-check",
+        help="bench test of the receiver (antenna under open sky, service stopped)",
+    )
+    check.add_argument("--port", default="auto", help="device path, or auto (u-blox by-id)")
+    check.add_argument("--seconds", type=float, default=300.0)
+    check.add_argument("--out", help="also write the raw UBX stream to this file")
+    check.add_argument("--min-dual", type=int, default=10, help="warn below this many")
+    check.add_argument("--json", action="store_true")
+    check.set_defaults(func=cmd_gnss_check)
 
     version = sub.add_parser("version")
     version.set_defaults(func=cmd_version)

@@ -37,7 +37,7 @@ flowchart LR
 | --- | --- | --- |
 | LiDAR: Unitree 4D LiDAR L2 | 3D geometri; dahili IMU ile SLAM | Ayrı bir IMU gerekmez (6 eksen, 500 Hz). Görüş alanı tabanının üstündeki yarım küre: 360° × 90°, negatif açı kipinde 96°. Ayrıntı [aşağıda](#lidar-unitree-4d-lidar-l2) |
 | 360° kamera: Insta360 X4 Air | Panorama, görsel değerlendirme, nokta bulutunu renklendirme | 8K 30 fps, kayıt başına tek `.insv` dosyası. Kendi hafıza kartına kaydeder; içindeki jiroskop verisi zaman eşlemede de kullanılır |
-| RTK GNSS: Radiolink RTK F9P | Mutlak konum, GPS zamanı (PPS), PPK için ham gözlemler | Sahada internet gerekmez; konum sonradan PPK ile düzeltilir. PPS çıkışı ve ham gözlem kaydı parça gelince doğrulanacak |
+| RTK GNSS: Radiolink RTK F9P | Mutlak konum, GPS zamanı (PPS), PPK için ham gözlemler | Sahada internet gerekmez; konum sonradan PPK ile düzeltilir. Ham gözlem kaydı ve çift bant masada doğrulandı (20 Kasım 2026); PPS çıkışı doğrulanacak |
 | Raspberry Pi 4 Model B | LiDAR ve ham GNSS kaydı, zaman kaynağı; telefona kayıt durumu | Kayıt yapar, ağır işleme yapmaz. Elde var; Pi 5 yerine (sahip, 19 Kasım 2026). Kayıt yazılımı: `services/kit-recorder/` ([tasarım](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)) |
 | Çıkarılabilir SSD (USB 3): Lexar SL300 512 GB | LiDAR, IMU ve GNSS kaydı (MCAP) | MVP'de tek SSD; ziyaretten sonra ofiste boşaltılır |
 | Batarya | Tüm kiti besler | Değiştirilebilir alet aküleri: ucuz, sağlam, sahada hızlı değişir |
@@ -275,9 +275,9 @@ Personel telefonu ve TUSAGA-Aktif (CORS-TR) aboneliği bu toplama dahil değil. 
 
 **RTK alıcısı (Radiolink RTK F9P):**
 - [ ] PPS (TIMEPULSE) çıkışına erişim. Teknik özelliklerde zaman darbesi var, ama hangi konnektörde olduğu yazmıyor; belgelenen UART1 fişinde yok (5 V, RX, TX, SCL, SDA, GND).
-- [ ] Ham gözlem (UBX-RXM-RAWX, SFRBX) çıkışı u-center ile açılabiliyor ve USB'den kaydedilebiliyor mu?
+- [x] Ham gözlem (UBX-RXM-RAWX, SFRBX) çıkışı USB'den açılıp kaydedilebiliyor mu? Evet: kayıt yazılımının ayarıyla, u-center gerekmeden (20 Kasım 2026, `orchados-recorder gnss-check`).
 - [ ] PPS çıkışının mantık seviyesi (3,3 V bekleniyor; Pi'ın GPIO'su 3,3 V'tur, 5 V ise gerilim bölücü gerekir).
-- [ ] ANT-M7 anteninin çift bantta (L1/L2) yeterli sinyal vermesi.
+- [ ] ANT-M7 anteninin çift bantta (L1/L2) yeterli sinyal vermesi. Masada dört sistemin ikinci bant sinyalleri görüldü (23–46 dB-Hz), ama iki bantta faz veren uydu en çok 7'ydi; antenin yeri gökyüzünün bir kısmını kapatıyordu. Tam açık gökyüzünde `gnss-check` ile tekrarlanacak (beklenen 10+).
 
 **Kamera (Insta360 X4 Air):**
 - [ ] Kayıt sırasında USB-C'den beslenerek iki saat kesintisiz 8K kayıt; ısınma.
