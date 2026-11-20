@@ -14,8 +14,8 @@ from orchados_recorder.clock import (
     pps_anchor,
 )
 from orchados_recorder.gpstime import unix_ns_to_gps_ns
-from orchados_recorder.ubx import NavPvt
 from orchados_recorder.session import Anchor
+from orchados_recorder.ubx import NavPvt
 
 # A real-shaped `chronyc -c tracking` line (14 fields).
 TRACKING_PPS = (

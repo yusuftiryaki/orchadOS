@@ -24,9 +24,15 @@ def test_precheck_unknown_mode_passes(healthy):
 
 def test_precheck_clock_and_ssd(healthy):
     failures = precheck_failures(
-        healthy(clock=ClockState.COARSE, ssd=SsdStatus(True, 10_000, False))
+        healthy(clock=ClockState.UNLOCKED, ssd=SsdStatus(True, 10_000, False))
     )
     assert failures == Check.CLOCK | Check.SSD
+
+
+def test_usb_clock_passes_the_precheck_and_raises_no_alert(healthy):
+    assert Check.CLOCK not in precheck_failures(healthy(clock=ClockState.USB))
+    a, _ = LiveHealth(0).update(healthy(clock=ClockState.USB))
+    assert Alert.CLOCK_UNLOCKED not in a
 
 
 def test_precheck_gnss(healthy):
@@ -113,13 +119,13 @@ def test_gnss_lost_and_regained(healthy):
 
 def test_other_alerts(healthy):
     h = LiveHealth(0)
-    a, _ = h.update(healthy(lidar_pps=10_000, clock=ClockState.COARSE))
+    a, _ = h.update(healthy(lidar_pps=10_000, clock=ClockState.UNLOCKED))
     assert a == Alert.LIDAR_RATE_LOW | Alert.CLOCK_UNLOCKED
     a, _ = h.update(healthy(ssd=SsdStatus(True, 10 * 1024, False)))
     assert a == Alert.SSD_LOW
     a, _ = h.update(healthy(ssd=SsdStatus(True, 100 * 1024, True)))
     assert a == Alert.SSD_ERROR
-    a, _ = h.update(healthy(clock=ClockState.COARSE))
+    a, _ = h.update(healthy(clock=ClockState.UNLOCKED))
     a, _ = h.update(healthy())
     a, _ = h.update(healthy(clock=ClockState.UNLOCKED))
     counts = {e["type"]: e["count"] for e in h.alert_log}
