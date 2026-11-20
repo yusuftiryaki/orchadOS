@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:orchados_field/core/ui/widgets.dart';
 import 'package:orchados_field/features/gnss/fake_gnss_logger.dart';
 import 'package:orchados_field/features/gnss/gnss_health.dart';
 import 'package:orchados_field/features/gnss/protocol/gnss_status.dart';
-import 'package:orchados_field/core/ui/widgets.dart';
 
 void main() {
   const healthy = FakeGnssLogger.healthyStatus;
