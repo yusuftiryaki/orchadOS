@@ -555,7 +555,8 @@ def decide(metrics: dict, ppk: bool, params: RegistrationParams) -> tuple[str, l
         add("low_coverage")
     if metrics.get("recording_json") is False:
         add("no_recording_json")
-    elif metrics.get("clock_state") not in (None, "pps"):
+    # pps or usb (the receiver's USB time, without the PPS wire) is a lock.
+    elif metrics.get("clock_state") not in (None, "pps", "usb"):
         add("clock_unlocked")
     fixes = metrics.get("gnss_fix_fraction")
     if ppk and (fixes is None or fixes < t.min_fix_fraction):

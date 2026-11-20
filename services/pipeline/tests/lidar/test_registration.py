@@ -221,7 +221,7 @@ def test_unlocked_clock_and_missing_recording(small_ppk, tmp_path):
     src, _ = small_ppk
     rec = json.loads((src / "lidar/raw/recording.json").read_text())
     unlocked = link_session(
-        src, tmp_path / "u", recording={**rec, "clock_state_at_start": "coarse"}
+        src, tmp_path / "u", recording={**rec, "clock_state_at_start": "unlocked"}
     )
     _, report = run(unlocked, frontend=FakeFrontend())
     assert report.verdict == "review" and "clock_unlocked" in report.reasons
@@ -293,7 +293,9 @@ GOOD_METRICS = {
         ({"trunk_spread_p95_m": 0.3}, True, "review", "trunk_spread_high"),
         ({"trees_checked": 9}, True, "review", "few_trees_checked"),
         ({"trunk_spread_p95_m": None, "trees_checked": 0}, True, "review", "few_trees_checked"),
-        ({"clock_state": "coarse"}, True, "review", "clock_unlocked"),
+        ({"clock_state": "unlocked"}, True, "review", "clock_unlocked"),
+        # The receiver's USB time (no PPS wire) is a lock (docs/arayuzler.md).
+        ({"clock_state": "usb"}, True, "accepted_auto", None),
         ({"recording_json": False, "clock_state": None}, True, "review", "no_recording_json"),
         ({"restamped_segments": 1}, True, "accepted_auto", "restamped"),
         ({"imu_rate_low_segments": 1}, True, "accepted_auto", "imu_rate_low"),
