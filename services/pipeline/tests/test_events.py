@@ -25,6 +25,13 @@ def test_parse_quotes_empty_values_and_anchor():
     assert not any(e.gps_time_derived for e in ev)
 
 
+def test_gps_time_without_anchor_is_read_as_is():
+    # Kit clock on the receiver's USB time: gps_time_ns written, no PPS anchor.
+    ev = parse_events(HEADER + "12250000,1476350122250000000,qr_sync,x,,\n")[0]
+    assert ev.gps_time_ns == 1476350122250000000 and not ev.gps_time_derived
+    assert ev.pps_esp_micros is None and ev.pps_gps_time_ns is None
+
+
 def test_gps_time_recomputed_from_anchor():
     ev = parse_events(HEADER + "12250000,,qr_sync,x,10000000,1476350120000000000\n")[0]
     assert ev.gps_time_derived

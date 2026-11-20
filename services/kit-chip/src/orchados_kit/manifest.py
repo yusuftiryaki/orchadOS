@@ -1,6 +1,6 @@
 """Kit manifest, schema 1: the 128-byte image of the kit's DS2431 identity chip.
 
-The contract lives in the robot repository (yusuftiryaki/hoverboard):
+The contract lives in the robot repository (yusuftiryaki/maraba):
 docs/kit-soketi.md, "Kimlik çipinin içeriği (manifest)" and "Repolar arası
 sözleşme". Its reference reader is ros2/src/robot_kit/robot_kit/manifest.py; if
 that file and the document disagree, the file wins. Both repositories run the

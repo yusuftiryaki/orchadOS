@@ -1,13 +1,13 @@
 # services/kit-chip — kitin kimlik çipi (DS2431)
 
-Tarama kiti, fişinin içindeki bir **DS2431** (1-Wire EEPROM, 128 bayt) ile kendini robota tanıtır. Robot (`yusuftiryaki/hoverboard`) kit takılınca çipi okur:
+Tarama kiti, fişinin içindeki bir **DS2431** (1-Wire EEPROM, 128 bayt) ile kendini robota tanıtır. Robot (`yusuftiryaki/maraba`, eski adı `hoverboard`) kit takılınca çipi okur:
 - kitin türünü ve seri numarasını,
 - takılı donanımı,
 - sensörlerin kalibrasyonunu.
 
 Kalibrasyondan kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar. Kalibrasyonun asıl kaynağı orchadOS'tur; bu araç manifesti üretip çipe yazar.
 
-**Sözleşme:** `hoverboard/docs/kit-soketi.md`, "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". Uyulan sürüm: **manifest şema 1**. Referans okuyucu `hoverboard/ros2/src/robot_kit/robot_kit/manifest.py`; belgeyle çelişirse dosya geçerlidir. Özet: [docs/arayuzler.md](../../docs/arayuzler.md#kit-kimlik-çipi).
+**Sözleşme:** `maraba/docs/kit-soketi.md`, "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". Uyulan sürüm: **manifest şema 1**. Referans okuyucu `maraba/ros2/src/robot_kit/robot_kit/manifest.py`; belgeyle çelişirse dosya geçerlidir. Özet: [docs/arayuzler.md](../../docs/arayuzler.md#kit-kimlik-çipi).
 
 ## Komutlar
 
@@ -36,7 +36,7 @@ uv run orchados-kit from-calibration <uuid> --hw-rev 1.0 --gnss-link usb   # kal
 
 ## Test vektörleri
 
-`tests/vectors/kit_manifest_v1.json`, robot reposundaki `ros2/src/robot_kit/test/vectors/kit_manifest_v1.json` dosyasının **değiştirilmemiş kopyasıdır**: 3 vektör, hoverboard commit `36f001a`. Her vektör için iki şey sınanır:
+`tests/vectors/kit_manifest_v1.json`, robot reposundaki `ros2/src/robot_kit/test/vectors/kit_manifest_v1.json` dosyasının **değiştirilmemiş kopyasıdır**: 3 vektör, robot reposunun commit'i `36f001a` (repo o zaman `hoverboard` adındaydı). Her vektör için iki şey sınanır:
 - `encode(manifest)`, `image_hex` ile bayt bayt aynı;
 - `decode(image)` aynı manifesti float32 düzeyinde geri veriyor.
 

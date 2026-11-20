@@ -106,7 +106,7 @@ void main() {
       kit: const KitStatus(
         lidarState: LidarState.neverSeen,
         lidarPointsPerS: 0,
-        clock: KitClock.coarse,
+        clock: KitClock.unlocked,
         precheckFail: [KitCheck.lidar, KitCheck.clock],
       ),
     );
@@ -119,7 +119,7 @@ void main() {
     await tester.pumpWidget(h.wrap(const VisitSummaryScreen()));
     await settle(tester);
     expect(find.text('veri yok'), findsOneWidget);
-    expect(find.text('LiDAR, Saat (PPS)'), findsOneWidget);
+    expect(find.text('LiDAR, Saat'), findsOneWidget);
     await h.dispose(tester);
   });
 

@@ -211,3 +211,28 @@ def test_a_stale_drop_does_not_close_the_reopened_port(fake_serial):
     assert new is not old
     t._drop(old, OSError("late"))  # the reader's own failure on the old port
     assert not new.closed and t.read(10) == b""
+
+
+def test_queued_pvt_is_stamped_with_its_arrival_time():
+    """The service reads through QueuedTransport and drains it every ~20 ms (or
+    later, while tick() holds the lock). chrony's sample must carry the time the
+    bytes arrived, as gnss-check measures the USB latency, not the drain time."""
+    import time
+
+    from orchados_recorder.receiver import QueuedTransport
+
+    pvt_frame = frame(0x01, 0x07, PVT_PAYLOAD)
+    inner = FakeTransport([pvt_frame[:40], pvt_frame[40:]])
+    arrivals = iter([1_000, 2_000])
+    q = QueuedTransport(inner, wall=lambda: next(arrivals))
+    deadline = time.monotonic() + 2
+    while inner.script and time.monotonic() < deadline:
+        time.sleep(0.001)
+    time.sleep(0.01)
+    q.close()
+    got = []
+    clock = FakeClock()  # drained much later than the arrival
+    rx = Receiver(q, on_bytes=nothing, on_pvt=lambda _p, t: got.append(t), clock=clock)
+    rx.poll()
+    # The frame completes in the second chunk: its arrival time, not the clock's now.
+    assert got == [2_000]

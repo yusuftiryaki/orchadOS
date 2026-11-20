@@ -51,10 +51,12 @@ class SessionInfo(BaseModel):
     methodology_version: str | None = None
     rig_id: str | None = None
     calibration_id: str | None = None
-    # Measured lens height above the ground; adjustable, recorded per visit.
-    camera_height_m: float = 2.0
-    # How the scan was carried: walk (backpack pole), motorcycle, robot.
-    scan_platform: Literal["walk", "motorcycle", "robot"] | None = None
+    # Measured lens height above the ground; adjustable, recorded per visit. The kit's
+    # default is 1.6 m (docs/tarama-kiti.md, owner 2026-11-20).
+    camera_height_m: float = 1.6
+    # How the scan was carried: walk (hand cart; backpack pole before 2026-11-20), atv,
+    # robot; motorcycle is no longer offered but older sessions may still carry it.
+    scan_platform: Literal["walk", "atv", "robot", "motorcycle"] | None = None
     # Rig calibration: azimuth of the panorama centre relative to travel direction.
     camera_yaw_offset_deg: float | None = None
     # Staff are referenced by user id only; names and phone numbers never go here.

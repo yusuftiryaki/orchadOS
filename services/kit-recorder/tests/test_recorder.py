@@ -212,12 +212,17 @@ def test_ble_disconnect_does_not_stop_recording(rig):
     assert st[56] == 0  # no alerts
 
 
+# chrony on the receiver's USB time: converged (error 2.3 ms) or not (12.3 ms).
+USB_LOCKED = Tracking("GNSS", 300, True, 0, 2000)
+USB_UNCONVERGED = Tracking("GNSS", 300, True, 0, 12_000)
+
+
 def test_unlocked_clock_events_have_empty_gps_time(rig):
-    rig.clock.tracking_value = Tracking("GNSS", 20_000, True)
+    rig.clock.tracking_value = USB_UNCONVERGED
     rig.clock.pps_enabled = False
     rig.run(seconds=2)
     st = rig.status()
-    assert st[54] == 1 and st[55] == Check.CLOCK and st[4] == 2  # coarse, PPS lost
+    assert st[54] == 0 and st[55] == Check.CLOCK and st[4] == 2  # unlocked, PPS lost
     assert int.from_bytes(st[31:39], "little") == 0 and not st[2] & 0x08
     rig.cmd(START)
     assert rig.status()[30] == Result.PRECHECK_FAILED
@@ -225,7 +230,7 @@ def test_unlocked_clock_events_have_empty_gps_time(rig):
     assert rig.status()[30] == Result.OK
     row = events(rig)[0]
     assert row[2] == "session_start" and row[1] == "" and row[4:] == ["", ""]
-    assert meta(rig)["clock_state_at_start"] == "coarse"
+    assert meta(rig)["clock_state_at_start"] == "unlocked"
     assert meta(rig)["start"]["gps_time_ns"] is None
     st = rig.run(seconds=1)
     assert st[56] & Alert.CLOCK_UNLOCKED
@@ -237,6 +242,31 @@ def test_clock_lock_lost_and_regained_mid_session(rig):
     rig.clock.pps_enabled = False
     rig.run(seconds=3)
     rig.clock.pps_enabled = True
+    rig.run(seconds=2)
+    kinds = [r[2] for r in events(rig)]
+    assert kinds[1:3] == ["pps_lost", "pps_regained"]
+
+
+def test_usb_clock_is_locked_without_anchor(rig):
+    rig.clock.tracking_value = USB_LOCKED
+    rig.clock.pps_enabled = False  # no PPS wire
+    rig.run(seconds=2)
+    st = rig.status()
+    assert st[54] == 1 and st[55] & Check.CLOCK == 0 and st[2] & 0x08
+    assert int.from_bytes(st[31:39], "little") != 0
+    rig.cmd(START)
+    assert rig.status()[30] == Result.OK
+    row = events(rig)[0]
+    assert row[2] == "session_start" and row[1] != "" and row[4:] == ["", ""]
+    assert meta(rig)["clock_state_at_start"] == "usb"
+    assert meta(rig)["start"]["gps_time_ns"] is not None
+    st = rig.run(seconds=1)
+    assert not st[56] & Alert.CLOCK_UNLOCKED
+    # The lock drops (chrony's error grows) and comes back.
+    rig.clock.tracking_value = USB_UNCONVERGED
+    st = rig.run(seconds=2)
+    assert st[56] & Alert.CLOCK_UNLOCKED
+    rig.clock.tracking_value = USB_LOCKED
     rig.run(seconds=2)
     kinds = [r[2] for r in events(rig)]
     assert kinds[1:3] == ["pps_lost", "pps_regained"]

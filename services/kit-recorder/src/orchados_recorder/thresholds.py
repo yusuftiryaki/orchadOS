@@ -22,6 +22,11 @@ GNSS_SILENT_S = 3
 # Clock
 PPS_LOST_S = 1.5
 CLOCK_MAX_OFFSET_US = 1000
+# Without PPS: chrony follows the receiver's USB time. NAV-PVT reaches the Pi this
+# long after its epoch (measured 20 Nov 2026: median 55 ms, 51-63 ms); chrony's
+# GNSS refclock corrects it with `offset` (setup/chrony-orchados.conf).
+CHRONY_USB_OFFSET_MS = 55
+CLOCK_USB_MAX_ERROR_US = 5000
 
 # SSD
 SSD_MIN_FREE_START_GIB = 30

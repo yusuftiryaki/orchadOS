@@ -1,11 +1,13 @@
-"""The Pi's clock: PPS, chrony and the PPS anchor.
+"""The Pi's clock: PPS or the receiver's USB time, chrony and the PPS anchor.
 
-chrony disciplines the system clock with the receiver's PPS (refid PPS, locked
-to the coarse GNSS time this service feeds through a SOCK refclock, refid GNSS).
-The recorder only reads the state:
+chrony disciplines the system clock with the receiver's time, which this service
+feeds through a SOCK refclock (refid GNSS; USB latency corrected by chrony's
+`offset`). With the PPS wire fitted, chrony prefers the PPS edges (refid PPS,
+numbered by GNSS). The recorder only reads the state:
 
 - `/sys/class/pps/pps0/assert`: Unix time of the last PPS edge and its sequence
-- `chronyc -c tracking`: selected reference and the system clock's offset
+- `chronyc -c tracking`: selected reference, the system clock's offset, root
+  delay and root dispersion
 
 docs/arayuzler.md, "Kit kaydedicisi" -> "Saat".
 """
@@ -22,7 +24,7 @@ from pathlib import Path
 
 from .gpstime import unix_ns_to_gps_ns
 from .session import Anchor
-from .thresholds import CLOCK_MAX_OFFSET_US, PPS_LOST_S
+from .thresholds import CLOCK_MAX_OFFSET_US, CLOCK_USB_MAX_ERROR_US, PPS_LOST_S
 
 PPS_ASSERT_PATH = Path("/sys/class/pps/pps0/assert")
 CHRONY_SOCK_MAGIC = 0x534F434B  # "SOCK"
@@ -49,11 +51,19 @@ class Tracking:
     ref_name: str
     offset_us: int
     leap_ok: bool
+    root_delay_us: int = 0
+    root_dispersion_us: int = 0
+
+    @property
+    def error_us(self) -> int:
+        """chrony's bound on the clock's error: |offset| + root delay / 2 + root dispersion."""
+        return abs(self.offset_us) + self.root_delay_us // 2 + self.root_dispersion_us
 
 
 def parse_chronyc_tracking(csv_line: str) -> Tracking:
     """`chronyc -c tracking`: field 1 reference name, field 4 the system clock's
-    offset in seconds, the last field the leap status."""
+    offset, fields 10 and 11 root delay and root dispersion (seconds), the last
+    field the leap status."""
     fields = csv_line.strip().split(",")
     if len(fields) < 14:
         raise ValueError(f"chronyc tracking: expected 14 fields, got {len(fields)}")
@@ -61,18 +71,25 @@ def parse_chronyc_tracking(csv_line: str) -> Tracking:
         ref_name=fields[1],
         offset_us=round(float(fields[4]) * 1_000_000),
         leap_ok=fields[-1].strip() != "Not synchronised",
+        root_delay_us=round(float(fields[10]) * 1_000_000),
+        root_dispersion_us=round(float(fields[11]) * 1_000_000),
     )
 
 
 class ClockState(StrEnum):
     UNLOCKED = "unlocked"
-    COARSE = "coarse"  # only the receiver's USB time (tens of ms)
+    USB = "usb"  # the receiver's USB time, latency corrected (a few ms)
     PPS = "pps"
 
     @property
     def code(self) -> int:
         """Status byte 54."""
-        return {"unlocked": 0, "coarse": 1, "pps": 2}[self.value]
+        return {"unlocked": 0, "usb": 1, "pps": 2}[self.value]
+
+    @property
+    def locked(self) -> bool:
+        """The clock gives GPS time: PPS or the receiver's USB time."""
+        return self is not ClockState.UNLOCKED
 
 
 def classify_clock(tracking: Tracking | None, pps_age_s: float | None) -> ClockState:
@@ -85,8 +102,8 @@ def classify_clock(tracking: Tracking | None, pps_age_s: float | None) -> ClockS
         and pps_age_s < PPS_LOST_S
     ):
         return ClockState.PPS
-    if tracking.ref_name == "GNSS":
-        return ClockState.COARSE
+    if tracking.ref_name == "GNSS" and tracking.error_us <= CLOCK_USB_MAX_ERROR_US:
+        return ClockState.USB
     return ClockState.UNLOCKED
 
 
@@ -115,9 +132,11 @@ class ChronySockFeed:
     """Sends the receiver's time to chrony's SOCK refclock (refid GNSS).
 
     Each NAV-PVT with a resolved time gives one sample: the local receive time
-    and the offset of the solution's UTC from it. USB latency makes it coarse
-    (tens of ms); it only tells chrony which second the PPS edges belong to.
-    Without chrony (no socket) samples are dropped silently.
+    and the offset of the solution's UTC from it; chrony's `offset` takes off the
+    USB latency. Solutions on a full second are skipped: RXM-RAWX goes out with
+    them and they arrive ~7 ms later than the others. Without PPS this is the
+    clock's source; with PPS it numbers the edges. Without chrony (no socket)
+    samples are dropped silently.
     """
 
     def __init__(self, path: Path) -> None:
@@ -126,7 +145,7 @@ class ChronySockFeed:
 
     def send(self, pvt, rx_unix_ns: int) -> None:
         utc_ns = pvt.utc_unix_ns()
-        if utc_ns is None:
+        if utc_ns is None or pvt.i_tow_ms % 1000 == 0:
             return
         sample = chrony_sock_sample(rx_unix_ns, (utc_ns - rx_unix_ns) / _NS)
         try:

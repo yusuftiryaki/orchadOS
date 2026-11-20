@@ -116,6 +116,7 @@ Ham `point_cloud`, yörünge ve GNSS kayıtları yalnız personele açıktır; b
 - **Demo sınırı:** Sentetik ağaçlar yıllar arasında çizimde büyümez (sürüm 1 medyası değişmez). Bu yüzden demoda boy değişimi çoğunlukla "Değişmedi"dir; kısalan ağaçlar kuruyan ve sorunlu olanlardır.
 - **Yapıldı (Faz 3):** Uzman panelinde ve ofis çalışma alanında aynı dünya; büyüklük sınıfı önerisinin tek tıkla kabulü (§9).
 - **Gerçek veri:** Kayıt adımından gelen ilk bulutta renklendirme hizası (kamera-LiDAR kalibrasyonu, zaman eşlemesi) ve zemin kestiriminin sağlamlığı denenir.
+- **LiDAR'ın görmediği yer dünyada yok:** Dünyanın noktaları LiDAR'dan gelir; panorama yalnız onları boyar. LiDAR yerden 0,6 m'de ve taban düzleminin ancak 6° altını görür ([tarama-kiti.md](tarama-kiti.md#montaj-ve-yükseklikler)). Gerçek bulutta gövdenin en alt ~30 cm'si (çoğu yerde ot) ve koridorun ortasındaki ~3 m'lik zemin şeridi eksik ya da seyrek olur. Demo bulutu sentetiktir, gövdeyi ve zemini tam içerir; bu sınır demoda görünmez. Zemin ızgarası (yürüme, panorama yüksekliği) seyrek zeminde ilk gerçek bulutta denetlenir.
 
 ## 8. Test
 

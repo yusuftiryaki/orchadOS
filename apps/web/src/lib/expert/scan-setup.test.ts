@@ -5,7 +5,7 @@ describe("scanSetupDiffers", () => {
   const walk = { scanPlatform: "walk" as const, cameraHeightM: 2.0 };
 
   it("flags another platform", () => {
-    expect(scanSetupDiffers(walk, { scanPlatform: "motorcycle", cameraHeightM: 2.0 })).toBe(true);
+    expect(scanSetupDiffers(walk, { scanPlatform: "robot", cameraHeightM: 2.0 })).toBe(true);
   });
 
   it("flags a height change over 25 cm only", () => {
@@ -19,8 +19,10 @@ describe("scanSetupDiffers", () => {
 });
 
 describe("scanPlatform", () => {
-  it("accepts the three platforms", () => {
+  it("accepts the platforms, including motorcycle on older visits", () => {
     expect(scanPlatform("robot")).toBe("robot");
+    expect(scanPlatform("atv")).toBe("atv");
+    expect(scanPlatform("motorcycle")).toBe("motorcycle");
     expect(scanPlatform("tractor")).toBeNull();
     expect(scanPlatform(null)).toBeNull();
   });

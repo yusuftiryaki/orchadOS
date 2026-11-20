@@ -35,7 +35,7 @@
 - **Ölçümler sürümlüdür:** Her ölçüm ve ürün, onu üreten yöntem ya da hat sürümünü taşır. Yeniden işleme eski sonuçları silmez.
 - **Veriler saklama süresi içinde silinmez:** Medya, ölçüm ve raporlar sözleşme, erişim ve saklama süresi içinde silinmez; süre dolunca silinir ya da anonim hale getirilir (KVKK md. 4/2-d, md. 7; süreler `docs/hukuk/kvkk-aydinlatma-metni.md` §7 ve `docs/hukuk/saklama-imha-politikasi.md`, karar `docs/hukuk/kararlar.md` H25).
 - Gizli bilgiler (`.env`, API anahtarları) repoya girmez.
-- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261107500100`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
+- **Migration'lar:** Yeni tablo ekleyen migration `select private.attach_demo_guard('<tablo>')` çağırır; kullanıcıya erişim ya da kimlik veren tablo ayrıca `private.attach_demo_account_guard(...)` çağırır (docs/demo-turu.md §6.1–6.2). Servis rolüyle yazan yeni Edge yolları demo claim'ini reddeder. Yeni migration'ın zaman damgası `supabase/migrations/`'taki en yenisinden (şu an `20261120100000`) **sonra** gelir: `supabase migration new` bugünün tarihini verir ve gelecek tarihli mevcut migration'lardan önce sıralanabilir; o zaman dosya adı elle ileri alınır. CI (`scripts/check-migration-order.sh`) daha eski damgalı yeni migration'ı reddeder.
 
 ## Komutlar
 İş paketleri ilerledikçe buraya eklenecek (her bileşenin build ve test komutu).
@@ -105,7 +105,7 @@ Depo seçimi `ORCHADOS_STORE_*` ya da `~/.config/orchados/ingest.toml` (s3: AWS/
 | `uv run orchados-kit write <manifest.json> [--out kit.bin \| --dry-run]` | Manifesti kodlar, tek DS2431'e yazar ve geri okuyup doğrular |
 | `uv run orchados-kit from-calibration <uuid> --hw-rev 1.0 --gnss-link usb` | Manifesti `public.calibration` kaydından üretir (`chip_id`, `extrinsics.kit_mount`) |
 
-Sözleşme robot reposunda (`hoverboard/docs/kit-soketi.md`, şema 1); test vektörleri tek taraflı değiştirilmez.
+Sözleşme robot reposunda (`maraba/docs/kit-soketi.md`, şema 1); test vektörleri tek taraflı değiştirilmez.
 
 ### Kit kaydedicisi (`services/kit-recorder/`)
 | Komut | Ne yapar |
@@ -113,6 +113,7 @@ Sözleşme robot reposunda (`hoverboard/docs/kit-soketi.md`, şema 1); test vekt
 | `uv sync` / `uv run pytest` | Bağımlılıklar / donanımsız testler (sahte saat, alıcı, LiDAR, SSD) |
 | `uv run orchados-recorder fake-run <klasör> --session-id S-1 --parcel-id P-12 --seconds 20 [--lidar-gap 5]` | Donanımsız, BLE'siz bir oturum yazar (`sessions/<id>/gnss/`, `lidar/raw/`); hat ve yükleme testleri için örnek |
 | `sudo setup/install.sh [--skip-lidar-driver]` | Pi'da (Ubuntu Server 24.04 arm64): ROS 2 Jazzy, L2 sürücüsü, chrony + PPS, BlueZ, SSD bağlama, systemd birimleri; tekrar çalıştırılabilir |
+| `uv run orchados-recorder gnss-check [--seconds 300] [--out bench.ubx]` | Alıcı, anten ve kablo denemesi (açık gökyüzü; Pi'da servis durdurulur): modül, ayarın ACK'si, mesaj hızları, 3D fix, ikinci bantta faz veren uydular, USB gecikmesi (saatin düzeltmesi); PASS / WARN / FAIL |
 | `systemctl status orchados-recorder` / `journalctl -u orchados-recorder -f` | Pi'da servis durumu ve günlüğü |
 
 BLE protokolü ve dosyalar ESP32 kaydediciyle aynı, farklar ve kit uzantısı `docs/arayuzler.md` "Kit kaydedicisi (Raspberry Pi)"; kurulum ve işletim `services/kit-recorder/README.md`.

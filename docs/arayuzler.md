@@ -78,7 +78,7 @@ esp_micros,gps_time_ns,event_type,payload,pps_esp_micros,pps_gps_time_ns
 | `precheck_override` | Yalnız kit kaydedicisi, `session_start`'tan hemen sonra: atlanan ön kontrol maddeleri `;` ile (ör. `lidar;clock`) |
 | `lidar_bag_restart` | Yalnız kit kaydedicisi: ölen LiDAR kayıt süreci (`ros2 bag`) yeniden başlatıldı; payload yeni klasör, `lidar/raw/`'a göre (`bag.1`, `bag.2`, …; süreç oturum başında hiç başlayamadıysa `bag`). Ölüşü önceki `sd_error`/`lidar_write` satırıdır; aradaki süre MCAP'te yoktur |
 
-Kit kaydedicisinde saat kilidinin kaybı ESP32'deki gibi `pps_lost` / `pps_regained` ile yazılır. Saat PPS'e kilitli değilken `gps_time_ns` ve çapa sütunları boş kalır (ESP32'nin PPS'siz davranışı).
+Kit kaydedicisinde saat kilidinin kaybı ESP32'deki gibi `pps_lost` / `pps_regained` ile yazılır; kilit, saatin PPS'e ya da alıcının USB zamanına kilitli olmasıdır ([Saat](#saat), 20 Kasım 2026'dan beri). Saat kilitliyken `gps_time_ns` yazılır; çapa sütunları yalnız PPS'te dolar, USB zamanında boş kalır ve `gps_time_ns` olduğu gibi okunur. Saat kilitli değilken `gps_time_ns` ve çapa sütunları boş kalır (ESP32'nin PPS'siz davranışı).
 
 **Çapadan GPS zamanı:** `gps_time_ns = pps_gps_time_ns + (esp_micros − pps_esp_micros) × 1000`.
 
@@ -117,7 +117,7 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `firmware_version` | Kayıt servisinin sürümü |
 | `recorder` | `"kit-recorder"` (yeni alan; ESP32 yazmaz, yokluğu ESP32 demektir) |
 | `precheck_overrides` | Atlanan ön kontrol maddeleri listesi (`lidar`, `lidar_mode`, `clock`); boş olabilir (yeni alan) |
-| `clock_state_at_start` | `pps`, `coarse` ya da `unlocked` (yeni alan; [Kit kaydedicisi](#kit-kaydedicisi-raspberry-pi)) |
+| `clock_state_at_start` | `pps`, `usb` ya da `unlocked` (yeni alan; [Kit kaydedicisi](#kit-kaydedicisi-raspberry-pi)) |
 | `receiver.port` | `"USB"`; `receiver.baud` ve `receiver.detected_baud` `null` |
 | `receiver.config_status` | Oturum başındaki durum. Yapılandırma `ok` olmadıkça (alıcı servisten sonra takıldı, ACK kaçtı) servis 5 sn'de bir yeniden dener; USB her açılışında yeniden yapılandırır |
 | `dropped_bytes` | Alıcı oturum sırasında yeniden yapılandırılırken ACK beklenirken okunup kaydedilmeyen bayt |
@@ -136,8 +136,8 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
 | `methodology_version` | str | Saha uygulaması | Hayır | Tarama protokolü sürümü |
 | `rig_id` | str | Saha uygulaması / operasyon | Hayır | Kullanılan kit (`public.rig`) |
 | `calibration_id` | str | Operasyon | Hayır | Kitin oturum tarihinde geçerli kalibrasyon kaydı |
-| `camera_height_m` | float | Operasyon (personelin ön kontrolde ölçtüğü değer, `public.session.camera_height_m`) | Hayır, vars. 2,0 | Kamera merceğinin zeminden yüksekliği; kamera ayarlanabilir olduğu için her ziyarette ölçülür. Yoksa ya da 0,5–3,5 m dışındaysa hat uyarı verir. Yüklemede ziyaretin kaydıyla 5 cm'den fazla farklıysa yükleme reddedilir (kesitler yanlış yükseklikle kesilmiş olur); ziyarette kayıt yoksa bu değer yazılır |
-| `scan_platform` | str | Operasyon (ön kontrolden) | Hayır | `walk` (sırt direği), `motorcycle`, `robot`. Ziyaretin kaydıyla farklıysa yükleme uyarı verir, ziyaretin değeri kalır |
+| `camera_height_m` | float | Operasyon (personelin ön kontrolde ölçtüğü değer, `public.session.camera_height_m`) | Hayır, vars. 1,6 (kitin varsayılanı; 20 Kasım 2026'ya kadar 2,0) | Kamera merceğinin zeminden yüksekliği; kamera ayarlanabilir olduğu için her ziyarette ölçülür. Yoksa ya da 0,5–3,5 m dışındaysa hat uyarı verir. Yüklemede ziyaretin kaydıyla 5 cm'den fazla farklıysa yükleme reddedilir (kesitler yanlış yükseklikle kesilmiş olur); ziyarette kayıt yoksa bu değer yazılır |
+| `scan_platform` | str | Operasyon (ön kontrolden) | Hayır | `walk` (elle çekilen araba; 20 Kasım 2026'dan önce sırt direği), `atv`, `robot`; eski oturumlarda `motorcycle` da olabilir (20 Kasım 2026'dan beri sunulmuyor). Ziyaretin kaydıyla farklıysa yükleme uyarı verir, ziyaretin değeri kalır |
 | `camera_yaw_offset_deg` | float | Operasyon (kalibrasyondan) | Hayır | Panorama orta sütununun hareket yönüne göre açısı; yoksa hat parametresi kullanılır |
 | `lead_user_id` | str | Saha uygulaması | Hayır | Ekip lideri kullanıcı kimliği |
 | `crew_user_ids` | str[] | Saha uygulaması | Hayır | Diğer personelin kullanıcı kimlikleri |
@@ -155,7 +155,7 @@ Kit kaydedicisi aynı dosyayı aynı alanlarla yazar (`format_version` 1), şu f
   "methodology_version": "scan-v1",
   "rig_id": "kit-01",
   "calibration_id": "kit-01-2026-10",
-  "camera_height_m": 2.05,
+  "camera_height_m": 1.62,
   "camera_yaw_offset_deg": 0.0,
   "lead_user_id": "0f6c2b9a-1d3e-4f5a-8b7c-9d0e1f2a3b4c",
   "app_version": "0.1.0"
@@ -214,7 +214,7 @@ Kaynak: [firmware/gnss-logger/README.md → BLE protokolü](../firmware/gnss-log
 
 ## Kit kaydedicisi (Raspberry Pi)
 
-LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 5'tir; ESP32 kaydedici kitten çıktı (karar 16 Kasım 2026, tasarım: [superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)). Pi'daki kayıt servisi (`services/kit-recorder/`) saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı BLE servisi ve cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve sonuç kodları, aynı `gnss/` dosyaları. Buna LiDAR kaydı ve kayıt sağlığı eklenir.
+LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 4'tür; ESP32 kaydedici kitten çıktı (karar 16 Kasım 2026, tasarım: [superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md](superpowers/specs/2026-11-16-pi-kayit-yazilimi-design.md)). Pi'daki kayıt servisi (`services/kit-recorder/`) saha uygulamasına ve işleme hattına ESP32 gibi görünür: aynı BLE servisi ve cihaz adı biçimi (`orchados-gnss-XXXX`), aynı komutlar ve sonuç kodları, aynı `gnss/` dosyaları. Buna LiDAR kaydı ve kayıt sağlığı eklenir.
 
 ### Durum mesajı (77 bayt)
 
@@ -222,14 +222,14 @@ LiDAR'lı kitte kayıt bilgisayarı Raspberry Pi 5'tir; ESP32 kaydedici kitten �
 
 | Ofset | Alan | Kit kaydedicisinde |
 | --- | --- | --- |
-| 2 | `flags` | bit0 SSD bağlı, bit1 SSD'de 20 GiB'tan az yer, bit2 SSD hatası, bit3 saat PPS'e kilitli, bit4 bu oturumda veri atıldı, bit5 `gnssFixOK`, bit6 konum geçerli |
+| 2 | `flags` | bit0 SSD bağlı, bit1 SSD'de 20 GiB'tan az yer, bit2 SSD hatası, bit3 saat kilitli (PPS ya da alıcının USB zamanı), bit4 bu oturumda veri atıldı, bit5 `gnssFixOK`, bit6 konum geçerli |
 | 4 | `pps_state` | `/sys/class/pps/pps0/assert`'e göre: 0 hiç görülmedi, 1 kilitli (son kenar 1,5 sn'den yeni), 2 kayıp |
 | 12 | `bytes_written` | Bu oturumda `gnss.ubx`'e yazılan bayt (u32'de doyar) |
 | 16 | `sd_free_mib` | SSD'nin boş alanı |
 | 25 | `dropped_bytes` | Bu oturumda alıcı yeniden yapılandırılırken (USB yeniden bağlandı ya da yapılandırma yeniden denendi) okunup `gnss.ubx`'e yazılmayan bayt; oturum bitince özet için kalır |
 | 20 | `battery_mv` | `0`: Pi aküyü ölçmez. Uygulama kaydedici Pi ise akü maddesini atlar |
 | 22–24 | `fw_*` | Kayıt servisinin sürümü |
-| 31 | `gps_time_ns` | Saat PPS'e kilitliyse sistem saatinden GPS zamanı, değilse `0` |
+| 31 | `gps_time_ns` | Saat kilitliyse (`clock_state` 1 ya da 2) sistem saatinden GPS zamanı, değilse `0` |
 
 Eklenen alanlar:
 
@@ -238,7 +238,7 @@ Eklenen alanlar:
 | 51 | u8 | `recorder_kind` | `1` = kit kaydedicisi (Pi). 77 bayttan kısa mesaj ESP32 demektir |
 | 52 | u8 | `lidar_state` | 0 hiç görülmedi, 1 veri geliyor, 2 kopuk |
 | 53 | u8 | `lidar_mode` | 0 bilinmiyor (denetlenmiyor), 1 doğru (negatif açı kipi açık), 2 yanlış |
-| 54 | u8 | `clock_state` | 0 kilitsiz, 1 kaba (yalnız alıcının USB zamanı), 2 PPS'e kilitli |
+| 54 | u8 | `clock_state` | 0 kilitsiz, 1 `usb`: alıcının USB zamanına kilitli (gecikmesi düşülmüş; PPS teli yok), 2 PPS'e kilitli |
 | 55 | u8 | `precheck_fail` | Şu an geçmeyen ön kontrol maddeleri (maske, aşağıda) |
 | 56 | u8 | `alerts` | bit0 `lidar_silent`, bit1 `lidar_rate_low`, bit2 `lidar_not_written`, bit3 `gnss_silent`, bit4 `clock_unlocked`, bit5 `ssd_error`, bit6 `ssd_low` |
 | 57 | u8 | `overrides` | Bu oturumda atlanan maddeler (maske); kayıt yokken 0 |
@@ -258,7 +258,7 @@ Eklenen alanlar:
 | --- | --- |
 | `lidar` | Son 3 sn içinde nokta geldi ve nokta hızı beklenenin (64 000/sn) en az yarısı |
 | `lidar_mode` | Negatif açı kipi doğrulandı ya da doğrulanamıyor (`lidar_mode` 0 geçer, 2 geçmez) |
-| `clock` | Saat PPS'e kilitli (`clock_state` 2): chrony PPS'i seçmiş, hata ≤ 1 ms, son PPS kenarı < 1,5 sn |
+| `clock` | Saat kilitli: PPS'e (`clock_state` 2: chrony PPS'i seçmiş, hata ≤ 1 ms, son PPS kenarı < 1,5 sn) ya da alıcının USB zamanına (`clock_state` 1: chrony `GNSS`'i seçmiş, eşzamanlı, hata sınırı ≤ 5 ms) |
 | `ssd` | SSD bağlı, deneme yazısı başarılı, boş alan ≥ 30 GiB |
 | `gnss` | Alıcı yapılandırması `ok` ve son 3 sn içinde UBX geldi |
 
@@ -272,7 +272,7 @@ Kit maskeyi başlatma anındaki kendi ön kontrolünde geçmeyen maddelerle kese
 
 - Uyarılar (`alerts`) durum mesajıyla her saniye gider; saha uygulaması yeni bir uyarıda ses çalar, uyarı sürdükçe 10 sn'de bir tekrarlar ve uyarı bandını gösterir. Ses en sık 10 sn'de bir çalar (gidip gelen uyarı her gelişinde çalmaz); yalnız bu kayıtta henüz çalmamış bir uyarı türü son sesten 3 sn sonra çalabilir.
 - Atlanan maddenin (`overrides`) uyarısı oturum boyunca kalkık kalır; saha uygulaması onun için ses çalmaz, bantta ve özette yine gösterir: `lidar` atlandıysa `lidar_silent` ve `lidar_rate_low`, `clock` atlandıysa `clock_unlocked`. `lidar_mode`'un uyarısı yoktur. `lidar_not_written` susturulmaz: LiDAR sustuğunda kit bu uyarıyı kaldırmaz, uyarı kayıt sürecinin kendisinin bozulduğunu gösterir.
-- `lidar_silent`: 3 sn'dir nokta yok. `lidar_rate_low`: nokta var ama hız beklenenin yarısının altında. `lidar_not_written`: kayıt süreci ölü ya da MCAP 10 sn'dir büyümüyor (oturumun ilk 10 sn'i hariç). `gnss_silent`: 3 sn'dir UBX yok. `clock_unlocked`: saat PPS'e kilitli değil. `ssd_error`: yazma hatası. `ssd_low`: boş alan 20 GiB'ın altında.
+- `lidar_silent`: 3 sn'dir nokta yok. `lidar_rate_low`: nokta var ama hız beklenenin yarısının altında. `lidar_not_written`: kayıt süreci ölü ya da MCAP 10 sn'dir büyümüyor (oturumun ilk 10 sn'i hariç). `gnss_silent`: 3 sn'dir UBX yok. `clock_unlocked`: saat kilitli değil (ne PPS ne USB zamanı). `ssd_error`: yazma hatası. `ssd_low`: boş alan 20 GiB'ın altında.
 - Kopuşlar kaydı durdurmaz: LiDAR ya da alıcı geri gelince kayıt sürer, boşluk `events.csv`'ye ve `recording.json`'a yazılır. SSD çıkarılırsa ya da yazılamazsa oturum `sd_error`, boş alan 512 MiB'ın altına düşerse `sd_full` ile kapanır.
 - BLE bağlantısının kopması kaydı etkilemez.
 
@@ -287,7 +287,7 @@ LiDAR kayıt süreci (`ros2 bag`) oturum ortasında ölürse oturum kapanmaz: se
 | `session_id`, `parcel_id` | str | `gnss/session.json` ile aynı |
 | `recorder_version` | str | Kayıt servisinin sürümü |
 | `start_gps_ns`, `stop_gps_ns` | int, boş olabilir | Saat kilitli değilse boş |
-| `clock_state_at_start` | str | `pps`, `coarse`, `unlocked` |
+| `clock_state_at_start` | str | `pps`, `usb`, `unlocked` |
 | `precheck_overrides` | str[] | `gnss/session.json` ile aynı |
 | `lidar_mode` | str | `unknown`, `ok`, `wrong` |
 | `topics` | nesne | `points`, `imu`, `ubx`: MCAP'teki konu adları |
@@ -300,7 +300,10 @@ MCAP konuları (varsayılan; donanımda doğrulanınca kesinleşir): `/unilidar/
 
 ### Saat
 
-Alıcının PPS teli Pi'ın GPIO18'ine bağlanır (`pps-gpio`). Kayıt servisi alıcının seri portunun tek sahibidir (gpsd yok); her NAV-PVT'nin zamanını chrony'ye SOCK refclock'u (`/run/chrony.gnss.sock`, refid `GNSS`) ile verir, chrony PPS'i (`refid PPS`, `lock GNSS`) birincil kaynak alır. MCAP'teki damgalar Pi'ın sistem saatindendir.
+Kayıt servisi alıcının seri portunun tek sahibidir (gpsd yok); her NAV-PVT'nin zamanını chrony'ye SOCK refclock'u (`/run/chrony.gnss.sock`, refid `GNSS`) ile verir. Tam saniye çözümleri gönderilmez: RXM-RAWX onlarla çıktığı için ~7 ms geç gelirler. MCAP'teki damgalar Pi'ın sistem saatindendir.
+
+- **PPS teli yokken (Radiolink F9P'nin varsayılanı; sahip, 20 Kasım 2026):** chrony `GNSS`'i birincil kaynak alır. NAV-PVT, çözümün zamanından ~55 ms sonra varır (masada ölçüldü: 51–63 ms); chrony bunu `offset 0.055` ile düşer (`CHRONY_USB_OFFSET_MS`). Kalan hata birkaç ms'dir. chrony'nin hata sınırı (|sistem ofseti| + kök gecikmesinin yarısı + kök dağılımı) ≤ 5 ms ise saat `usb`'dir. Gecikme `orchados-recorder gnss-check` ile, sistem saati NTP'deyken ölçülür. Tasarım: [2026-11-20-usb-saat-design.md](superpowers/specs/2026-11-20-usb-saat-design.md).
+- **PPS teli takılıysa:** tel Pi'ın GPIO18'ine bağlanır (`pps-gpio`); chrony PPS'i (`refid PPS`, `lock GNSS`, `prefer`) seçer, `GNSS` yalnız kenarların saniyesini verir. Saat `pps`'tir.
 
 ## Medya depolama
 
@@ -509,7 +512,7 @@ Saha uygulaması (`apps/field`) çevrimdışı çalışır: her kaydı önce tel
 - **Karar (oturum olayları):** Olaylar için ayrı, ekleme-yalnız bir tablo açıldı (`public.session_event`: `id`, `org_id`, `parcel_id`, `session_id`, `event_type`, `payload`, `gps_time_ns`, `time_source`, `phone_time`, `logger_result`, `recorded_by`). Gerekçe: (1) her olayın telefonda üretilmiş kimliği var, ayrı satır tekrar gönderimi `on conflict do nothing` ile güvenli kılar; `session` üzerinde bir JSON dizisini güncellemek sıraya ve eşzamanlı yazmaya bağımlı olurdu ve yayımlanmış ziyarette mümkün değil; (2) `capture.metadata` bir dosyaya bağlı, olayların dosyası yok; (3) kaydedicinin `events.csv`'si SD kartla ofise gelir, bu satırlar ise ağdan önce gelir ve kaydedicinin kaçırdığı olayları da taşır: işleme hattı QR eşlemesini iki kaynakla karşılaştırabilir. Okuma yalnızca kurum rolleri; sahip ve izleyici görmez.
 - **Karar (metrikler):** Yakın plan sorularının metrikleri kayıtta yoktu; evet/hayır, ağaç, karnede gizli (`card_visibility = hidden`) olarak eklendi: `dead_branch_present`, `trunk_damage_present`, `root_sucker_present`, `pruned`, `frost_damage_present`, `pest_sign_present`, `fruit_present`, `drought_stress_sign`, `theft_sign_present`. Hasat sorularında kayıtlı `harvest_complete` ve `branch_break` kullanılır. Personel cevabı uzmana kanıttır, karnede gösterilmez.
 - **Hatalar:** Ağ hatası, zaman aşımı, 5xx/429 ve süresi geçmiş giriş geçicidir (kayıt kuyrukta kalır, artan beklemeyle yeniden denenir). Yetki (`42501`), doğrulama (`23xxx`, `22P02`), bilinmeyen ya da iptal edilmiş ziyaret (`visit_not_found`, `visit_cancelled`), kayıtta olmayan metrik (`unknown_metric`) kalıcıdır: kayıt telefonda "başarısız" diye sebebiyle işaretlenir, kuyruk durmaz.
-- **v0.1 soruları ve olaylar:** Yakın plan protokolü `*-v0.1` (metodoloji bölüm 7; metrikler `20261028120000_closeup_protocol_v01`). Bir ağacın "Göremedim" cevapları tek bir `closeup_unseen` olayında: `payload` yer kodu, `data` = `{version, tree_id, slot_code, method_version, metric_codes[], evidence[]}`. Ön kontroldeki ilaçlama onayı `session_start` olayının `data.precheck.spraying` alanında (`none` ya da `waiting_period_passed`). Tarama yöntemi ve ölçülen kamera yüksekliği aynı yerde: `data.precheck.platform` (`walk`, `motorcycle`, `robot`) ve `data.precheck.camera_height_m` (metre, iki ondalık); ikisi ziyaret satırına da yazılır. `methodology_version`'ı telefon göndermez, operasyon belirler.
+- **v0.1 soruları ve olaylar:** Yakın plan protokolü `*-v0.1` (metodoloji bölüm 7; metrikler `20261028120000_closeup_protocol_v01`). Bir ağacın "Göremedim" cevapları tek bir `closeup_unseen` olayında: `payload` yer kodu, `data` = `{version, tree_id, slot_code, method_version, metric_codes[], evidence[]}`. Ön kontroldeki ilaçlama onayı `session_start` olayının `data.precheck.spraying` alanında (`none` ya da `waiting_period_passed`). Tarama yöntemi ve ölçülen kamera yüksekliği aynı yerde: `data.precheck.platform` (`walk`, `atv`, `robot`; eski oturumlarda `motorcycle`) ve `data.precheck.camera_height_m` (metre, iki ondalık); ikisi ziyaret satırına da yazılır. `methodology_version`'ı telefon göndermez, operasyon belirler.
 - **v0.2 soruları (methodology-v0.2):** Protokoller `winter-v0.2` (kuru testinde `dead_test_live_bud`) ve `summer-v0.2` (`early_emptied_cluster_present`; metrikler `20261103100800_methodology_v02`). **Parsel soruları** (`fence_breach_present`, evet/hayır; `summer-v0.3` ve `spring-v0.2`'den beri ayrıca `weed_height`, kategori `short`/`medium`/`tall`): yakın plan listesinde ziyarette bir kez sorulur; cevap `tree_id`'siz bir `measurement` satırıdır (konu `parcel`; telefonda `subject_type = parcel`, `subject_id` = parsel kimliği; evet/hayır `value_boolean`, kategori `value_category`). Parsel sorusunun "Göremedim"i ayrı bir `closeup_unseen` olayıdır: `payload` `parcel`, `data` = `{version, parcel_id, method_version, metric_codes[], evidence: []}` (`tree_id` ve `slot_code` yok). Hasat mevsimindeki taramanın ön kontrolünde hasat cevabı `session_start` olayının `data.precheck.harvest` alanında: `gleaning_done`, `gleaning_ongoing` ya da `no_gleaning` (hasat sürüyorsa cevap yoktur, tarama başlamaz). Ziyaretin mevsimini telefon `session.methodology_version` ile ay'dan çıkarır ([metodoloji.md](metodoloji.md) bölüm 2).
 - **Fotoğraf dosyası** telefondan ancak yükleme, `capture` satırı ve nesnenin varlık kontrolü başarılı olunca silinir.
 - **Açık:** Cevap ile kanıt fotoğrafı arasındaki bağ sunucuda yok (`measurement_evidence` yalnızca `asset`'e bağlanır); ikisi aynı oturum ve ağaçla eşleşir.
@@ -837,7 +840,7 @@ LiDAR'lı kitin bir oturumu için işleme hattının LiDAR aşamalarının girdi
   | `few_trees_checked` | `trees_checked` < 10 | En iyi `review` |
 | `few_fixes` | PPK'lı ama yerleştirilen anahtar karelerin yarısından azında (`min_fix_fraction`, vars. 0,5) `fix` GNSS bağı var; artık denetimi az sayıda `fix` noktasına dayanır | En iyi `review` |
   | `no_ppk` | `ppk_status` `ppk` değil | En iyi `review` |
-  | `clock_unlocked` | `recording.json` `clock_state_at_start` `pps` değil | En iyi `review` |
+  | `clock_unlocked` | `recording.json` `clock_state_at_start` `pps` ya da `usb` değil | En iyi `review` |
   | `no_recording_json` | `recording.json` yok (ör. güç kesintisi); parçalar MCAP'ten | En iyi `review` |
   | `imu_rate_low` | En az bir parça düşük IMU hızıyla atlandı | Bilgi; kapsamayı düşürür |
   | `restamped` | En az bir parçanın damgaları Pi saatine taşındı | Bilgi |
@@ -926,12 +929,13 @@ Ek diziler (konumlar noktalarla aynı nicemlemeyle; sınır kutusu parçaları v
 
 ## Kit kimlik çipi
 
-Tarama kiti robota (`yusuftiryaki/hoverboard`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
+Tarama kiti robota (`yusuftiryaki/maraba`) bir soket üzerinden takılabilir. Kitin fişindeki **DS2431** (1-Wire EEPROM, 128 bayt) kitin manifestini taşır. Robot bu manifesti okur ve kitin frame'lerini (`kit_gnss`, `kit_cam360`, `kit_lidar`) statik TF olarak yayınlar.
 
-- **Sözleşmenin kaynağı:** [hoverboard/docs/kit-soketi.md](https://github.com/yusuftiryaki/hoverboard/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `hoverboard/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
+- **Sözleşmenin kaynağı:** [maraba/docs/kit-soketi.md](https://github.com/yusuftiryaki/maraba/blob/main/docs/kit-soketi.md), "Kimlik çipinin içeriği (manifest)" ve "Repolar arası sözleşme". **Uyulan sürüm: manifest şema 1.** Referans okuyucu `maraba/ros2/src/robot_kit/robot_kit/manifest.py`'dir; belgeyle çelişirse dosya geçerlidir.
 - **Yazan taraf:** `services/kit-chip/` (`orchados-kit write|read`).
 - **Test vektörleri:** Robot reposuyla aynı dosya, `services/kit-chip/tests/vectors/kit_manifest_v1.json`. Değiştirilmeden kopyalanmıştır. Format ya da vektörler değişirse iki repo birlikte değişir.
 - **Şema numarası** sadece artar. Robot bilmediği bir şemayı reddeder.
+- **Her kitte Pi ve LiDAR var (sahip, 20 Kasım 2026).** Robot belgesindeki LiDAR'sız v1 / LiDAR'lı v2 ayrımı kalkar: her kitte Raspberry Pi 4 (kayıt, ROS 2), Unitree L2, F9P ve 360° kamera vardır; ESP32 kaydedici yoktur. Bir kitin çipinde üç frame de (`kit_gnss`, `kit_cam360`, `kit_lidar`) ve `lidar` yeteneği bulunur. F9P'yi kitin Pi'ı okuduğu için `gnss_link`'in hangi değeri alacağı ve robotun GNSS'i hangi yoldan alacağı robot planının K3 adımında robotla birlikte kesinleşir; o zamana kadar şema 1 aynen geçerlidir.
 
 **`kit_mount` frame'i** robot tarafında tanımlı (`kit-soketi.md`, "Soket — mekanik" ve URDF); aşağıdaki kabuller robot tarafınca doğrulandı (2026-10-27):
 - Robotun montaj plakasının üst yüzeyi: `base_link`'e göre x = 0,11 m, z = 0,1825 m, dönüşsüz.

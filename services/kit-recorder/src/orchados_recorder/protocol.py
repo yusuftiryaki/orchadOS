@@ -98,7 +98,7 @@ class Flag(IntFlag):
     SD_PRESENT = 0x01
     SD_LOW_SPACE = 0x02
     SD_ERROR = 0x04
-    TIME_MAPPED = 0x08  # clock locked to PPS
+    TIME_MAPPED = 0x08  # clock locked (PPS or the receiver USB time)
     DATA_DROPPED = 0x10
     GNSS_FIX_OK = 0x20
     POSITION_VALID = 0x40
