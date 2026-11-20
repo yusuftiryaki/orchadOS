@@ -37,6 +37,8 @@ bool gnssReady(GnssStatus s) =>
 
 Health gnssHealth(GnssStatus s) {
   if (!gnssReady(s) || !kitCheckOk(s, KitCheck.gnss)) return Health.bad;
+  // The kit usually has no PPS wire: its clock is judged on its own row.
+  if (s.isKit) return Health.ok;
   return s.ppsState == PpsState.locked ? Health.ok : Health.warn;
 }
 

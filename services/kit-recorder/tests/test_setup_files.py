@@ -18,6 +18,10 @@ def test_setup_files_pin_contract_values():
     offset = f"offset {CHRONY_USB_OFFSET_MS / 1000:.3f}"
     assert f"refclock SOCK /run/chrony.gnss.sock refid GNSS {offset}" in chrony
     assert "noselect" not in chrony  # the USB time is a source of its own without PPS
+    # With the wire fitted, two sources that disagree by more than GNSS's error
+    # interval leave chrony without a majority: PPS must win anyway.
+    pps = next(line for line in chrony.splitlines() if line.startswith("refclock PPS"))
+    assert "prefer" in pps.split() and "trust" in pps.split()
     assert "makestep 1 -1" in chrony
     assert "/run/chrony.gnss.sock" in (ROOT / "config/recorder.toml").read_text()
     assert "Restart=always" in (SETUP / "orchados-recorder.service").read_text()

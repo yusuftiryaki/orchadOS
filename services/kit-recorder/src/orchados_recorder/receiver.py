@@ -178,16 +178,23 @@ class Receiver:
             # or (plugged in after start) never had them.
             log.info("receiver: USB (re)connected, configuring")
             self.configure()
-        data = self.transport.read(READ_CHUNK)
-        if not data:
+        stamped = getattr(self.transport, "read_stamped", None)
+        if stamped is not None:
+            # A NAV-PVT is stamped with the arrival of the chunk that completed it.
+            chunks = stamped(READ_CHUNK)
+        else:
+            data = self.transport.read(READ_CHUNK)
+            chunks = [(self.clock.now_unix_ns(), data)] if data else []
+        if not chunks:
             return
         self.last_rx_mono_us = self.clock.now_mono_us()
-        self.on_bytes(data)
-        for m in self._framer.feed(data):
-            if m.cls == CLASS_NAV and m.msg_id == ID_NAV_PVT and len(m.payload) == NAV_PVT_LEN:
-                pvt = parse_nav_pvt(m.payload)
-                self.last_pvt = pvt
-                self.on_pvt(pvt, self.clock.now_unix_ns())
+        for rx_unix_ns, data in chunks:
+            self.on_bytes(data)
+            for m in self._framer.feed(data):
+                if m.cls == CLASS_NAV and m.msg_id == ID_NAV_PVT and len(m.payload) == NAV_PVT_LEN:
+                    pvt = parse_nav_pvt(m.payload)
+                    self.last_pvt = pvt
+                    self.on_pvt(pvt, rx_unix_ns)
 
 
 def find_receiver_port(pattern: str = "/dev/serial/by-id/usb-u-blox*") -> str | None:
@@ -300,13 +307,19 @@ class QueuedTransport:
     `read` never blocks, so the recorder's lock is held only while bytes are
     processed and BLE commands (qr_sync) are stamped without waiting for a
     serial timeout. `write` and the `reconnected` flag go to the inner transport.
+
+    Each chunk keeps the system time at which it was read (`wall`): the recorder
+    drains the queue only every ~20 ms, and chrony's samples need the arrival
+    time, the one gnss-check measures the USB latency against (`read_stamped`).
     """
 
-    def __init__(self, inner: Transport) -> None:
+    def __init__(self, inner: Transport, wall: Callable[[], int] = time.time_ns) -> None:
         import threading
 
         self.inner = inner
-        self._queue: deque[bytes] = deque()  # unbounded: never drop receiver bytes
+        self.wall = wall
+        # (arrival Unix ns, bytes); unbounded: never drop receiver bytes
+        self._queue: deque[tuple[int, bytes]] = deque()
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, name="receiver-read", daemon=True)
@@ -329,20 +342,23 @@ class QueuedTransport:
                 time.sleep(0.1)
                 continue
             if data:
+                stamp = self.wall()
                 with self._lock:
-                    self._queue.append(data)
+                    self._queue.append((stamp, data))
 
-    def read(self, max_bytes: int) -> bytes:
+    def read_stamped(self, max_bytes: int) -> list[tuple[int, bytes]]:
+        """Queued chunks with their arrival time, about max_bytes in all."""
+        out: list[tuple[int, bytes]] = []
         with self._lock:
-            if not self._queue:
-                return b""
-            chunks = []
             size = 0
             while self._queue and size < max_bytes:
-                chunk = self._queue.popleft()
-                chunks.append(chunk)
-                size += len(chunk)
-        return b"".join(chunks)
+                item = self._queue.popleft()
+                out.append(item)
+                size += len(item[1])
+        return out
+
+    def read(self, max_bytes: int) -> bytes:
+        return b"".join(chunk for _, chunk in self.read_stamped(max_bytes))
 
     def write(self, data: bytes) -> None:
         self.inner.write(data)
