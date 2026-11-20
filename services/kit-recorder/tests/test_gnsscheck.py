@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import struct
+import time
 
 import pytest
 
@@ -21,6 +22,7 @@ from orchados_recorder.gnsscheck import (
     run_check,
     verdict,
 )
+from orchados_recorder.thresholds import CHRONY_USB_OFFSET_MS
 from orchados_recorder.ubx import (
     CLASS_ACK,
     CLASS_CFG,
@@ -74,20 +76,35 @@ def rawx(meas: list[tuple[tuple[int, int], int, int, int]]) -> bytes:
     return body
 
 
-def pvt(fix_type: int, num_sv: int) -> bytes:
+# 2026-11-20 14:00:00 UTC, a full second (also in GPS time).
+EPOCH_S = 1_795_183_200
+
+
+def pvt(fix_type: int, num_sv: int, t_s: float = 0.0) -> bytes:
+    """NAV-PVT of the epoch EPOCH_S + t_s (t_s on the 200 ms grid)."""
+    ms = round(t_s * 1000)
+    t = time.gmtime(EPOCH_S + ms // 1000)
     p = NavPvt(
-        year=2026, month=11, day=20, hour=14, minute=1, second=45, valid=0x07,
+        i_tow_ms=ms, year=t.tm_year, month=t.tm_mon, day=t.tm_mday, hour=t.tm_hour,
+        minute=t.tm_min, second=t.tm_sec, valid=0x07, nano=(ms % 1000) * 1_000_000,
         fix_type=fix_type, flags=0x01 if fix_type else 0, num_sv=num_sv, h_acc_mm=1630,
     )  # fmt: skip
     return build_nav_pvt(p)
 
 
 class Clock:
-    def __init__(self) -> None:
+    """Monotonic seconds; `wall` is the Unix time at which an epoch's message is
+    read: the epoch plus the receiver's USB latency."""
+
+    def __init__(self, latency_ms: float = 55.0) -> None:
         self.t = 0.0
+        self.latency_ms = latency_ms
 
     def __call__(self) -> float:
         return self.t
+
+    def wall(self) -> int:
+        return EPOCH_S * 1_000_000_000 + round((self.t + self.latency_ms / 1000) * 1e9)
 
 
 class SkyReceiver:
@@ -147,7 +164,9 @@ class SkyReceiver:
         self.epoch += 1
         since = self.clock.t - self.configured_at
         fixed = self.fix_after_s is not None and since >= self.fix_after_s
-        out += frame(CLASS_NAV, ID_NAV_PVT, pvt(3 if fixed else 0, 14 if fixed else 0))
+        out += frame(
+            CLASS_NAV, ID_NAV_PVT, pvt(3 if fixed else 0, 14 if fixed else 0, self.clock.t)
+        )
         sigs = [(GPS_L1, sv, 44) for sv in range(1, self.dual + 3)]
         if self.second_band:
             sigs += [(GPS_L2CL, sv, 38) for sv in range(1, self.dual + 1)]
@@ -161,10 +180,10 @@ class SkyReceiver:
         return out
 
 
-def check(**kw) -> tuple[Report, SkyReceiver]:
-    clock = Clock()
+def check(latency_ms: float = 55.0, **kw) -> tuple[Report, SkyReceiver]:
+    clock = Clock(latency_ms)
     rx = SkyReceiver(clock, **kw)
-    return run_check(rx, 60, now=clock), rx
+    return run_check(rx, 60, now=clock, wall=clock.wall), rx
 
 
 def test_good_receiver_passes():
@@ -179,13 +198,44 @@ def test_good_receiver_passes():
     assert report.counts["RXM-SFRBX"] > 0
     assert report.first_fix_s == pytest.approx(5.0, abs=0.5)
     assert report.max_used_sv == 14
-    assert report.last_fix["utc"] == "2026-11-20T14:01:45Z"
+    assert report.last_fix["utc"].startswith("2026-11-20T14:01:")
     assert report.dual_band_best == 12 and report.phase_first_last == 14
     assert report.signals == {"GPS L1C/A": 44, "GPS L2CL": 38}
     assert verdict(report) == ([], [])
     assert "RESULT: PASS" in format_report(report, [], [])
     # NAV-SIG is on only for the check: the last VALSET turns it off again.
     assert not rx.nav_sig_on
+
+
+def test_usb_latency_is_measured_without_full_seconds():
+    report, _ = check()
+    lat = report.usb_latency_ms
+    assert lat["median"] == pytest.approx(55, abs=1)
+    assert lat["min"] == pytest.approx(55, abs=1) and lat["max"] == pytest.approx(55, abs=1)
+    # 3D fix from 5 s on; one solution in five is on a full second and left out.
+    fixed = report.counts["NAV-PVT"] - 25
+    assert lat["n"] == pytest.approx(0.8 * fixed, abs=3)
+    assert "USB latency: median 55 ms" in format_report(report, *verdict(report))
+
+
+def test_usb_latency_against_an_ntp_clock_is_compared_with_chrony():
+    report, _ = check(latency_ms=70)
+    report.clock_reference = "ntp.example"
+    assert verdict(report)[1] == [
+        f"USB latency 70 ms differs from the chrony offset {CHRONY_USB_OFFSET_MS} ms"
+    ]
+    # Against the receiver itself (GNSS, PPS) or an unknown clock it means nothing.
+    for ref in ("GNSS", "PPS", None):
+        report.clock_reference = ref
+        assert verdict(report) == ([], [])
+    report.clock_reference = "ntp.example"
+    report.usb_latency_ms["median"] = 58.0
+    assert verdict(report) == ([], [])
+
+
+def test_no_fix_no_latency():
+    report, _ = check(fix_after_s=None)
+    assert report.usb_latency_ms is None
 
 
 def test_raw_stream_is_copied(tmp_path):

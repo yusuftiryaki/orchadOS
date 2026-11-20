@@ -58,7 +58,7 @@ enum CarrierSolution {
 enum KitCheck {
   lidar(0x01, 'lidar', 'LiDAR'),
   lidarMode(0x02, 'lidar_mode', 'LiDAR kipi'),
-  clock(0x04, 'clock', 'Saat (PPS)'),
+  clock(0x04, 'clock', 'Saat'),
   ssd(0x08, 'ssd', 'SSD'),
   gnss(0x10, 'gnss', 'GNSS alıcısı');
 
@@ -132,8 +132,9 @@ enum LidarMode {
 enum KitClock {
   unlocked,
 
-  /// Set from the receiver's USB time only (tens of ms).
-  coarse,
+  /// Locked to the receiver's USB time, latency corrected (a few ms); the
+  /// kit without the PPS wire.
+  usb,
 
   /// Locked to the receiver's PPS by chrony.
   pps;

@@ -136,7 +136,7 @@ class Recorder:
         self.longest_gap_s = 0
         self._points_total = 0
         self._imu_total = 0
-        self._session_pps = False
+        self._session_locked = False
         self._session_meta: dict = {}
         # ros2 bag supervision: when the process (re)started, the next restart
         # time while it is dead, and how many restarts in a row came too soon.
@@ -165,7 +165,7 @@ class Recorder:
     def _now(self) -> TimeStamp:
         mono = self.clock.now_mono_us()
         gps = None
-        if self.clock_state == ClockState.PPS:
+        if self.clock_state.locked:
             gps = unix_ns_to_gps_ns(self.clock.now_unix_ns())
         return TimeStamp(mono, gps)
 
@@ -296,9 +296,10 @@ class Recorder:
         self.alerts, events = self.health.update(snap)
         self.gap_count = self.health.gap_count
         self.longest_gap_s = self.health.longest_gap_s
-        locked = self.clock_state == ClockState.PPS
-        if locked != self._session_pps:
-            self._session_pps = locked
+        # pps_lost / pps_regained: the clock's lock (PPS or USB time), docs/arayuzler.md.
+        locked = self.clock_state.locked
+        if locked != self._session_locked:
+            self._session_locked = locked
             events.append(("pps_regained" if locked else "pps_lost", ""))
         for event_type, payload in events:
             if not self._event(event_type, payload):
@@ -425,7 +426,7 @@ class Recorder:
         self.longest_gap_s = 0
         self._points_total = 0
         self._imu_total = 0
-        self._session_pps = self.clock_state == ClockState.PPS
+        self._session_locked = self.clock_state.locked
         self._session_meta = {
             "session_id": cmd.session_id,
             "parcel_id": cmd.parcel_id,
@@ -555,7 +556,7 @@ class Recorder:
 
     def status(self) -> bytes:
         pvt = self.receiver.last_pvt
-        locked = self.clock_state == ClockState.PPS
+        locked = self.clock_state.locked
         sd_error = self.ssd.error or self._write_error_us is not None
         flags = Flag(0)
         if self.ssd.present:

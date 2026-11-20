@@ -39,7 +39,7 @@ class Snapshot:
     ssd: SsdStatus
     bag_bytes: int  # MCAP bytes written so far in this session
     bag_alive: bool
-    gps_ns: int | None = None  # GPS time at mono_us, with the clock locked to PPS
+    gps_ns: int | None = None  # GPS time at mono_us, with the clock locked (PPS or USB time)
 
 
 def _silent(last: int | None, now: int, limit_s: float) -> bool:
@@ -56,7 +56,7 @@ def precheck_failures(s: Snapshot) -> Check:
         fails |= Check.LIDAR
     if s.lidar_mode == "wrong":  # unknown passes: the SDK may not report the mode
         fails |= Check.LIDAR_MODE
-    if s.clock != ClockState.PPS:
+    if not s.clock.locked:
         fails |= Check.CLOCK
     if not ssd_check_ok(s.ssd):
         fails |= Check.SSD
@@ -162,7 +162,7 @@ class LiveHealth:
             self._gnss_lost = False
             events.append(("gnss_regained", ""))
 
-        if s.clock != ClockState.PPS:
+        if not s.clock.locked:
             alerts |= Alert.CLOCK_UNLOCKED
         if not s.ssd.present or s.ssd.error:
             alerts |= Alert.SSD_ERROR

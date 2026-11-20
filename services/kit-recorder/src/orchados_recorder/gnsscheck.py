@@ -11,11 +11,19 @@ The verdict (docs/kit-siparis-listesi.md, "Doğrulanacaklar"):
   RXM-RAWX below 90 % of their rate, no RXM-SFRBX, no 3D fix, no satellite
   with carrier phase on the second band;
 - warn: fewer than `min_dual` satellites with carrier phase on both bands at
-  best (sky partly blocked, or a weak antenna), first 3D fix later than 120 s.
+  best (sky partly blocked, or a weak antenna), first 3D fix later than 120 s;
+  with the system clock on an NTP server, a USB latency more than 5 ms away from
+  chrony's `offset` for the receiver (CHRONY_USB_OFFSET_MS).
+
+USB latency: the system time at which a NAV-PVT is read minus its epoch's UTC,
+over 3D-fix solutions off the full second (those wait for RXM-RAWX). It is the
+receiver's delay only when the system clock is right, i.e. set by NTP; against
+the receiver itself (chrony on GNSS or PPS) it measures nothing.
 """
 
 from __future__ import annotations
 
+import statistics
 import time
 from collections import Counter
 from collections.abc import Callable
@@ -23,6 +31,7 @@ from dataclasses import asdict, dataclass, field
 from typing import BinaryIO
 
 from .receiver import NAV_PVT_RATE_HZ, RAWX_RATE_HZ, USB_CONFIG, Transport
+from .thresholds import CHRONY_USB_OFFSET_MS
 from .ubx import (
     CLASS_CFG,
     CLASS_NAV,
@@ -51,6 +60,8 @@ POLL_TIMEOUT_S = 2.0
 RATE_MARGIN = 0.9
 SLOW_FIX_S = 120.0
 DEFAULT_MIN_DUAL = 10
+LATENCY_TOLERANCE_MS = 5
+RECEIVER_REFERENCES = ("GNSS", "PPS")  # chrony references that are the receiver itself
 
 GNSS = {0: "GPS", 1: "SBAS", 2: "GAL", 3: "BDS", 5: "QZSS", 6: "GLO"}
 # (gnssId, sigId) -> signal (u-blox F9P interface description, signal identifiers).
@@ -166,6 +177,8 @@ class Report:
     dual_band_last: int = 0
     phase_first_last: int = 0
     phase_second_last: int = 0
+    usb_latency_ms: dict | None = None  # median, min, max, n
+    clock_reference: str | None = None  # chrony's reference, set by the caller
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -174,28 +187,40 @@ class Report:
 class _Reader:
     """Reads the transport against a clock, frames UBX and copies raw bytes to `raw`."""
 
-    def __init__(self, transport: Transport, now: Callable[[], float], raw: BinaryIO | None):
+    def __init__(
+        self,
+        transport: Transport,
+        now: Callable[[], float],
+        raw: BinaryIO | None,
+        wall: Callable[[], int] = time.time_ns,
+    ):
         self.transport = transport
         self.now = now
         self.raw = raw
+        self.wall = wall
         self.framer = Framer()
+        # System time (Unix ns) at which each message of the last read_for was read.
+        self.walls: list[int] = []
 
     def read_for(
         self, seconds: float, until: Callable[[UbxMessage], bool] | None = None
     ) -> tuple[list[UbxMessage], int]:
         """Messages and NMEA sentences read for `seconds`, or up to the first `until`."""
         msgs: list[UbxMessage] = []
+        self.walls = []
         nmea = 0
         end = self.now() + seconds
         while self.now() < end:
             data = self.transport.read(4096)
             if not data:
                 continue
+            rx_ns = self.wall()
             nmea += data.count(b"$G")
             if self.raw is not None:
                 self.raw.write(data)
             for m in self.framer.feed(data):
                 msgs.append(m)
+                self.walls.append(rx_ns)
                 if until is not None and until(m):
                     return msgs, nmea
         return msgs, nmea
@@ -226,9 +251,10 @@ def run_check(
     *,
     raw: BinaryIO | None = None,
     now: Callable[[], float] = time.monotonic,
+    wall: Callable[[], int] = time.time_ns,
 ) -> Report:
     report = Report(seconds=seconds)
-    r = _Reader(transport, now, raw)
+    r = _Reader(transport, now, raw, wall)
 
     msgs, report.default_nmea = r.read_for(DEFAULT_OUTPUT_S)
     report.default_ubx = len(msgs)
@@ -241,10 +267,11 @@ def run_check(
         return report
 
     counts: Counter = Counter()
+    latencies: list[float] = []
     start = now()
     while now() - start < seconds:
         msgs, _ = r.read_for(min(1.0, seconds - (now() - start)))
-        for m in msgs:
+        for m, rx_ns in zip(msgs, r.walls, strict=True):
             key = (m.cls, m.msg_id)
             if key in MESSAGE_NAMES:
                 counts[MESSAGE_NAMES[key]] += 1
@@ -253,6 +280,9 @@ def run_check(
                 if pvt.gnss_fix_ok and pvt.fix_type in (3, 4):
                     if report.first_fix_s is None:
                         report.first_fix_s = round(now() - start, 1)
+                    utc_ns = pvt.utc_unix_ns()
+                    if utc_ns is not None and pvt.i_tow_ms % 1000:
+                        latencies.append((rx_ns - utc_ns) / 1e6)
                     report.max_used_sv = max(report.max_used_sv, pvt.num_sv)
                 report.last_fix = {
                     "fix": FIX_TYPES.get(pvt.fix_type, str(pvt.fix_type)),
@@ -280,6 +310,13 @@ def run_check(
                 report.phase_second_last = len(second)
 
     report.counts = dict(counts)
+    if latencies:
+        report.usb_latency_ms = {
+            "median": round(statistics.median(latencies), 1),
+            "min": round(min(latencies), 1),
+            "max": round(max(latencies), 1),
+            "n": len(latencies),
+        }
     report.checksum_errors = r.framer.checksum_errors
     # Leave the receiver as the recorder configures it: NAV-SIG off again.
     r.valset([(CFG_MSGOUT_NAV_SIG_USB, 0, 1)])
@@ -308,6 +345,17 @@ def verdict(report: Report, min_dual: int = DEFAULT_MIN_DUAL) -> tuple[list[str]
         fails.append("no 3D fix (antenna connected and under open sky?)")
     elif report.first_fix_s > SLOW_FIX_S:
         warns.append(f"first 3D fix after {report.first_fix_s:.0f} s")
+    lat = report.usb_latency_ms
+    if (
+        lat is not None
+        and report.clock_reference
+        and report.clock_reference not in RECEIVER_REFERENCES
+        and abs(lat["median"] - CHRONY_USB_OFFSET_MS) > LATENCY_TOLERANCE_MS
+    ):
+        warns.append(
+            f"USB latency {lat['median']:.0f} ms differs from the chrony offset "
+            f"{CHRONY_USB_OFFSET_MS} ms"
+        )
     if report.dual_band_best == 0:
         fails.append("no satellite with carrier phase on the second band (L2/E5b)")
     elif report.dual_band_best < min_dual:
@@ -344,6 +392,14 @@ def format_report(report: Report, fails: list[str], warns: list[str]) -> str:
             lines.append(
                 f"last: {f['fix']}, {f['num_sv']} satellites, hAcc {f['h_acc_m']} m, "
                 f"carrSoln {f['carr_soln']}, UTC {f['utc']}"
+            )
+        if report.usb_latency_ms:
+            lat = report.usb_latency_ms
+            ref = report.clock_reference or "unknown"
+            lines.append(
+                f"USB latency: median {lat['median']:.0f} ms ({lat['min']:.0f}-{lat['max']:.0f}, "
+                f"n {lat['n']}) against the system clock (chrony reference: {ref}; "
+                f"meaningful only with an NTP server); chrony offset {CHRONY_USB_OFFSET_MS} ms"
             )
         lines.append(
             f"carrier phase, last epoch: {report.phase_first_last} satellites on the first band, "

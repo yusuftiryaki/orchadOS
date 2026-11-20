@@ -37,6 +37,8 @@ bool gnssReady(GnssStatus s) =>
 
 Health gnssHealth(GnssStatus s) {
   if (!gnssReady(s) || !kitCheckOk(s, KitCheck.gnss)) return Health.bad;
+  // The kit usually has no PPS wire: its clock is judged on its own row.
+  if (s.isKit) return Health.ok;
   return s.ppsState == PpsState.locked ? Health.ok : Health.warn;
 }
 
@@ -122,15 +124,14 @@ String lidarModeLabel(GnssStatus s) => switch (s.kit?.lidarMode) {
 };
 
 Health clockHealth(GnssStatus s) => switch (s.kit?.clock) {
-  KitClock.pps => Health.ok,
-  KitClock.coarse => Health.warn,
+  KitClock.pps || KitClock.usb => Health.ok,
   _ => Health.bad,
 };
 
-/// "GPS'e kilitli", "Kaba (PPS yok)" or "Kilitsiz".
+/// "GPS'e kilitli", "USB (PPS yok)" or "Kilitsiz".
 String clockLabel(GnssStatus s) => switch (s.kit?.clock) {
   KitClock.pps => "GPS'e kilitli",
-  KitClock.coarse => 'Kaba (PPS yok)',
+  KitClock.usb => 'USB (PPS yok)',
   KitClock.unlocked || null => 'Kilitsiz',
 };
 

@@ -647,7 +647,7 @@ void main() {
       tester,
       inventory: false,
       kit: const KitStatus(
-        clock: KitClock.coarse,
+        clock: KitClock.unlocked,
         precheckFail: [KitCheck.clock],
         alerts: [KitAlert.clockUnlocked],
       ),
@@ -676,7 +676,7 @@ void main() {
 
     // Any other alert still sounds.
     h.logger.kit = const KitStatus(
-      clock: KitClock.coarse,
+      clock: KitClock.unlocked,
       alerts: [KitAlert.clockUnlocked, KitAlert.ssdLow],
     );
     await statusArrives(tester);
