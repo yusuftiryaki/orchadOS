@@ -158,7 +158,10 @@ install_ros() {
   else
     note "ROS 2 apt source already there"
   fi
-  apt-get install -y -q ros-jazzy-ros-base ros-jazzy-rosbag2-storage-mcap ros-dev-tools
+  # pcl-conversions and libpcl-dev: the L2 driver's build dependencies (its
+  # package.xml), not in ros-base.
+  apt-get install -y -q ros-jazzy-ros-base ros-jazzy-rosbag2-storage-mcap ros-dev-tools \
+    ros-jazzy-pcl-conversions libpcl-dev
 }
 
 install_uv() {

@@ -314,3 +314,10 @@ def test_chrony_is_not_restarted_before_the_pps_device_exists(tmp_path):
     # appears once the overlay is loaded after the reboot.
     assert "restart chrony" not in _run_configure_chrony(tmp_path, pps_present=False)
     assert "restart chrony" in _run_configure_chrony(tmp_path, pps_present=True)
+
+
+def test_install_brings_the_l2_driver_build_dependencies():
+    # unitree_lidar_ros2's package.xml depends on pcl_conversions and pcl, which
+    # ros-base does not carry; colcon stopped at find_package(pcl_conversions).
+    ros = _shell_function((SETUP / "install.sh").read_text(), "install_ros")
+    assert "ros-jazzy-pcl-conversions" in ros and "libpcl-dev" in ros
