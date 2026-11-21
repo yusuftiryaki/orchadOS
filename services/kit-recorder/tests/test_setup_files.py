@@ -245,3 +245,44 @@ def test_lidar_address_does_not_claim_the_whole_subnet():
     assert "192.168.1.2/32" in netplan
     assert "192.168.1.2/24" not in netplan
     assert re.search(r"- to: 192\.168\.1\.62/32\s+scope: link", netplan)
+
+
+SOURCES_WITHOUT_UPDATES = """\
+Types: deb
+URIs: http://ports.ubuntu.com/ubuntu-ports/
+Suites: noble
+Components: main restricted universe multiverse
+
+Types: deb
+URIs: http://ports.ubuntu.com/ubuntu-ports/
+Suites: noble-security
+Components: main restricted universe multiverse
+"""
+
+
+def _run_ensure_updates_pocket(sources: Path) -> int:
+    script = (SETUP / "install.sh").read_text()
+    body = (
+        "set -euo pipefail\n"
+        "note() { :; }\n"
+        f"{_shell_function(script, 'ensure_updates_pocket')}"
+        'ensure_updates_pocket "$1"\n'
+    )
+    return subprocess.run(["bash", "-c", body, "x", str(sources)]).returncode
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="no bash")
+def test_install_adds_the_updates_pocket_when_the_image_lacks_it(tmp_path):
+    # A Pi image shipped without noble-updates: noble-security had raised libzstd1
+    # past the libzstd-dev that ROS needs, and apt could not install ros-base.
+    sources = tmp_path / "ubuntu.sources"
+    sources.write_text(SOURCES_WITHOUT_UPDATES)
+    assert _run_ensure_updates_pocket(sources) == 0
+    text = sources.read_text()
+    assert "Suites: noble noble-updates\n" in text
+    assert "Suites: noble-security\n" in text
+    # Again: nothing changes.
+    assert _run_ensure_updates_pocket(sources) == 0
+    assert sources.read_text() == text
+    # A missing file (sources elsewhere) is left alone.
+    assert _run_ensure_updates_pocket(tmp_path / "none.sources") == 0

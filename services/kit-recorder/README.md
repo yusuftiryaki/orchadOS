@@ -94,7 +94,7 @@ sudo reboot
 
 Betik sırayla şunları yapar; her adım zaten yapılmışsa atlanır, ikinci çalıştırma bir şeyi bozmaz:
 
-1. Paketler: `chrony`, `pps-tools`, `bluez`, derleme araçları.
+1. Paketler: `chrony`, `pps-tools`, `bluez`, derleme araçları. Paket kaynaklarında `noble-updates` yoksa eklenir: bazı Pi imajlarında eksik, o zaman güvenlik güncellemeleri ROS'un istediği `-dev` paketlerinin önüne geçer ve `ros-base` kurulamaz (21 Kasım 2026, ilk Pi).
 2. ROS 2 Jazzy (`ros-jazzy-ros-base`, MCAP depolama eklentisi, `ros-dev-tools`).
 3. `uv` (sürümü betikte sabit).
 4. Servis `/opt/orchados/kit-recorder`'a kopyalanır. Sanal ortam sistem Python'u (3.12) ve `--system-site-packages` ile kurulur, çünkü `rclpy` `/opt/ros`'tan gelir.

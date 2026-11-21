@@ -117,9 +117,22 @@ check_system() {
   fi
 }
 
+# ensure_updates_pocket FILE: some Pi images list noble and noble-security but not
+# noble-updates; security fixes then outrun the -dev packages ROS needs (libzstd1
+# vs libzstd-dev) and apt cannot install ros-base.
+ensure_updates_pocket() {
+  local file=$1
+  [[ -f $file ]] || return 0
+  if grep -qx 'Suites: noble' "$file"; then
+    sed -i 's/^Suites: noble$/Suites: noble noble-updates/' "$file"
+    note "added noble-updates to $file"
+  fi
+}
+
 install_packages() {
   log "System packages"
   export DEBIAN_FRONTEND=noninteractive
+  ensure_updates_pocket /etc/apt/sources.list.d/ubuntu.sources
   apt-get update -q
   apt-get install -y -q chrony pps-tools bluez rfkill rsync git curl ca-certificates \
     build-essential cmake software-properties-common
