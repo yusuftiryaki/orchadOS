@@ -235,3 +235,13 @@ def test_unilidar_patches_applied(tmp_path):
     assert header.read_text() == patched
     header.write_text("something else\n")
     assert run() != 0
+
+
+def test_lidar_address_does_not_claim_the_whole_subnet():
+    # Wi-Fi networks are often 192.168.1.0/24 too. A /24 on eth0 would send the
+    # whole LAN (SSH, the phone's network, the gateway) out of the L2's cable once
+    # it has a link; only the L2 itself is routed there.
+    netplan = (SETUP / "netplan-orchados-lidar.yaml").read_text()
+    assert "192.168.1.2/32" in netplan
+    assert "192.168.1.2/24" not in netplan
+    assert re.search(r"- to: 192\.168\.1\.62/32\s+scope: link", netplan)
