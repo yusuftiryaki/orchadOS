@@ -194,6 +194,7 @@ install_recorder() {
 
   install_once "$SRC/config/recorder.toml" "$ETC/recorder.toml"
   install_once "$SETUP/unilidar.env" "$ETC/unilidar.env"
+  install_once "$SETUP/unilidar-params.yaml" "$ETC/unilidar-params.yaml"
 }
 
 configure_boot() {

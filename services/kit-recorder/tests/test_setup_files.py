@@ -321,3 +321,36 @@ def test_install_brings_the_l2_driver_build_dependencies():
     # ros-base does not carry; colcon stopped at find_package(pcl_conversions).
     ros = _shell_function((SETUP / "install.sh").read_text(), "install_ros")
     assert "ros-jazzy-pcl-conversions" in ros and "libpcl-dev" in ros
+
+
+def test_lidar_driver_runs_the_node_alone_with_our_parameters():
+    # The upstream launch.py also starts rviz2, which ros-base lacks: the launch
+    # failed on the Pi. The node's built-in defaults swap the two addresses, so
+    # every parameter comes from our file.
+    env = (SETUP / "unilidar.env").read_text()
+    cmd = next(line for line in env.splitlines() if line.startswith("UNILIDAR_CMD="))
+    assert "launch" not in cmd
+    assert cmd.split("=", 1)[1].split() == [
+        "ros2", "run", "unitree_lidar_ros2", "unitree_lidar_ros2_node",
+        "--ros-args", "--params-file", "/etc/orchados/unilidar-params.yaml",
+    ]
+    params = (SETUP / "unilidar-params.yaml").read_text()
+    script = (SETUP / "install.sh").read_text()
+    assert '"$SETUP/unilidar-params.yaml" "$ETC/unilidar-params.yaml"' in script
+    for line in (
+        "lidar_ip: 192.168.1.62",
+        "local_ip: 192.168.1.2",
+        "lidar_port: 6101",
+        "local_port: 6201",
+        "initialize_type: 2",  # UDP
+        "use_system_timestamp: true",
+        "cloud_topic: unilidar/cloud",
+        "imu_topic: unilidar/imu",
+    ):
+        assert re.search(rf"^\s+{re.escape(line)}(\s+#.*)?$", params, re.M), line
+    # Work mode bit 0: the wide 192 deg field of view ("negatif açı kipi",
+    # docs/tarama-kiti.md); Ethernet, 3D, IMU on, self-start are the zero bits.
+    mode = int(re.search(r"^\s+work_mode: (\d+)$", params, re.M).group(1))
+    assert mode == 1
+    toml = (ROOT / "config/recorder.toml").read_text()
+    assert 'points_topic = "/unilidar/cloud"' in toml and 'imu_topic = "/unilidar/imu"' in toml

@@ -55,7 +55,7 @@ Port bulunamazsa çıkış 2. `--json` raporu JSON olarak basar; `--out` ham UBX
 | `setup/install.sh` | — | Kurulum betiği; tekrar çalıştırılabilir |
 | `config/recorder.toml` | `/etc/orchados/recorder.toml` | Servis ayarları; bir kez kopyalanır, sonra elle düzenlenir |
 | `setup/orchados-recorder.service` | `/etc/systemd/system/` | Kayıt servisi; `Restart=always` |
-| `setup/unilidar.service`, `setup/unilidar.env` | `/etc/systemd/system/`, `/etc/orchados/unilidar.env` | L2'nin ROS 2 sürücüsü; komutu `unilidar.env`'de |
+| `setup/unilidar.service`, `setup/unilidar.env`, `setup/unilidar-params.yaml` | `/etc/systemd/system/`, `/etc/orchados/` | L2'nin ROS 2 sürücüsü; komutu `unilidar.env`'de, parametreleri `unilidar-params.yaml`'da |
 | `setup/patches/unilidar_sdk2-*.patch` | `/opt/orchados/ros2_ws/src/unilidar_sdk2`'e uygulanır | L2 sürücüsünün IMU hatalarına iki yama (aşağıda, "L2 sürücüsü") |
 | `setup/orchados-ros-exec` | `/usr/local/bin/` | Bir komutu ROS 2 Jazzy ortamında çalıştırır (iki servis de bunu kullanır) |
 | `setup/chrony-orchados.conf` | `/etc/chrony/conf.d/orchados.conf` | Saat: alıcının USB zamanı; PPS teli takılıysa PPS |
@@ -98,7 +98,7 @@ Betik sırayla şunları yapar; her adım zaten yapılmışsa atlanır, ikinci �
 2. ROS 2 Jazzy (`ros-jazzy-ros-base`, MCAP depolama eklentisi, `ros-dev-tools`).
 3. `uv` (sürümü betikte sabit).
 4. Servis `/opt/orchados/kit-recorder`'a kopyalanır. Sanal ortam sistem Python'u (3.12) ve `--system-site-packages` ile kurulur, çünkü `rclpy` `/opt/ros`'tan gelir.
-5. `/etc/orchados/recorder.toml` ve `/etc/orchados/unilidar.env`: yoksa kopyalanır, varsa dokunulmaz.
+5. `/etc/orchados/recorder.toml`, `unilidar.env` ve `unilidar-params.yaml`: yoksa kopyalanır, varsa dokunulmaz.
 6. `/boot/firmware/config.txt`: PPS overlay'i ve USB akım ayarı, işaretli bir blok olarak. Yeniden başlatma gerekir.
 7. chrony: `conf.d/orchados.conf`. Ubuntu'nun kendi `makestep` satırı yorum yapılır, çünkü dosyada sonra geldiği için bizimkini ezerdi.
 8. Bluetooth açılır.
@@ -181,7 +181,8 @@ Kitin saati alıcıdan gelir; PPS teli şart değildir (sahip, 20 Kasım 2026; [
 
   Yama zaten uygulanmışsa atlanır; ne uygulanıyor ne de uygulanmış görünüyorsa (kaynak başka) derleme yapılmaz. Kurulum, derlemenin hangi commit ve yamalarla yapıldığını `/opt/orchados/ros2_ws/install/.orchados-unilidar`'a yazar; ikisinden biri değişince sürücü yeniden derlenir. Commit ilerletilecekse yamalar yeni commit'e karşı yeniden üretilir ve upstream'de birleşmiş olanlar listeden çıkarılır.
 - Yeniden derlemek için: `sudo rm -rf /opt/orchados/ros2_ws/install /opt/orchados/ros2_ws/build && sudo services/kit-recorder/setup/install.sh`.
-- Başlatma komutu `/etc/orchados/unilidar.env`'deki `UNILIDAR_CMD`'dir; varsayılanı `ros2 launch unitree_lidar_ros2 launch.py`. Sürücünün launch dosyası rviz de başlatıyorsa (ros-base'de rviz yok, launch başarısız olur) komut, yalnız sürücü düğümünü çalıştıran bir komutla değiştirilir ve `sudo systemctl restart unilidar` yapılır. **Donanımda doğrulanır.**
+- Başlatma komutu `/etc/orchados/unilidar.env`'deki `UNILIDAR_CMD`'dir: yalnız sürücü düğümü, `ros2 run unitree_lidar_ros2 unitree_lidar_ros2_node --ros-args --params-file /etc/orchados/unilidar-params.yaml`. Upstream'in `launch.py`'si rviz2'yi de açıyor; ros-base'de rviz2 olmadığı için ilk Pi'da launch başarısız oldu (21 Kasım 2026).
+- Parametreler `/etc/orchados/unilidar-params.yaml`'dadır ve hepsi açıkça yazılır, çünkü düğümün kendi varsayılanlarında `lidar_ip` ile `local_ip` yer değiştirmiş. `work_mode: 1` (bit 0): 192°'lik geniş görüş, yani negatif açı kipi ([tarama-kiti.md](../../docs/tarama-kiti.md)); düğüm bunu her açılışta L2'ye yazar. Kipin yeniden başlatma gerekmeden geçip geçmediği ve L2'nin taban düzleminin altını gördüğü **masada doğrulanır**. Değiştirdikten sonra `sudo systemctl restart unilidar`.
 - Ağ: L2 Ethernet'ten UDP ile gönderir. Fabrika adresleri L2 `192.168.1.62`, bilgisayar `192.168.1.2` kabul edildi; netplan dosyası Pi'a `192.168.1.2/32`'yi ve yalnız `192.168.1.62`'ye giden yolu ekler. Bütün `/24` verilmez: Pi'ın Wi-Fi'ı da çoğu evde ve ofiste `192.168.1.0/24`'tür; o zaman L2'nin kablosu takılınca SSH ve ağ geçidi trafiği de o kabloya giderdi. **Donanımda doğrulanır**; farklıysa netplan dosyası ve sürücünün parametreleri düzeltilir.
 - Konular: `/unilidar/cloud` (`PointCloud2`) ve `/unilidar/imu` (`Imu`); servis bunları ve ham UBX'i (`/orchados/gnss_ubx`) kaydeder. Denetim: `orchados-ros-exec ros2 topic hz /unilidar/cloud`. Adlar farklıysa `/etc/orchados/recorder.toml`'daki `[lidar]` ve bu belge düzeltilir.
 - Masa kontrolleri (IMU; LiDAR kayıt adımı IMU'ya dayanır, plan Task 17 Step 3). **Donanımda doğrulanır**; ölçülen değerler buraya yazılır:
