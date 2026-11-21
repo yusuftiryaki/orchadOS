@@ -2,6 +2,9 @@
 # fixed host address on its Ethernet (factory default: L2 192.168.1.62, host
 # 192.168.1.2; checked on the hardware, README "L2 sürücüsü"). DHCP stays on so
 # the same port still works on an office network during installation.
+# The address is a /32 with a route to the L2 alone: the Pi's Wi-Fi is often on
+# 192.168.1.0/24 as well, and a /24 here would pull that whole network (SSH, the
+# gateway) onto the L2's cable as soon as it has a link.
 network:
   version: 2
   ethernets:
@@ -9,4 +12,7 @@ network:
       dhcp4: true
       optional: true
       addresses:
-        - 192.168.1.2/24
+        - 192.168.1.2/32
+      routes:
+        - to: 192.168.1.62/32
+          scope: link

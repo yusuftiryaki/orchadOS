@@ -1,0 +1,22 @@
+# Parameters of the Unitree L2 ROS 2 node, installed once as
+# /etc/orchados/unilidar-params.yaml (unilidar.env passes it). Every value is
+# set here: the node's own defaults swap lidar_ip and local_ip.
+/**:
+  ros__parameters:
+    initialize_type: 2  # 2: UDP over Ethernet, 1: serial
+    # Written to the L2 at every start. Bit 0 = 1: the wide 192 deg field of
+    # view that reaches 6 deg below the base ("negatif açı kipi",
+    # docs/tarama-kiti.md). Bits 1-4 at 0: 3D, IMU on, Ethernet, self-start.
+    work_mode: 1
+    use_system_timestamp: true
+    range_min: 0.0
+    range_max: 100.0
+    cloud_scan_num: 18
+    lidar_ip: 192.168.1.62
+    lidar_port: 6101
+    local_ip: 192.168.1.2
+    local_port: 6201
+    cloud_frame: unilidar_lidar
+    cloud_topic: unilidar/cloud
+    imu_frame: unilidar_imu
+    imu_topic: unilidar/imu

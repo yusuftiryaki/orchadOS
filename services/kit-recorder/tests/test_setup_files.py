@@ -235,3 +235,146 @@ def test_unilidar_patches_applied(tmp_path):
     assert header.read_text() == patched
     header.write_text("something else\n")
     assert run() != 0
+
+
+def test_lidar_address_does_not_claim_the_whole_subnet():
+    # Wi-Fi networks are often 192.168.1.0/24 too. A /24 on eth0 would send the
+    # whole LAN (SSH, the phone's network, the gateway) out of the L2's cable once
+    # it has a link; only the L2 itself is routed there.
+    netplan = (SETUP / "netplan-orchados-lidar.yaml").read_text()
+    assert "192.168.1.2/32" in netplan
+    assert "192.168.1.2/24" not in netplan
+    assert re.search(r"- to: 192\.168\.1\.62/32\s+scope: link", netplan)
+
+
+SOURCES_WITHOUT_UPDATES = """\
+Types: deb
+URIs: http://ports.ubuntu.com/ubuntu-ports/
+Suites: noble
+Components: main restricted universe multiverse
+
+Types: deb
+URIs: http://ports.ubuntu.com/ubuntu-ports/
+Suites: noble-security
+Components: main restricted universe multiverse
+"""
+
+
+def _run_ensure_updates_pocket(sources: Path) -> int:
+    script = (SETUP / "install.sh").read_text()
+    body = (
+        "set -euo pipefail\n"
+        "note() { :; }\n"
+        f"{_shell_function(script, 'ensure_updates_pocket')}"
+        'ensure_updates_pocket "$1"\n'
+    )
+    return subprocess.run(["bash", "-c", body, "x", str(sources)]).returncode
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="no bash")
+def test_install_adds_the_updates_pocket_when_the_image_lacks_it(tmp_path):
+    # A Pi image shipped without noble-updates: noble-security had raised libzstd1
+    # past the libzstd-dev that ROS needs, and apt could not install ros-base.
+    sources = tmp_path / "ubuntu.sources"
+    sources.write_text(SOURCES_WITHOUT_UPDATES)
+    assert _run_ensure_updates_pocket(sources) == 0
+    text = sources.read_text()
+    assert "Suites: noble noble-updates\n" in text
+    assert "Suites: noble-security\n" in text
+    # Again: nothing changes.
+    assert _run_ensure_updates_pocket(sources) == 0
+    assert sources.read_text() == text
+    # A missing file (sources elsewhere) is left alone.
+    assert _run_ensure_updates_pocket(tmp_path / "none.sources") == 0
+
+
+def _run_configure_chrony(tmp_path: Path, pps_present: bool) -> str:
+    """configure_chrony with systemctl and install_file stubbed; returns the calls."""
+    script = (SETUP / "install.sh").read_text()
+    pps = tmp_path / "pps0"
+    if pps_present:
+        pps.touch()
+    calls = tmp_path / "calls"
+    body = (
+        "set -euo pipefail\n"
+        f"SETUP={SETUP}\nCHRONY_CONF={tmp_path / 'chrony.conf'}\nPPS_DEV={pps}\n"
+        "log() { :; }\nnote() { :; }\nwarn() { :; }\n"
+        "install_file() { return 0; }\n"
+        f'systemctl() {{ echo "systemctl $*" >> {calls}; }}\n'
+        f"{_shell_function(script, 'configure_chrony')}"
+        "configure_chrony\n"
+    )
+    subprocess.run(["bash", "-c", body], check=True)
+    return calls.read_text() if calls.exists() else ""
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="no bash")
+def test_chrony_is_not_restarted_before_the_pps_device_exists(tmp_path):
+    # chronyd exits on a refclock PPS whose device is missing, and /dev/pps0 only
+    # appears once the overlay is loaded after the reboot.
+    assert "restart chrony" not in _run_configure_chrony(tmp_path, pps_present=False)
+    assert "restart chrony" in _run_configure_chrony(tmp_path, pps_present=True)
+
+
+def test_install_brings_the_l2_driver_build_dependencies():
+    # unitree_lidar_ros2's package.xml depends on pcl_conversions and pcl, which
+    # ros-base does not carry; colcon stopped at find_package(pcl_conversions).
+    ros = _shell_function((SETUP / "install.sh").read_text(), "install_ros")
+    assert "ros-jazzy-pcl-conversions" in ros and "libpcl-dev" in ros
+
+
+def test_lidar_driver_runs_the_node_alone_with_our_parameters():
+    # The upstream launch.py also starts rviz2, which ros-base lacks: the launch
+    # failed on the Pi. The node's built-in defaults swap the two addresses, so
+    # every parameter comes from our file.
+    env = (SETUP / "unilidar.env").read_text()
+    cmd = next(line for line in env.splitlines() if line.startswith("UNILIDAR_CMD="))
+    assert "launch" not in cmd
+    assert cmd.split("=", 1)[1].split() == [
+        "ros2", "run", "unitree_lidar_ros2", "unitree_lidar_ros2_node",
+        "--ros-args", "--params-file", "/etc/orchados/unilidar-params.yaml",
+    ]
+    params = (SETUP / "unilidar-params.yaml").read_text()
+    script = (SETUP / "install.sh").read_text()
+    assert '"$SETUP/unilidar-params.yaml" "$ETC/unilidar-params.yaml"' in script
+    for line in (
+        "lidar_ip: 192.168.1.62",
+        "local_ip: 192.168.1.2",
+        "lidar_port: 6101",
+        "local_port: 6201",
+        "initialize_type: 2",  # UDP
+        "use_system_timestamp: true",
+        "cloud_topic: unilidar/cloud",
+        "imu_topic: unilidar/imu",
+    ):
+        assert re.search(rf"^\s+{re.escape(line)}(\s+#.*)?$", params, re.M), line
+    # Work mode bit 0: the wide 192 deg field of view ("negatif açı kipi",
+    # docs/tarama-kiti.md); Ethernet, 3D, IMU on, self-start are the zero bits.
+    mode = int(re.search(r"^\s+work_mode: (\d+)$", params, re.M).group(1))
+    assert mode == 1
+    toml = (ROOT / "config/recorder.toml").read_text()
+    assert 'points_topic = "/unilidar/cloud"' in toml and 'imu_topic = "/unilidar/imu"' in toml
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="no bash")
+def test_ros_exec_gives_ros_a_log_directory_without_home(tmp_path):
+    # systemd units have no HOME; rcl's default log directory is ~/.ros/log, so
+    # the L2 node aborted at start ("Failed to get logging directory").
+    ros_setup = tmp_path / "setup.bash"
+    ros_setup.write_text("")
+    wrapper = tmp_path / "orchados-ros-exec"
+    text = (SETUP / "orchados-ros-exec").read_text()
+    assert "/opt/ros/jazzy/setup.bash" in text
+    wrapper.write_text(text.replace("/opt/ros/jazzy/setup.bash", str(ros_setup)))
+    log_root = tmp_path / "run"
+    env = {"PATH": "/usr/bin:/bin", "ORCHADOS_ROS_WS": str(tmp_path / "ws"),
+           "ORCHADOS_RUN_DIR": str(log_root)}
+    out = subprocess.run(["bash", str(wrapper), "printenv", "ROS_LOG_DIR"],
+                         env=env, capture_output=True, text=True, check=True).stdout.strip()
+    assert out == str(log_root / "ros-log")
+    assert (log_root / "ros-log").is_dir()
+    # An explicit ROS_LOG_DIR is kept.
+    out = subprocess.run(["bash", str(wrapper), "printenv", "ROS_LOG_DIR"],
+                         env={**env, "ROS_LOG_DIR": "/elsewhere"},
+                         capture_output=True, text=True, check=True).stdout.strip()
+    assert out == "/elsewhere"
