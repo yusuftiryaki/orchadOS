@@ -21,6 +21,8 @@ ETC=/etc/orchados
 SSD_MOUNT=/mnt/orchados-ssd
 BOOT_CONFIG=/boot/firmware/config.txt
 CHRONY_CONF=/etc/chrony/chrony.conf
+# chronyd exits if a refclock PPS device is missing; it appears with the overlay.
+PPS_DEV=/dev/pps0
 UV_VERSION=0.13.8
 SYSTEM_PYTHON=/usr/bin/python3
 # The L2 driver; package name checked on the hardware (README, "L2 sürücüsü").
@@ -210,7 +212,7 @@ configure_boot() {
 }
 
 configure_chrony() {
-  log "chrony: PPS locked to the receiver's time"
+  log "chrony: the receiver's time (PPS when wired)"
   local changed=0
   install_file "$SETUP/chrony-orchados.conf" /etc/chrony/conf.d/orchados.conf && changed=1
   if [[ -f $CHRONY_CONF ]]; then
@@ -225,7 +227,9 @@ configure_chrony() {
     fi
   fi
   systemctl enable chrony.service >/dev/null
-  if ((changed)); then
+  if ((changed)) && [[ ! -e $PPS_DEV ]]; then
+    note "$PPS_DEV appears with the overlay: chrony starts with the new settings after the reboot"
+  elif ((changed)); then
     systemctl restart chrony.service
   else
     note "already in place"

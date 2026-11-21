@@ -286,3 +286,31 @@ def test_install_adds_the_updates_pocket_when_the_image_lacks_it(tmp_path):
     assert sources.read_text() == text
     # A missing file (sources elsewhere) is left alone.
     assert _run_ensure_updates_pocket(tmp_path / "none.sources") == 0
+
+
+def _run_configure_chrony(tmp_path: Path, pps_present: bool) -> str:
+    """configure_chrony with systemctl and install_file stubbed; returns the calls."""
+    script = (SETUP / "install.sh").read_text()
+    pps = tmp_path / "pps0"
+    if pps_present:
+        pps.touch()
+    calls = tmp_path / "calls"
+    body = (
+        "set -euo pipefail\n"
+        f"SETUP={SETUP}\nCHRONY_CONF={tmp_path / 'chrony.conf'}\nPPS_DEV={pps}\n"
+        "log() { :; }\nnote() { :; }\nwarn() { :; }\n"
+        "install_file() { return 0; }\n"
+        f'systemctl() {{ echo "systemctl $*" >> {calls}; }}\n'
+        f"{_shell_function(script, 'configure_chrony')}"
+        "configure_chrony\n"
+    )
+    subprocess.run(["bash", "-c", body], check=True)
+    return calls.read_text() if calls.exists() else ""
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="no bash")
+def test_chrony_is_not_restarted_before_the_pps_device_exists(tmp_path):
+    # chronyd exits on a refclock PPS whose device is missing, and /dev/pps0 only
+    # appears once the overlay is loaded after the reboot.
+    assert "restart chrony" not in _run_configure_chrony(tmp_path, pps_present=False)
+    assert "restart chrony" in _run_configure_chrony(tmp_path, pps_present=True)
