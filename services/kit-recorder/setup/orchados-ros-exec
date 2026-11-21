@@ -13,4 +13,11 @@ fi
 # The driver and the recorder talk over DDS on this machine only; keep discovery
 # off the Ethernet the L2 is on.
 export ROS_AUTOMATIC_DISCOVERY_RANGE="${ROS_AUTOMATIC_DISCOVERY_RANGE:-LOCALHOST}"
+# Units have no HOME, and rcl's default log directory is ~/.ros/log: without
+# this the L2 node aborts at start. Under /run: cleared at boot, the journal
+# already has the output.
+if [[ -z ${ROS_LOG_DIR:-} ]]; then
+  export ROS_LOG_DIR="${ORCHADOS_RUN_DIR:-/run/orchados}/ros-log"
+  mkdir -p "$ROS_LOG_DIR"
+fi
 exec "$@"

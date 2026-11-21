@@ -354,3 +354,27 @@ def test_lidar_driver_runs_the_node_alone_with_our_parameters():
     assert mode == 1
     toml = (ROOT / "config/recorder.toml").read_text()
     assert 'points_topic = "/unilidar/cloud"' in toml and 'imu_topic = "/unilidar/imu"' in toml
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="no bash")
+def test_ros_exec_gives_ros_a_log_directory_without_home(tmp_path):
+    # systemd units have no HOME; rcl's default log directory is ~/.ros/log, so
+    # the L2 node aborted at start ("Failed to get logging directory").
+    ros_setup = tmp_path / "setup.bash"
+    ros_setup.write_text("")
+    wrapper = tmp_path / "orchados-ros-exec"
+    text = (SETUP / "orchados-ros-exec").read_text()
+    assert "/opt/ros/jazzy/setup.bash" in text
+    wrapper.write_text(text.replace("/opt/ros/jazzy/setup.bash", str(ros_setup)))
+    log_root = tmp_path / "run"
+    env = {"PATH": "/usr/bin:/bin", "ORCHADOS_ROS_WS": str(tmp_path / "ws"),
+           "ORCHADOS_RUN_DIR": str(log_root)}
+    out = subprocess.run(["bash", str(wrapper), "printenv", "ROS_LOG_DIR"],
+                         env=env, capture_output=True, text=True, check=True).stdout.strip()
+    assert out == str(log_root / "ros-log")
+    assert (log_root / "ros-log").is_dir()
+    # An explicit ROS_LOG_DIR is kept.
+    out = subprocess.run(["bash", str(wrapper), "printenv", "ROS_LOG_DIR"],
+                         env={**env, "ROS_LOG_DIR": "/elsewhere"},
+                         capture_output=True, text=True, check=True).stdout.strip()
+    assert out == "/elsewhere"
